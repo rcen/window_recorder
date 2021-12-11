@@ -48,7 +48,8 @@ def main():
     global last_window
     global last_event
     global html_update_time
-
+    np.seterr(all='ignore')
+    
     analytic = Analytics()
 
     print("""
@@ -81,14 +82,14 @@ TRACK YOUR TIME - DON'T WASTE IT!
             if duration > 2:
 
 
-                save_data([time.time(), category, int(duration)])
+                save_data([time.time(), category, int(duration), last_window])
                 try:
                     if sys.version_info.major >2:
                         mins = int(np.floor(duration/60))
                         secs = int(np.floor(duration - mins*60))
                         print("{0: 3}:{1:02} min\t".format(mins, secs),
                               "{}\t".format(category),
-                              "({})".format(last_event[:30]))
+                              "({})".format(last_event[:120]))
                 except UnicodeDecodeError:
                     print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
 
@@ -151,6 +152,7 @@ def get_window_name():
         window_name = window_name.replace(',', '')
         window_name = window_name.lower().encode("latin_1", "ignore")
         window_name = window_name.lower().decode("latin_1", "ignore")
+
         return window_name
     except win32gui.error as E:
         print(E)

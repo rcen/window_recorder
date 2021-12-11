@@ -11,7 +11,8 @@ import configparser
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-
+import numbers
+from pathlib import Path
 
 def main():
     reanalyze_all()
@@ -80,11 +81,12 @@ idle: #837F7F"""
         if not os.path.isfile(path):
                 raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration'])
+        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
 
         colors = self.get_colors(logfile)
         plt.title('')
+        start_time = ''
         for idx, u_cat in enumerate(u_cats):
             temp = df.loc[df.category == u_cat]
             time = temp.time.values
@@ -96,27 +98,29 @@ idle: #837F7F"""
                 end = datetime.datetime.fromtimestamp(float(time[entry]))
                 #print(u_cat, start, end, '\t', duration[entry])
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
-        plt.yticks(range(len(u_cat)+1), u_cats)
-        plt.grid()
-        plt.title(start_time)
-        start_time = datetime.datetime.combine(start_time, datetime.time(7,00))
-        time_delta = datetime.time(20)
-        end_time = datetime.datetime.combine(start_time, time_delta)
+        
+        if(start_time != ''):
+            plt.yticks(range(len(u_cat)+1), u_cats)
+            plt.grid()
+            plt.title(start_time)
+            start_time = datetime.datetime.combine(start_time, datetime.time(7,00))
+            time_delta = datetime.time(20)
+            end_time = datetime.datetime.combine(start_time, time_delta)
 
-        plt.xlim([start_time, end_time])
-        plt.gcf().autofmt_xdate()
-        myFmt = mdates.DateFormatter('%H:%M')
-        plt.gca().xaxis.set_major_formatter(myFmt)
-        plt.tight_layout()
+            plt.xlim([start_time, end_time])
+            plt.gcf().autofmt_xdate()
+            myFmt = mdates.DateFormatter('%H:%M')
+            plt.gca().xaxis.set_major_formatter(myFmt)
+            plt.tight_layout()
 
-        filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
-        #fig_path = str(today.year) + '-' + str(today.month) + '-' + str(today.day) + '.png'
+            filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
+            #fig_path = str(today.year) + '-' + str(today.month) + '-' + str(today.day) + '.png'
 
-        path = 'figs/timeline/' + filename
-        plt.savefig(path)
+            path = 'figs/timeline/' + filename
+            plt.savefig(path)
 
-        plt.close()
-        print('Timeline saved as {}'.format(path))
+            plt.close()
+            print('Timeline saved as {}'.format(path))
 
 
 
@@ -136,7 +140,7 @@ idle: #837F7F"""
                 raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
         date = datetime.datetime.strptime(filename[:-4], '%Y-%m-%d')
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration'])
+        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
         u_dur = [] # duratio of unice category
         for u_cat in u_cats:
@@ -158,19 +162,20 @@ idle: #837F7F"""
         total_hr = int(np.floor(total_dur / 3600))
         total_min = int(np.floor((total_dur-total_hr*3600) / 60))
         total_sec = int(total_dur%60)
-
-        plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-        plt.title('{0:02}.{1:02}.{2:04} - {3:02}:{4:02}:{5:02} h'\
-                  .format(today.day, today.month, today.year,
-                          total_hr, total_min, total_sec))
-        plt.pie(u_dur, labels=u_cats, autopct='%1.1f%%', colors = self.get_colors(logfile))
-        plt.axis('equal')
-        plt.tight_layout()
-        path = 'figs/pie/'+filename
-        plt.savefig(path)
-        #plt.show()
-        plt.close()
-        print('Pie chart saved as {}'.format(path))
+        if (total_dur > 0):
+            plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+            plt.title('{0:02}.{1:02}.{2:04} - {3:02}:{4:02}:{5:02} h'\
+                    .format(today.month, today.day, today.year,
+                            total_hr, total_min, total_sec))
+            plt.pie(u_dur, labels=u_cats, autopct='%1.1f%%', colors = self.get_colors(logfile))
+            plt.axis('equal')
+            plt.tight_layout()
+            path = 'figs/pie/'+filename
+            plt.savefig(path)
+            #plt.show()
+            plt.close()
+            
+            print('Pie chart saved as {}'.format(path))
 
 
     def get_colors(self, logfile):
@@ -189,10 +194,13 @@ idle: #837F7F"""
         print('')
         print('')
         total_dur = np.sum(df.duration)
+        if (isinstance(total_dur, numbers.Number) == False):
+            return
+
         total_hr = np.floor(total_dur / 3600)
         total_min = np.floor((total_dur-total_hr*3600) / 60)
         total_sec = total_dur%60
-        print('Review of {0:02}.{1:02}.{2:04}'.format(date.day, date.month, date.year))
+        print('Review of {0:02}.{1:02}.{2:04}.{3}'.format(date.day, date.month, date.year, date.weekday()))
         print('-------------------------------------')
         print('{0: 6}:{1:02}:{2:02} h total'.format(int(total_hr), int(total_min), int(total_sec)))
         print('-------------------------------------')
@@ -218,7 +226,7 @@ idle: #837F7F"""
         log_list = os.listdir(self.path_data)
         date_list = []
         for log in log_list:
-            date_list.append(datetime.datetime.strptime(log[:-4], '%Y-%m-%d'))
+            date_list.insert(0,datetime.datetime.strptime(log[:-4], '%Y-%m-%d'))
         return log_list, date_list
 
 
@@ -244,6 +252,7 @@ idle: #837F7F"""
 
 
     def create_html(self, logfile=''):
+        week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         _, u_dur, date, df = self.analyze(logfile)
         log_list, date_list = self.get_log_list()
         u_cats = self.get_unique_categories()
@@ -264,11 +273,11 @@ idle: #837F7F"""
 
             self.print_pi_chart()
             self.print_timeline()
-            for log in log_list:
+            for log in reversed(log_list):
                 row += '<tr>\n\t<td>'
                 u_cat, u_dur, date, df = self.analyze(log)
                 date = datetime.datetime.strptime(log[:-4], '%Y-%m-%d')
-                row += '<b>{0:02}.{1:02}.{2:04}</b>'.format(date.day, date.month, date.year)
+                row += '<b>{0:02}.{1:02}.{2:04},{3}</b>'.format(date.month, date.day, date.year,week_days[date.weekday()])
                 row += '</td>'
                 for dur in u_dur:
                     dur_hr = int(np.floor(dur/3600))
@@ -284,7 +293,7 @@ idle: #837F7F"""
             # images
             file.write('<div class="gallery">\n')
             img_list = os.listdir('figs/pie')
-            for img in img_list:
+            for img in reversed(img_list):
                 img_row = '<img src="../figs/pie/{}" width=500></br>\n'.format(img)
                 file.write(img_row)
             file.write('</div>\n')

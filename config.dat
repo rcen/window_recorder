@@ -1,4 +1,15 @@
 [CATEGORIES]
+chicore: programming
+DCS_: programming
+DCH-: programming
+AVP-: programming
+stack overflow: programming
+track your time: programming
+window_recorder: programming
+network graph: programming
+virgin pulse: programming
+pingid: programming
+docx: documents
 spyder: programming
 stackoverflow: programming
 stackexchange: programming
@@ -6,16 +17,41 @@ github: programming
 eingabeaufforderung: programming
 python: programming
 python35: programming
+high focus: programming
+binaural beats: programming
 texstudio: documents
 xls : documents
 word: documents
-adobe acrobat reader: documents
+adobe acrobat reader: documents
 thunderbird: mail
 whatsapp: wasted time
+mingw64: programming
+vs2017: programming
+Notepad++: programming
+projects: programming
+sperrbildschirm: idle
+microsoft visual studio: programming
+command prompt: programming
+windows\system32: programming
+cisco anyconnect: programming
+microsoft teams: mail
+inbox: mail
+- outlook: mail
+message (html): mail
+run_win_record: programming
+visual studio: programming
+tortoisegit: programming
+.py: programming
+- shortcut: programming
+this pc: programming
+Chimera: programming
+task manager: programming
+virginpulse: mail
 mozilla: wasted time
 chrome: wasted time
-mingw64: programming
-sperrbildschirm: idle
+youtube: wasted time
+facebook: wasted time
+
 
 [COLORS]
 programming: #4954EA
