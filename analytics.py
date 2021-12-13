@@ -100,7 +100,7 @@ idle: #837F7F"""
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
         
         if(start_time != ''):
-            plt.yticks(range(len(u_cat)+1), u_cats)
+            plt.yticks(range(len(u_cat)+1), u_cats.append('test'))
             plt.grid()
             plt.title(start_time)
             start_time = datetime.datetime.combine(start_time, datetime.time(7,00))

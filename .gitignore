@@ -1,6 +1,7 @@
 # folder
 data/
 figs/
+html/
 
 # config file
 
@@ -110,3 +111,4 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+/html/index.html

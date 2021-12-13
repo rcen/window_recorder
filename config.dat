@@ -1,4 +1,6 @@
 [CATEGORIES]
+nicolajbky: learning
+Track your time: learning
 chicore: programming
 DCS_: programming
 DCH-: programming
@@ -24,7 +26,6 @@ xls : documents
 word: documents
 adobe acrobat reader: documents
 thunderbird: mail
-whatsapp: wasted time
 mingw64: programming
 vs2017: programming
 Notepad++: programming
@@ -52,6 +53,7 @@ mozilla: wasted time
 chrome: wasted time
 youtube: wasted time
 facebook: wasted time
+whatsapp: wasted time
 
 [COLORS]
 programming: #4954EA
@@ -59,4 +61,4 @@ documents: #F68D15
 mail: #72ACF1
 wasted time: #F64438
 idle: #837F7F
-learning: #837F7F
+learning: #830F0F
