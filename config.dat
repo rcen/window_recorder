@@ -4,10 +4,10 @@ DCS_: programming
 DCH-: programming
 AVP-: programming
 stack overflow: programming
-track your time: programming
 window_recorder: programming
 network graph: programming
 virgin pulse: programming
+program manager: programming
 pingid: programming
 docx: documents
 spyder: programming
@@ -46,12 +46,12 @@ tortoisegit: programming
 this pc: programming
 Chimera: programming
 task manager: programming
+voice -: mail
 virginpulse: mail
 mozilla: wasted time
 chrome: wasted time
 youtube: wasted time
 facebook: wasted time
-
 
 [COLORS]
 programming: #4954EA
@@ -59,3 +59,4 @@ documents: #F68D15
 mail: #72ACF1
 wasted time: #F64438
 idle: #837F7F
+learning: #837F7F

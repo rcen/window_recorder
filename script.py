@@ -30,7 +30,7 @@ last_mouse_coords = [0, 0]
 start_of_event = time.time()
 last_window = 'start tracking'
 last_event = ''
-idle_time = 5*60
+idle_time = 3*60 # 3 minutes.
 html_update_time = time.time() + 60
 
 config = configparser.ConfigParser()
@@ -79,9 +79,12 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 category = analytic.get_cat(last_window)
 
             duration = time.time() - start_of_event
-            if duration > 2:
-
-
+            bRecord = False
+            if duration < 18 and category == 'idle':
+                bRecord = True
+            if duration > 2 and category != 'idle':
+                bRecord = True
+            if bRecord == True:
                 save_data([time.time(), category, int(duration), last_window])
                 try:
                     if sys.version_info.major >2:
