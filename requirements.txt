@@ -1,3 +1,5 @@
+matplotlib==3.2
+pywin32
 pyautogui
 numpy
 pandas
