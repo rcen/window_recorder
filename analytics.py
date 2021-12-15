@@ -248,6 +248,7 @@ idle: #837F7F"""
 
 
     def get_cat(self, window):
+        ret = 'not categorized'
         for string, category in self.string_cats:
             try:
                 if string in window:
@@ -255,7 +256,8 @@ idle: #837F7F"""
                     break
             except TypeError:
                 pass
-        return 'not categorized'
+            ret = category
+        return ret
 
     def create_html(self, logfile=''):
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]

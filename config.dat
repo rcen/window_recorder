@@ -1,6 +1,12 @@
 [CATEGORIES]
+scrum: learning
+agile: learning
 nicolajbky: learning
+open directory: programming
+microsoft onedrive: programming
+cmake: programming
 Track your time: learning
+jfrog: programming
 administrator: programming
 file explorer: programming
 172.16: programming
@@ -24,6 +30,7 @@ network graph: programming
 virgin pulse: programming
 program manager: programming
 pingid: programming
+onenote: programming
 docx: documents
 spyder: programming
 stackoverflow: programming
@@ -45,6 +52,7 @@ vs2017: programming
 Notepad++: programming
 projects: programming
 sperrbildschirm: idle
+stayfocusd: idle
 microsoft visual studio: programming
 command prompt: programming
 windows\system32: programming
@@ -64,17 +72,19 @@ task manager: programming
 npm: programming
 voice -: mail
 virginpulse: mail
+google news: wasted time
 mozilla: wasted time
 chrome: wasted time
 youtube: wasted time
 facebook: wasted time
 whatsapp: wasted time
 espn: wasted time
+news: wasted time
 
 [COLORS]
 programming: #4954EA
 documents: #F68D15
 mail: #72ACF1
-wasted time: #F64438
 idle: #837F7F
 learning: #830F0F
+wasted time: #F64438
