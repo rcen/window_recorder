@@ -17,6 +17,13 @@ from pathlib import Path
 def main():
     reanalyze_all()
 
+def sec2str(dur):
+    dur_hr = int(np.floor(dur/3600))
+    dur_min = int(np.floor((dur-dur_hr*3600)/60))
+    dur_sec = int(dur%60)
+    return [dur_hr,dur_min,dur_sec]
+
+
 
 def reanalyze_all():
     logfiles = os.listdir('data')
@@ -250,7 +257,6 @@ idle: #837F7F"""
                 pass
         return 'not categorized'
 
-
     def create_html(self, logfile=''):
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         _, u_dur, date, df = self.analyze(logfile)
@@ -269,7 +275,7 @@ idle: #837F7F"""
             row += '<tr>\n<td></td>'
             for cat in u_cats:
                 row += '<td><b>{}</b></td>\n'.format(cat)
-            row += '</tr>'
+            row += '<td><b>Total Time</b></td></tr>'
 
             self.print_pi_chart()
             self.print_timeline()
@@ -279,13 +285,17 @@ idle: #837F7F"""
                 date = datetime.datetime.strptime(log[:-4], '%Y-%m-%d')
                 row += '<b>{0:02}.{1:02}.{2:04},{3}</b>'.format(date.month, date.day, date.year,week_days[date.weekday()])
                 row += '</td>'
+                total_time =0
                 for dur in u_dur:
+                    total_time = total_time + dur                    
                     dur_hr = int(np.floor(dur/3600))
                     dur_min = int(np.floor((dur-dur_hr*3600)/60))
                     dur_sec = int(dur%60)
                     row += '<td>'
                     row += '{0: 6}:{1:02}:{2:02}'.format(dur_hr, dur_min, dur_sec)
                     row += '</td>\n'
+                tot_time = sec2str(total_time)
+                row += '<td>{0: 6}:{1:02}:{2:02}</td>'.format(tot_time[0],tot_time[1],tot_time[2])
                 row += '</tr>\n'
             file.write(row)
             file.write('</table>\n')

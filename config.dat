@@ -1,10 +1,23 @@
 [CATEGORIES]
 nicolajbky: learning
 Track your time: learning
+administrator: programming
+file explorer: programming
+172.16: programming
 chicore: programming
+vm_share: programming
 DCS_: programming
 DCH-: programming
 AVP-: programming
+vcpkg: programming
+powershell: programming
+win-unpacked-: programming
+winscp: programming
+microsoft docs: programming
+c++ : programming
+rand(): programming
+virtualbox: programming
+zebra: programming
 stack overflow: programming
 window_recorder: programming
 network graph: programming
@@ -22,6 +35,7 @@ python35: programming
 high focus: programming
 binaural beats: programming
 texstudio: documents
+documentation: documents
 xls : documents
 word: documents
 adobe acrobat reader: documents
@@ -47,6 +61,7 @@ tortoisegit: programming
 this pc: programming
 Chimera: programming
 task manager: programming
+npm: programming
 voice -: mail
 virginpulse: mail
 mozilla: wasted time
@@ -54,6 +69,7 @@ chrome: wasted time
 youtube: wasted time
 facebook: wasted time
 whatsapp: wasted time
+espn: wasted time
 
 [COLORS]
 programming: #4954EA
