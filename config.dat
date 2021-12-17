@@ -1,4 +1,10 @@
 [CATEGORIES]
+pattern match: programming
+multiple repeat: programming
+regex*search: programming
+APM*_*_*: programming
+spm*_*_*: programming
+manage extensions: programming
 open folder: programming
 figure ?: programming
 cmd: programming
@@ -9,7 +15,7 @@ immersive labs: learning
 scrum: learning
 agile: learning
 nicolajbky: learning
-template_*bmp: programming
+template_*: programming
 open directory: programming
 microsoft onedrive: programming
 cmake: programming
