@@ -1,7 +1,10 @@
 [CATEGORIES]
+start tracking: programming
+c\+\+ : programming
 scrum: learning
 agile: learning
 nicolajbky: learning
+template_*bmp: programming
 open directory: programming
 microsoft onedrive: programming
 cmake: programming
@@ -20,7 +23,6 @@ powershell: programming
 win-unpacked-: programming
 winscp: programming
 microsoft docs: programming
-c++ : programming
 rand(): programming
 virtualbox: programming
 zebra: programming
@@ -49,7 +51,7 @@ adobe acrobat reader: documents
 thunderbird: mail
 mingw64: programming
 vs2017: programming
-Notepad++: programming
+Notepad\+\+: programming
 projects: programming
 sperrbildschirm: idle
 stayfocusd: idle
@@ -88,3 +90,7 @@ mail: #72ACF1
 idle: #837F7F
 learning: #830F0F
 wasted time: #F64438
+
+[PROJECTS]
+edgetool:
+decode:

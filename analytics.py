@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numbers
 from pathlib import Path
+import re
 
 def main():
     reanalyze_all()
@@ -66,13 +67,18 @@ programming: #4954EA
 documents: #F68D15
 mail: #72ACF1
 wasted time: #F64438
-idle: #837F7F"""
+idle: #837F7F
+
+[PROJECTS]
+test: 
+"""
                 file.write(config_template)
         if not os.path.isdir('figs'):
             os.mkdir('figs')
         config.read('config.dat')
         self.string_cats = config.items('CATEGORIES')
         self.color_list = config.items('COLORS')
+        self.proj_list = config.items('PROJECTS')
 
 
     def print_timeline(self, logfile=''):
@@ -251,7 +257,8 @@ idle: #837F7F"""
         ret = 'not categorized'
         for string, category in self.string_cats:
             try:
-                if string in window:
+                match = re.search(string, window)
+                if bool(match):
                     return category
                     break
             except TypeError:
