@@ -1,6 +1,11 @@
 [CATEGORIES]
+open folder: programming
+figure ?: programming
+cmd: programming
 start tracking: programming
 c\+\+ : programming
+zconnect home: programming
+immersive labs: learning
 scrum: learning
 agile: learning
 nicolajbky: learning
@@ -46,7 +51,7 @@ binaural beats: programming
 texstudio: documents
 documentation: documents
 xls : documents
-word: documents
+- word: documents
 adobe acrobat reader: documents
 thunderbird: mail
 mingw64: programming

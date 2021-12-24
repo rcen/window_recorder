@@ -14,7 +14,7 @@ import matplotlib.dates as mdates
 import numbers
 from pathlib import Path
 import re
-
+import shutil
 def main():
     reanalyze_all()
 
@@ -30,8 +30,9 @@ def reanalyze_all():
     logfiles = os.listdir('data')
     for logfile in logfiles:
         print('logfile', logfile)
-        #logfile = '' #'2018-9-5.csv'
+        #logfile = '' #'2018-9-5.csv'        
         analytic = Analytics()
+        analytic.redo_cat(logfile)
         analytic.print_review(logfile)
         analytic.print_timeline(logfile)
         analytic.print_pi_chart(logfile)
@@ -200,7 +201,30 @@ test:
                     colors.append(col)
         return colors
 
+    def redo_cat(self, logfile=''):
+        path = self.path_data + '/' + logfile
+        if not os.path.isfile(path):
+                raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
+        outlog = ""
+        mylog = ""
+        try:
+            mylog = open(path, "r")
+            outlog = open(self.path_data + '/' +"mod.log", "w")
+            for line in mylog:
+                words = line.split(',')
+                if (len(words) >3):
+                    words[1] = self.get_cat(words[3])
 
+                line = ",".join(words)
+                outlog.write(line)
+
+            mylog.close()  
+            outlog.close()
+        except (RuntimeError, TypeError, NameError):
+            return
+        if os.path.isfile(outlog.name) and os.path.isfile(mylog.name):
+            shutil.copyfile(outlog.name,mylog.name) 
+            shutil.remove(outlog.name)       
 
     def print_review(self, logfile=''):
         u_cats, u_dur, date, df = self.analyze(logfile)
@@ -260,7 +284,6 @@ test:
                 match = re.search(string, window)
                 if bool(match):
                     return category
-                    break
             except TypeError:
                 pass
             ret = category
