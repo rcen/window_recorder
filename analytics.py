@@ -223,8 +223,7 @@ test:
         except (RuntimeError, TypeError, NameError):
             return
         if os.path.isfile(outlog.name) and os.path.isfile(mylog.name):
-            shutil.copyfile(outlog.name,mylog.name) 
-            shutil.remove(outlog.name)       
+            shutil.move(outlog.name,mylog.name) 
 
     def print_review(self, logfile=''):
         u_cats, u_dur, date, df = self.analyze(logfile)
