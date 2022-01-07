@@ -1,4 +1,5 @@
+echo on
 :loop
-call C:\Projects\git\window_recorder\pVenv\Scripts\activate.bat
-cd C:\Projects\git\window_recorder && python script.py
+call "%~dp0pVenv\Scripts\activate.bat"
+cd "%~dp0" && python script.py
 goto loop

@@ -83,6 +83,7 @@ test:
 
 
     def print_timeline(self, logfile=''):
+        return
         if logfile == '':
             today = datetime.datetime.now()
             filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
@@ -114,7 +115,7 @@ test:
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
         
         if(start_time != ''):
-            plt.yticks(range(len(u_cat)+1), u_cats.append('test'))
+            plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
             plt.grid()
             plt.title(start_time)
             start_time = datetime.datetime.combine(start_time, datetime.time(7,00))

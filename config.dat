@@ -1,4 +1,8 @@
 [CATEGORIES]
+qaz: not categorized
+jira: think
+confluence: think
+linkedin -: learning
 pattern match: programming
 multiple repeat: programming
 regex*search: programming
@@ -43,11 +47,11 @@ network graph: programming
 virgin pulse: programming
 program manager: programming
 pingid: programming
-onenote: programming
+onenote: think
 docx: documents
 spyder: programming
-stackoverflow: programming
-stackexchange: programming
+stackoverflow: learning
+stackexchange: learning
 github: programming
 eingabeaufforderung: programming
 python: programming
@@ -88,7 +92,7 @@ virginpulse: mail
 google news: wasted time
 mozilla: wasted time
 chrome: wasted time
-youtube: wasted time
+youtube: surfing
 facebook: wasted time
 whatsapp: wasted time
 espn: wasted time
