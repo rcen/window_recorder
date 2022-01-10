@@ -336,7 +336,7 @@ test:
             file.write('<div class="gallery">\n')
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
-                img_row = '<img src="../figs/pie/{}" width=500></br>\n'.format(img)
+                img_row = '<img src="../figs/pie/{}"> </br>\n'.format(img)
                 file.write(img_row)
             file.write('</div>\n')
             file.writelines(tail)
