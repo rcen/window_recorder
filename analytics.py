@@ -279,6 +279,8 @@ test:
 
     def get_cat(self, window):
         ret = 'not categorized'
+        if len(window) <=1:
+            return 'idle' #this is a "pre-defined" cat in script.py  
         for string, category in self.string_cats:
             try:
                 match = re.search(string, window)

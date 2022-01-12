@@ -1,5 +1,7 @@
 echo on
-:loop
 call "%~dp0pVenv\Scripts\activate.bat"
-cd "%~dp0" && python script.py
+cd "%~dp0" 
+python analytics.py
+:loop
+python script.py
 goto loop

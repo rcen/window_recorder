@@ -1,11 +1,20 @@
 [CATEGORIES]
 how to : learning
 immersive labs: learning
+email: mail
+calendar: mail
 zoom meeting: mail
 qaz: not categorized
 jira: think
 confluence: think
 linkedin -: learning
+avl: programming
+chidecode: programming
+camera calibration: programming
+opencv: programming
+halcon: programming
+espn: wasted time
+google search: learning
 pattern match: programming
 multiple repeat: programming
 regex*search: programming
@@ -65,6 +74,7 @@ documentation: documents
 xls : documents
 - word: documents
 adobe acrobat reader: documents
+gmail: mail
 thunderbird: mail
 mingw64: programming
 vs2017: programming
@@ -97,7 +107,6 @@ chrome: wasted time
 youtube: surfing
 facebook: wasted time
 whatsapp: wasted time
-espn: wasted time
 news: wasted time
 
 [COLORS]
