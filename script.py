@@ -90,7 +90,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                     if sys.version_info.major >2:
                         mins = int(np.floor(duration/60))
                         secs = int(np.floor(duration - mins*60))
-                        print("{0: 3}:{1:02} min\t".format(mins, secs),
+                        local_t = time.localtime(start_of_event) 
+                        print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour,local_t.tm_min, mins, secs),
                               "{}\t".format(category),
                               "({})".format(last_event[:120]))
                 except UnicodeDecodeError:
@@ -99,10 +100,10 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_window = current_window
             start_of_event = time.time()
             last_event = current_event
-
+            
         if time.time() > html_update_time:
             analytic.create_html()
-            html_update_time = time.time()+ 60
+            html_update_time = time.time()+ 120
 
 def is_idle_category(window):
     """

@@ -1,123 +1,329 @@
 [CATEGORIES]
+zcode: coding
+swarthmore: family
+ccicnv: family
+sunday service: family
+chinese church: family
+evite: family
+76ers: wasted
+pandemic: wasted
+redick: wasted
+climate: wasted
+conservatives: wasted
+confluence: coding
+imaging internal: coding
+chiproc: coding
+green hills: coding
+tera term: coding
+multi launcher: coding
+program files (x86): coding
+sourcetrail: coding
+microsoft learn: coding
+ibm rational: coding
+clearcase: coding
+inappropriate: wasted
+regrets: wasted
+dicaprio: wasted
+netflix: wasted
+springsteen: wasted
+hedgehog: wasted
+sneakers: wasted
+microsoft rewards: wasted
+call option: wasted
+lithium: wasted
+tucker carlson: wasted
+elon musk: wasted
+affairs: wasted
+talc: wasted
+clarkson: wasted
+jalen hurts: wasted
+twitter: wasted
+toyota: wasted
+budweiser: wasted
+yuengling: wasted
+reggie: wasted
+sports world: wasted
+beer: wasted
+tesla: wasted
+brooke shields: wasted
+agassi: wasted
+microsoft start: wasted
+girlfriend: wasted
+celebrity: wasted
+rivers says: wasted
+shohei ohtani: wasted
+postgame: wasted
+clippers: wasted
+jackpot: wasted
+lakers: wasted
+new tab and: wasted
+basketball: wasted
+caitlin: wasted
+amazon.com: wasted
+draymond: wasted
+npp: coding
+planisware: coding
+Ameritrade: gaming
+DCS_: coding
+DCH-: coding
+AVP-: coding
+vcpkg: coding
+powershell: coding
+win-unpacked-: coding
+winscp: coding
+microsoft docs: coding
+rand(): coding
+virtualbox: coding
+stack overflow: coding
+milconfig: coding
+interop: coding
+certmgr: coding
+cr3881: coding
+power nap: coding
+nsdr: coding
+std: coding
+__optimize__: coding
+dll: coding
+msdn: coding
+attach to process: coding
+protobuf: coding
+cl.exe: coding
+pdb: coding
+zbook: coding
+hp support: coding
+etc: coding
+dnf: coding
+repositories: coding
+crao@: coding
+output directory: coding
+start emulation: coding
+perf: coding
+bing ai: coding
+ubuntu: coding
+imgkit: coding
+power bi: coding
+anyconnect: coding
+dacustomstep2: coding
+matrox: coding
+pixalg.net: coding
+platform connection: coding
+logseq: coding
+trump: wasted
+schooldoc: family
+s&p 500: gaming
+ohio state: wasted
+nba: wasted
+nfl: wasted
+goodell: wasted
+intuit: family
+sol feinstone: family
+consumer cellular: family
+cathay pacific: family
+program docs: coding
+edit and continue: coding
+td bank: family
+portfolio summary: gaming
+mychop: family
+lawrenceville school: family
+docnetwork: family
+youtube: wasted
+debug: coding
+CS2022: coding
+vs2022: coding
+vs 2022: coding
+transformer: learning
+.pdf: learning
+yejin choi: learning
+lecture: learning
+secure tooling: learning
+secure code training: learning
+upskill: learning
+sonarqube: coding
+servicenow: coding
+service portal: coding
+system properties: coding
+chat.openai: coding
+zebra tools portal: coding
+express scripts: family
+launch - google chrome: learning
+visio: coding
+cen.rao@zebra.com: mail 
+peddie: family
+labcorp: family
+machine learning: learning
+deep learning: learning
+Kindle: learning
+mathworks: learning
+9to5mac: wasted
+DEV20: coding
+BIN20: coding
+users: coding
+aurora: coding
+bmp: coding
+snipping tool: coding
+putty: coding
+pageant: coding
+dashboard: coding
+git: coding
+ssh: coding
+gdbserver: coding
+repository: coding
+tutorial: learning
+wordle: gaming
+msn money: gaming
+meeting: mail
+property pages: coding
+linux: coding
+matlab: coding
+octave: coding
+editor: coding
+gaussian: coding
+filter: coding
+winmerge: coding
+watchtime: think
+tensorflow: learning
+pytorch: learning
+environment variable: coding
+settings: coding
+firebase: learning
+dictionary: learning
+my backpack: mail
+microsoft outlook: mail
+student health tracker: mail
+google developers: learning
+google cloud: learning
 how to : learning
 immersive labs: learning
 email: mail
 calendar: mail
-zoom meeting: mail
-qaz: not categorized
+zoom: mail
+qaz: no_cat
+meditation: think
 jira: think
-confluence: think
 linkedin -: learning
-avl: programming
-chidecode: programming
-camera calibration: programming
-opencv: programming
-halcon: programming
-espn: wasted time
+avl: coding
+chidecode: coding
+camera calibration: coding
+opencv: coding
+halcon: coding
+espn: wasted
 google search: learning
-pattern match: programming
-multiple repeat: programming
-regex*search: programming
-APM*_*_*: programming
-spm*_*_*: programming
-manage extensions: programming
-open folder: programming
-figure ?: programming
-cmd: programming
-start tracking: programming
-c\+\+ : programming
-zconnect home: programming
+pattern match: coding
+multiple repeat: coding
+regex*search: coding
+APM*_*_*: coding
+spm*_*_*: coding
+manage extensions: coding
+open folder: coding
+figure ?: coding
+cmd: coding
+start tracking: coding
+c\+\+ : coding
+zconnect home: coding
 scrum: learning
 agile: learning
 nicolajbky: learning
-template_*: programming
-open directory: programming
-microsoft onedrive: programming
-cmake: programming
+template_*: coding
+open directory: coding
+onedrive: coding
+zebratechnologies: coding
+session buddy: coding
+cmake: coding
 Track your time: learning
-jfrog: programming
-administrator: programming
-file explorer: programming
-172.16: programming
-chicore: programming
-vm_share: programming
-DCS_: programming
-DCH-: programming
-AVP-: programming
-vcpkg: programming
-powershell: programming
-win-unpacked-: programming
-winscp: programming
-microsoft docs: programming
-rand(): programming
-virtualbox: programming
-zebra: programming
-stack overflow: programming
-window_recorder: programming
-network graph: programming
-virgin pulse: programming
-program manager: programming
-pingid: programming
+jfrog: coding
+administrator: coding
+file explorer: coding
+172.16: coding
+chicore: coding
+vm_share: coding
+window_recorder: coding
+network graph: coding
+virgin pulse: coding
+program manager: coding
+pingid: coding
 onenote: think
-docx: documents
-spyder: programming
+NY21: docs
+docx: docs
+spyder: coding
 stackoverflow: learning
 stackexchange: learning
-github: programming
-eingabeaufforderung: programming
-python: programming
-python35: programming
-high focus: programming
-binaural beats: programming
-texstudio: documents
-documentation: documents
-xls : documents
-- word: documents
-adobe acrobat reader: documents
+github: coding
+eingabeaufforderung: coding
+python: coding
+python35: coding
+high focus: coding
+binaural beats: coding
+texstudio: docs
+documentation: docs
+xls : docs
+- word: docs
+adobe acrobat reader: docs
 gmail: mail
 thunderbird: mail
-mingw64: programming
-vs2017: programming
-Notepad\+\+: programming
-projects: programming
+mingw64: coding
+vs2017: coding
+Notepad\+\+: coding
+projects: coding
 sperrbildschirm: idle
 stayfocusd: idle
-microsoft visual studio: programming
-command prompt: programming
-windows\system32: programming
-cisco anyconnect: programming
+microsoft visual studio: coding
+command prompt: coding
+windows\system32: coding
 microsoft teams: mail
 inbox: mail
 - outlook: mail
+- message: mail 
 message (html): mail
-run_win_record: programming
-visual studio: programming
-tortoisegit: programming
-.py: programming
-- shortcut: programming
-this pc: programming
-Chimera: programming
-task manager: programming
-npm: programming
+run_win_record: coding
+visual studio: coding
+tortoisegit: coding
+.py: coding
+- shortcut: coding
+this pc: coding
+Chimera: coding
+task manager: coding
+npm: coding
 voice -: mail
 virginpulse: mail
-google news: wasted time
-mozilla: wasted time
-chrome: wasted time
-youtube: surfing
-facebook: wasted time
-whatsapp: wasted time
-news: wasted time
+powerpoint: docs
+fidelity: gaming
+airbnb: gaming
+google news: wasted
+mozilla: wasted
+chrome: wasted
+facebook: wasted
+whatsapp: wasted
+news: wasted
+zebra: coding
+imageglass: coding
+- paint: coding
+paint.net: coding
+GIMP: coding
+netnanny: family
+coronavirus: family
+flu: family
+vaccine: family
+new chat: coding
+mint.com: family
+feds: gaming
+widow: wasted
+philadelphia eagles: wasted
+desi: wasted
+lydic: wasted
+tldr: coding
+modular: learning
 
 [COLORS]
-programming: #4954EA
-documents: #F68D15
-mail: #72ACF1
+coding: #4954EA
+learning: #F954EA
+gaming: #F68D15
 idle: #837F7F
-learning: #830F0F
-wasted time: #F64438
-not categorized: #387FF7
+docs:#32448B 
+wasted: #F64438
+no_cat: #387FF7
+mail: #72ACF1
 think: #83F7F0
+family: #83F7F0
 
 [PROJECTS]
 edgetool:

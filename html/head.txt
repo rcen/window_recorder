@@ -34,7 +34,7 @@
         margin: 5px;
         border: 1px solid #ccc;
         float: left;
-        width: 250px;
+        width: 550px;
     }
 
     div.gallery img {
@@ -45,7 +45,9 @@
 
 </head>
 
-<body>
-<h1>Track your time - don't waste it!</h1>
 
+<body>
+<h1>Track your time - don't waste it! pm CLOCK</h1>
+
+<meta http-equiv="refresh" content="100">
 

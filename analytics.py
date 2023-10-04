@@ -15,6 +15,8 @@ import numbers
 from pathlib import Path
 import re
 import shutil
+import time
+import datetime
 def main():
     reanalyze_all()
 
@@ -24,7 +26,11 @@ def sec2str(dur):
     dur_sec = int(dur%60)
     return [dur_hr,dur_min,dur_sec]
 
-
+def Sec2hms(seconds):
+    hr = int(np.floor(seconds / 3600))
+    min = int(np.floor((seconds-hr*3600) / 60))
+    sec = int(seconds%60)
+    return hr, min, sec
 
 def reanalyze_all():
     logfiles = os.listdir('data')
@@ -94,7 +100,7 @@ test:
             today = datetime.datetime.strptime(logfile[:-4], '%Y-%m-%d')
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-                raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
+                raise FileNotFoundError (path+' Logfile not found (print_timeline). Start script.py first do generate data')
 
         df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
@@ -138,11 +144,11 @@ test:
             print('Timeline saved as {}'.format(path))
 
 
-
-
-
-
     def analyze(self, logfile=''):
+        u_cats=[]
+        u_dur=[]
+        date=[]
+        df=[]
         if logfile == '':
             today = datetime.datetime.now()
             filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
@@ -152,10 +158,11 @@ test:
             filename = logfile
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-                raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
-        date = datetime.datetime.strptime(filename[:-4], '%Y-%m-%d')
+            return u_cats, u_dur, date, df
+            raise FileNotFoundError (path+' Logfile not found (analyze). Start script.py first do generate data')
+        date = datetime.datetime.strptime(filename[0:10], '%Y-%m-%d')
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
+        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'], usecols=[0,1,2,3])
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
         u_dur = [] # duratio of unice category
         for u_cat in u_cats:
@@ -165,11 +172,12 @@ test:
         return u_cats, u_dur, date, df
 
 
+        
     def print_pi_chart(self, logfile=''):
         if logfile == '':
             today = datetime.datetime.today()
         else:
-            today = datetime.datetime.strptime(logfile[:-4], '%Y-%m-%d')
+            today = datetime.datetime.strptime(logfile[0:10], '%Y-%m-%d')
 
         filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
         u_cats, u_dur, date, df = self.analyze(logfile)
@@ -182,7 +190,12 @@ test:
             plt.title('{0:02}.{1:02}.{2:04} - {3:02}:{4:02}:{5:02} h'\
                     .format(today.month, today.day, today.year,
                             total_hr, total_min, total_sec))
-            plt.pie(u_dur, labels=u_cats, autopct='%1.1f%%', colors = self.get_colors(logfile))
+            
+            for t in range(len(u_cats)):
+                hr,mn,sec = Sec2hms(u_dur[t])
+                u_cats[t] = u_cats[t] + "-" + '{0:02}:{1:02}:{2:02}'.format(hr,mn,sec)
+                
+            plt.pie(u_dur, labels=u_cats,  autopct='%1.1f%%', colors = self.get_colors(logfile))
             plt.axis('equal')
             plt.tight_layout()
             path = 'figs/pie/'+filename
@@ -205,19 +218,26 @@ test:
     def redo_cat(self, logfile=''):
         path = self.path_data + '/' + logfile
         if not os.path.isfile(path):
-                raise FileNotFoundError ('Logfile not found. Start script.py first do generate data')
+                raise FileNotFoundError (path+' Logfile not found (redo_cat). Start script.py first do generate data')
         outlog = ""
         mylog = ""
         try:
             mylog = open(path, "r")
             outlog = open(self.path_data + '/' +"mod.log", "w")
+            time_str=''
             for line in mylog:
-                words = line.split(',')
+                words =[]
+                words = line.rstrip().split(',')
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
+                    if len(words[-1]) != 5 or not ':' in words[-1]:
+                        local_t = time.localtime(float(words[0])) 
+                        time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
+                        words.append(time_str)
 
                 line = ",".join(words)
-                outlog.write(line)
+                outlog.write(line+"\n")
+                line=[]
 
             mylog.close()  
             outlog.close()
@@ -262,9 +282,14 @@ test:
     def get_log_list(self):
         log_list = os.listdir(self.path_data)
         date_list = []
+        outlog_list =[]
         for log in log_list:
-            date_list.insert(0,datetime.datetime.strptime(log[:-4], '%Y-%m-%d'))
-        return log_list, date_list
+            file_extension = Path(log).suffix
+            if file_extension == '.csv':
+                date_list.insert(0,datetime.datetime.strptime(log[0:10], '%Y-%m-%d'))
+                outlog_list.insert(0,log)
+                
+        return outlog_list, date_list
 
 
     def get_unique_categories(self, string_cats=''):
@@ -305,7 +330,7 @@ test:
 
             # TABLE
             file.writelines(head)
-            row = '<table>\n'
+            row = '<table style=\"width:100%\">\n'
             row += '<tr>\n<td></td>'
             for cat in u_cats:
                 row += '<td><b>{}</b></td>\n'.format(cat)
@@ -316,7 +341,7 @@ test:
             for log in reversed(log_list):
                 row += '<tr>\n\t<td>'
                 u_cat, u_dur, date, df = self.analyze(log)
-                date = datetime.datetime.strptime(log[:-4], '%Y-%m-%d')
+                date = datetime.datetime.strptime(log[0:10], '%Y-%m-%d')
                 row += '<b>{0:02}.{1:02}.{2:04},{3}</b>'.format(date.month, date.day, date.year,week_days[date.weekday()])
                 row += '</td>'
                 total_time =0
@@ -331,6 +356,12 @@ test:
                 tot_time = sec2str(total_time)
                 row += '<td>{0: 6}:{1:02}:{2:02}</td>'.format(tot_time[0],tot_time[1],tot_time[2])
                 row += '</tr>\n'
+            
+            row += '<tr>\n<td></td>'
+            for cat in u_cats:
+                row += '<td><b>{}</b></td>\n'.format(cat)
+            row += '<td><b>Total Time</b></td></tr>'
+
             file.write(row)
             file.write('</table>\n')
 
@@ -338,7 +369,7 @@ test:
             file.write('<div class="gallery">\n')
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
-                img_row = '<img src="../figs/pie/{}"> </br>\n'.format(img)
+                img_row = '<img src=\"../figs/pie/{}\"  width=\"900\" height=\"900\" > </br>\n'.format(img)
                 file.write(img_row)
             file.write('</div>\n')
             file.writelines(tail)
