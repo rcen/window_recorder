@@ -36,7 +36,7 @@ def reanalyze_all():
     logfiles = os.listdir('data')
     for logfile in logfiles:
         print('logfile', logfile)
-        #logfile = '' #'2018-9-5.csv'        
+        #logfile = '' #'2018-9-5.csv'
         analytic = Analytics()
         analytic.redo_cat(logfile)
         analytic.print_review(logfile)
@@ -77,7 +77,7 @@ wasted time: #F64438
 idle: #837F7F
 
 [PROJECTS]
-test: 
+test:
 """
                 file.write(config_template)
         if not os.path.isdir('figs'):
@@ -119,7 +119,7 @@ test:
                 end = datetime.datetime.fromtimestamp(float(time[entry]))
                 #print(u_cat, start, end, '\t', duration[entry])
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
-        
+
         if(start_time != ''):
             plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
             plt.grid()
@@ -172,7 +172,7 @@ test:
         return u_cats, u_dur, date, df
 
 
-        
+
     def print_pi_chart(self, logfile=''):
         if logfile == '':
             today = datetime.datetime.today()
@@ -186,15 +186,14 @@ test:
         total_min = int(np.floor((total_dur-total_hr*3600) / 60))
         total_sec = int(total_dur%60)
         if (total_dur > 0):
+            weekday_name = today.strftime('%a')
             plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-            plt.title('{0:02}.{1:02}.{2:04} - {3:02}:{4:02}:{5:02} h'\
-                    .format(today.month, today.day, today.year,
-                            total_hr, total_min, total_sec))
-            
+            plt.title(f'{weekday_name}, {today.month:02}.{today.day:02}.{today.year:04} - {total_hr:02}:{total_min:02}:{total_sec:02} h')
+
             for t in range(len(u_cats)):
                 hr,mn,sec = Sec2hms(u_dur[t])
                 u_cats[t] = u_cats[t] + "-" + '{0:02}:{1:02}:{2:02}'.format(hr,mn,sec)
-                
+
             plt.pie(u_dur, labels=u_cats,  autopct='%1.1f%%', colors = self.get_colors(logfile))
             plt.axis('equal')
             plt.tight_layout()
@@ -202,7 +201,7 @@ test:
             plt.savefig(path)
             #plt.show()
             plt.close()
-            
+
             print('Pie chart saved as {}'.format(path))
 
 
@@ -231,7 +230,7 @@ test:
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
                     if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(float(words[0])) 
+                        local_t = time.localtime(float(words[0]))
                         time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
                         words.append(time_str)
 
@@ -239,12 +238,12 @@ test:
                 outlog.write(line+"\n")
                 line=[]
 
-            mylog.close()  
+            mylog.close()
             outlog.close()
         except (RuntimeError, TypeError, NameError):
             return
         if os.path.isfile(outlog.name) and os.path.isfile(mylog.name):
-            shutil.move(outlog.name,mylog.name) 
+            shutil.move(outlog.name,mylog.name)
 
     def print_review(self, logfile=''):
         u_cats, u_dur, date, df = self.analyze(logfile)
@@ -288,7 +287,7 @@ test:
             if file_extension == '.csv':
                 date_list.insert(0,datetime.datetime.strptime(log[0:10], '%Y-%m-%d'))
                 outlog_list.insert(0,log)
-                
+
         return outlog_list, date_list
 
 
@@ -305,7 +304,7 @@ test:
     def get_cat(self, window):
         ret = 'not categorized'
         if len(window) <=1:
-            return 'idle' #this is a "pre-defined" cat in script.py  
+            return 'idle' #this is a "pre-defined" cat in script.py
         for string, category in self.string_cats:
             try:
                 match = re.search(string, window)
@@ -346,7 +345,7 @@ test:
                 row += '</td>'
                 total_time =0
                 for dur in u_dur:
-                    total_time = total_time + dur                    
+                    total_time = total_time + dur
                     dur_hr = int(np.floor(dur/3600))
                     dur_min = int(np.floor((dur-dur_hr*3600)/60))
                     dur_sec = int(dur%60)
@@ -356,7 +355,7 @@ test:
                 tot_time = sec2str(total_time)
                 row += '<td>{0: 6}:{1:02}:{2:02}</td>'.format(tot_time[0],tot_time[1],tot_time[2])
                 row += '</tr>\n'
-            
+
             row += '<tr>\n<td></td>'
             for cat in u_cats:
                 row += '<td><b>{}</b></td>\n'.format(cat)
