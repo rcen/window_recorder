@@ -89,7 +89,10 @@ test:
 
 
     def print_timeline(self, logfile=''):
-        return
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         if logfile == '':
             today = datetime.datetime.now()
             filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
@@ -97,12 +100,12 @@ test:
 
         else:
             filename = logfile
-            today = datetime.datetime.strptime(logfile[:-4], '%Y-%m-%d')
+            today = datetime.datetime.strptime(logfile[:10], '%Y-%m-%d')
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
                 raise FileNotFoundError (path+' Logfile not found (print_timeline). Start script.py first do generate data')
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
+        df = pd.read_csv(path, encoding="ISO-8859-1", names=['time', 'category', 'duration', 'title', 'timestamp'], sep=',')
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
 
         colors = self.get_colors(logfile)
@@ -121,7 +124,7 @@ test:
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
 
         if(start_time != ''):
-            plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
+           # plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
             plt.grid()
             plt.title(start_time)
             start_time = datetime.datetime.combine(start_time, datetime.time(7,00))
@@ -145,6 +148,10 @@ test:
 
 
     def analyze(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         u_cats=[]
         u_dur=[]
         date=[]
@@ -159,7 +166,7 @@ test:
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
             return u_cats, u_dur, date, df
-            raise FileNotFoundError (path+' Logfile not found (analyze). Start script.py first do generate data')
+
         date = datetime.datetime.strptime(filename[0:10], '%Y-%m-%d')
 
         df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'], usecols=[0,1,2,3])
@@ -174,6 +181,10 @@ test:
 
 
     def print_pi_chart(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         if logfile == '':
             today = datetime.datetime.today()
         else:
@@ -230,7 +241,7 @@ test:
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
                     if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(float(words[0]))
+                        local_t = time.localtime(words[0])
                         time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
                         words.append(time_str)
 
@@ -246,6 +257,11 @@ test:
             shutil.move(outlog.name,mylog.name)
 
     def print_review(self, logfile=''):
+
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         u_cats, u_dur, date, df = self.analyze(logfile)
         print('')
         print('')
@@ -316,6 +332,10 @@ test:
         return ret
 
     def create_html(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         _, u_dur, date, df = self.analyze(logfile)
         log_list, date_list = self.get_log_list()
@@ -368,7 +388,10 @@ test:
             file.write('<div class="gallery">\n')
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
-                img_row = '<img src=\"../figs/pie/{}\"  width=\"900\" height=\"900\" > </br>\n'.format(img)
+                img_row = '<div style="display: flex; justify-content: space-around;">\n'
+                img_row += '<img src=\"../figs/pie/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
+                img_row += '<img src=\"../figs/timeline/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
+                img_row += '</div></br>\n'
                 file.write(img_row)
             file.write('</div>\n')
             file.writelines(tail)
