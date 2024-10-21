@@ -1,4 +1,8 @@
 [CATEGORIES]
+perplexity: coding
+coursework: family
+grades: family
+chez: family
 lennox: family
 myidcare: family
 compass hhs: family
@@ -153,7 +157,7 @@ zebra tools portal: coding
 express scripts: family
 launch - google chrome: learning
 visio: coding
-cen.rao@zebra.com: mail 
+cen.rao@zebra.com: mail
 peddie: family
 labcorp: family
 machine learning: learning
@@ -278,7 +282,7 @@ windows\system32: coding
 microsoft teams: mail
 inbox: mail
 - outlook: mail
-- message: mail 
+- message: mail
 message (html): mail
 run_win_record: coding
 visual studio: coding
@@ -321,10 +325,10 @@ modular: learning
 
 [COLORS]
 coding: #4954EA
-learning: #F954EA
+learning: #F2F767
 gaming: #F68D15
 idle: #837F7F
-docs:#32448B 
+docs:#32448B
 wasted: #F64438
 no_cat: #387FF7
 mail: #72ACF1

@@ -52,7 +52,7 @@ class Analytics():
         config = configparser.ConfigParser()
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
-            with open(path_config, 'w') as file:
+            with open(path_config, 'w', encoding='utf-8') as file:
                 config_template="""[CATEGORIES]
 spyder: programming
 stackoverflow: programming
@@ -103,7 +103,7 @@ test:
             today = datetime.datetime.strptime(logfile[:10], '%Y-%m-%d')
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-                raise FileNotFoundError (path+' Logfile not found (print_timeline). Start script.py first do generate data')
+                raise FileNotFoundError(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
 
         df = pd.read_csv(path, encoding="ISO-8859-1", names=['time', 'category', 'duration', 'title', 'timestamp'], sep=',')
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
@@ -127,8 +127,8 @@ test:
            # plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
             plt.grid()
             plt.title(start_time)
-            start_time = datetime.datetime.combine(start_time, datetime.time(7,00))
-            time_delta = datetime.time(20)
+            start_time = datetime.datetime.combine(start_time, datetime.time(0,1))
+            time_delta = datetime.time(hour=23, minute=59)
             end_time = datetime.datetime.combine(start_time, time_delta)
 
             plt.xlim([start_time, end_time])
@@ -232,8 +232,8 @@ test:
         outlog = ""
         mylog = ""
         try:
-            mylog = open(path, "r")
-            outlog = open(self.path_data + '/' +"mod.log", "w")
+            mylog = open(path, "r", encoding='utf-8')
+            outlog = open(self.path_data + '/' +"mod.log", "w", encoding='utf-8')
             time_str=''
             for line in mylog:
                 words =[]
@@ -340,12 +340,12 @@ test:
         _, u_dur, date, df = self.analyze(logfile)
         log_list, date_list = self.get_log_list()
         u_cats = self.get_unique_categories()
-        with open('html/head.txt', 'r') as file:
+        with open('html/head.txt', 'r', encoding='utf-8') as file:
             head = file.readlines()
-        with open('html/tail.txt', 'r') as file:
+        with open('html/tail.txt', 'r', encoding='utf-8') as file:
             tail = file.read()
 
-        with open('html/index.html', 'w') as file:
+        with open('html/index.html', 'w', encoding='utf-8') as file:
 
             # TABLE
             file.writelines(head)
