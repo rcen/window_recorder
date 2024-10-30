@@ -246,7 +246,7 @@ test:
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
                     if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(words[0])
+                        local_t = time.localtime(float(words[0]))
                         time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
                         words.append(time_str)
 
