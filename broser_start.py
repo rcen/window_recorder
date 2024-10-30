@@ -124,6 +124,8 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
                 background-color: rgba(0, 0, 0, 0.6);
                 padding: 20px;
                 border-radius: 10px;
+                max-height: 90vh; /* Ensure the overlay does not exceed the viewport height */
+                overflow: auto; /* Add scroll bar if content exceeds the height */
             }}
             h2 {{
                 margin-bottom: 20px;
@@ -133,29 +135,29 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
                 padding-left: 20px;
             }}
             .red-link {{
-            color: red;
-            text-decoration: none;
+                color: red;
+                text-decoration: none;
             }}
             .red-link:hover {{
                 text-decoration: underline;
             }}
             .blue-link {{
-            color: blue;
-            text-decoration: none;
+                color: blue;
+                text-decoration: none;
             }}
             .blue-link:hover {{
                 text-decoration: underline;
             }}
             .green-link {{
-            color: green;
-            text-decoration: none;
+                color: green;
+                text-decoration: none;
             }}
             .green-link:hover {{
                 text-decoration: underline;
             }}
             .yellow-link {{
-            color: yellow;
-            text-decoration: none;
+                color: yellow;
+                text-decoration: none;
             }}
             .yellow-link:hover {{
                 text-decoration: underline;
@@ -189,6 +191,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
 # This allows the script to be run as a standalone program
 # or imported as a module without automatically executing
 if __name__ == "__main__":
+
     image_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\window_recorder\figs\tabs"
     md_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\logseq-notes\journals"
     result = generate_inspirational_html(image_folder, md_folder)

@@ -103,7 +103,10 @@ test:
             today = datetime.datetime.strptime(logfile[:10], '%Y-%m-%d')
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-                raise FileNotFoundError(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
+                # print out an error message if the file is not found
+                print(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
+                # raise FileNotFoundError(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
+                return
 
         df = pd.read_csv(path, encoding="ISO-8859-1", names=['time', 'category', 'duration', 'title', 'timestamp'], sep=',')
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
@@ -226,13 +229,15 @@ test:
         return colors
 
     def redo_cat(self, logfile=''):
+        if "mod.log" in logfile:
+            return
         path = self.path_data + '/' + logfile
         if not os.path.isfile(path):
                 raise FileNotFoundError (path+' Logfile not found (redo_cat). Start script.py first do generate data')
         outlog = ""
         mylog = ""
         try:
-            mylog = open(path, "r", encoding='utf-8')
+            mylog = open(path, "r", encoding='utf-8',errors='ignore')
             outlog = open(self.path_data + '/' +"mod.log", "w", encoding='utf-8')
             time_str=''
             for line in mylog:
@@ -241,7 +246,7 @@ test:
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
                     if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(words[0])
+                        local_t = time.localtime(float(words[0]))
                         time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
                         words.append(time_str)
 
