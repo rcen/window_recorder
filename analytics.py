@@ -36,7 +36,7 @@ def reanalyze_all():
     logfiles = os.listdir('data')
     for logfile in logfiles:
         print('logfile', logfile)
-        #logfile = '' #'2018-9-5.csv'        
+        #logfile = '' #'2018-9-5.csv'
         analytic = Analytics()
         analytic.redo_cat(logfile)
         analytic.print_review(logfile)
@@ -52,7 +52,7 @@ class Analytics():
         config = configparser.ConfigParser()
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
-            with open(path_config, 'w') as file:
+            with open(path_config, 'w', encoding='utf-8') as file:
                 config_template="""[CATEGORIES]
 spyder: programming
 stackoverflow: programming
@@ -77,7 +77,7 @@ wasted time: #F64438
 idle: #837F7F
 
 [PROJECTS]
-test: 
+test:
 """
                 file.write(config_template)
         if not os.path.isdir('figs'):
@@ -89,7 +89,10 @@ test:
 
 
     def print_timeline(self, logfile=''):
-        return
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         if logfile == '':
             today = datetime.datetime.now()
             filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
@@ -97,12 +100,15 @@ test:
 
         else:
             filename = logfile
-            today = datetime.datetime.strptime(logfile[:-4], '%Y-%m-%d')
+            today = datetime.datetime.strptime(logfile[:10], '%Y-%m-%d')
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-                raise FileNotFoundError (path+' Logfile not found (print_timeline). Start script.py first do generate data')
+                # print out an error message if the file is not found
+                print(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
+                # raise FileNotFoundError(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
+                return
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'])
+        df = pd.read_csv(path, encoding="ISO-8859-1", names=['time', 'category', 'duration', 'title', 'timestamp'], sep=',')
         u_cats = self.get_unique_categories(self.string_cats) # unique category name
 
         colors = self.get_colors(logfile)
@@ -119,13 +125,13 @@ test:
                 end = datetime.datetime.fromtimestamp(float(time[entry]))
                 #print(u_cat, start, end, '\t', duration[entry])
                 plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
-        
+
         if(start_time != ''):
-            plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
+           # plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
             plt.grid()
             plt.title(start_time)
-            start_time = datetime.datetime.combine(start_time, datetime.time(7,00))
-            time_delta = datetime.time(20)
+            start_time = datetime.datetime.combine(start_time, datetime.time(0,1))
+            time_delta = datetime.time(hour=23, minute=59)
             end_time = datetime.datetime.combine(start_time, time_delta)
 
             plt.xlim([start_time, end_time])
@@ -145,6 +151,10 @@ test:
 
 
     def analyze(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         u_cats=[]
         u_dur=[]
         date=[]
@@ -159,7 +169,7 @@ test:
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
             return u_cats, u_dur, date, df
-            raise FileNotFoundError (path+' Logfile not found (analyze). Start script.py first do generate data')
+
         date = datetime.datetime.strptime(filename[0:10], '%Y-%m-%d')
 
         df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'], usecols=[0,1,2,3])
@@ -172,8 +182,12 @@ test:
         return u_cats, u_dur, date, df
 
 
-        
+
     def print_pi_chart(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         if logfile == '':
             today = datetime.datetime.today()
         else:
@@ -186,15 +200,14 @@ test:
         total_min = int(np.floor((total_dur-total_hr*3600) / 60))
         total_sec = int(total_dur%60)
         if (total_dur > 0):
+            weekday_name = today.strftime('%a')
             plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-            plt.title('{0:02}.{1:02}.{2:04} - {3:02}:{4:02}:{5:02} h'\
-                    .format(today.month, today.day, today.year,
-                            total_hr, total_min, total_sec))
-            
+            plt.title(f'{weekday_name}, {today.month:02}.{today.day:02}.{today.year:04} - {total_hr:02}:{total_min:02}:{total_sec:02} h')
+
             for t in range(len(u_cats)):
                 hr,mn,sec = Sec2hms(u_dur[t])
                 u_cats[t] = u_cats[t] + "-" + '{0:02}:{1:02}:{2:02}'.format(hr,mn,sec)
-                
+
             plt.pie(u_dur, labels=u_cats,  autopct='%1.1f%%', colors = self.get_colors(logfile))
             plt.axis('equal')
             plt.tight_layout()
@@ -202,7 +215,7 @@ test:
             plt.savefig(path)
             #plt.show()
             plt.close()
-            
+
             print('Pie chart saved as {}'.format(path))
 
 
@@ -216,14 +229,16 @@ test:
         return colors
 
     def redo_cat(self, logfile=''):
+        if "mod.log" in logfile:
+            return
         path = self.path_data + '/' + logfile
         if not os.path.isfile(path):
                 raise FileNotFoundError (path+' Logfile not found (redo_cat). Start script.py first do generate data')
         outlog = ""
         mylog = ""
         try:
-            mylog = open(path, "r")
-            outlog = open(self.path_data + '/' +"mod.log", "w")
+            mylog = open(path, "r", encoding='utf-8',errors='ignore')
+            outlog = open(self.path_data + '/' +"mod.log", "w", encoding='utf-8')
             time_str=''
             for line in mylog:
                 words =[]
@@ -231,7 +246,7 @@ test:
                 if (len(words) >3):
                     words[1] = self.get_cat(words[3])
                     if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(float(words[0])) 
+                        local_t = time.localtime(float(words[0]))
                         time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
                         words.append(time_str)
 
@@ -239,14 +254,19 @@ test:
                 outlog.write(line+"\n")
                 line=[]
 
-            mylog.close()  
+            mylog.close()
             outlog.close()
         except (RuntimeError, TypeError, NameError):
             return
         if os.path.isfile(outlog.name) and os.path.isfile(mylog.name):
-            shutil.move(outlog.name,mylog.name) 
+            shutil.move(outlog.name,mylog.name)
 
     def print_review(self, logfile=''):
+
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         u_cats, u_dur, date, df = self.analyze(logfile)
         print('')
         print('')
@@ -288,7 +308,7 @@ test:
             if file_extension == '.csv':
                 date_list.insert(0,datetime.datetime.strptime(log[0:10], '%Y-%m-%d'))
                 outlog_list.insert(0,log)
-                
+
         return outlog_list, date_list
 
 
@@ -305,7 +325,7 @@ test:
     def get_cat(self, window):
         ret = 'not categorized'
         if len(window) <=1:
-            return 'idle' #this is a "pre-defined" cat in script.py  
+            return 'idle' #this is a "pre-defined" cat in script.py
         for string, category in self.string_cats:
             try:
                 match = re.search(string, window)
@@ -317,16 +337,20 @@ test:
         return ret
 
     def create_html(self, logfile=''):
+        # check the filename does not contain "mod.log" to avoid crash
+        if "mod.log" in logfile:
+            return
+
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         _, u_dur, date, df = self.analyze(logfile)
         log_list, date_list = self.get_log_list()
         u_cats = self.get_unique_categories()
-        with open('html/head.txt', 'r') as file:
+        with open('html/head.txt', 'r', encoding='utf-8') as file:
             head = file.readlines()
-        with open('html/tail.txt', 'r') as file:
+        with open('html/tail.txt', 'r', encoding='utf-8') as file:
             tail = file.read()
 
-        with open('html/index.html', 'w') as file:
+        with open('html/index.html', 'w', encoding='utf-8') as file:
 
             # TABLE
             file.writelines(head)
@@ -346,7 +370,7 @@ test:
                 row += '</td>'
                 total_time =0
                 for dur in u_dur:
-                    total_time = total_time + dur                    
+                    total_time = total_time + dur
                     dur_hr = int(np.floor(dur/3600))
                     dur_min = int(np.floor((dur-dur_hr*3600)/60))
                     dur_sec = int(dur%60)
@@ -356,7 +380,7 @@ test:
                 tot_time = sec2str(total_time)
                 row += '<td>{0: 6}:{1:02}:{2:02}</td>'.format(tot_time[0],tot_time[1],tot_time[2])
                 row += '</tr>\n'
-            
+
             row += '<tr>\n<td></td>'
             for cat in u_cats:
                 row += '<td><b>{}</b></td>\n'.format(cat)
@@ -369,7 +393,10 @@ test:
             file.write('<div class="gallery">\n')
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
-                img_row = '<img src=\"../figs/pie/{}\"  width=\"900\" height=\"900\" > </br>\n'.format(img)
+                img_row = '<div style="display: flex; justify-content: space-around;">\n'
+                img_row += '<img src=\"../figs/pie/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
+                img_row += '<img src=\"../figs/timeline/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
+                img_row += '</div></br>\n'
                 file.write(img_row)
             file.write('</div>\n')
             file.writelines(tail)

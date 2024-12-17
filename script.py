@@ -23,6 +23,7 @@ import configparser
 import numpy as np
 import csv
 from analytics import Analytics
+from broser_start import generate_inspirational_html
 
 last_time_key_pressed = time.time()
 last_time_mouse_moved = time.time()
@@ -49,9 +50,9 @@ def main():
     global last_event
     global html_update_time
     np.seterr(all='ignore')
-    
-    analytic = Analytics()
 
+    analytic = Analytics()
+    html_counter = 0;
     print("""
 ---------------------------------------
 TRACK YOUR TIME - DON'T WASTE IT!
@@ -90,7 +91,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                     if sys.version_info.major >2:
                         mins = int(np.floor(duration/60))
                         secs = int(np.floor(duration - mins*60))
-                        local_t = time.localtime(start_of_event) 
+                        local_t = time.localtime(start_of_event)
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour,local_t.tm_min, mins, secs),
                               "{}\t".format(category),
                               "({})".format(last_event[:120]))
@@ -100,10 +101,16 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_window = current_window
             start_of_event = time.time()
             last_event = current_event
-            
+
         if time.time() > html_update_time:
+            html_counter = html_counter +1
             analytic.create_html()
             html_update_time = time.time()+ 120
+            if html_counter %  5  == 1 :
+                image_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\window_recorder\figs\tabs"
+                md_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\logseq-notes\journals"
+                result = generate_inspirational_html(image_folder, md_folder)
+
 
 def is_idle_category(window):
     """
