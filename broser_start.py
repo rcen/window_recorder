@@ -88,6 +88,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
 
     url = "file:///C:/Users/cr3881/OneDrive%20-%20Zebra%20Technologies/window_recorder/html/index.html"
     url2 = "https://jira.zebra.com/secure/RapidBoard.jspa?rapidView=4424&quickFilter=24811"
+    url3 = "https://jira.zebra.com/secure/RapidBoard.jspa?rapidView=3891&selectedIssue=IK-706&quickFilter=20925#"
 
     # Generate HTML content
     html_content = f"""
@@ -125,6 +126,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
                 padding: 20px;
                 border-radius: 10px;
                 max-height: 90vh; /* Ensure the overlay does not exceed the viewport height */
+                max-width: 90vw; /* Ensure the overlay does not exceed the viewport width */
                 overflow: auto; /* Add scroll bar if content exceeds the height */
             }}
             h2 {{
@@ -175,6 +177,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
                 <pre>{md_content}</pre>
                 <p><a href="{url}" class="red-link"> time tracker </a> </p>
                 <p><a href="{url2}" class="green-link"> Zcode JIRA </a> </p>
+                <p><a href="{url3}" class="yellow-link"> DCCV JIRA </a> </p>
             </div>
         </div>
     </body>
