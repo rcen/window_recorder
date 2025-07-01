@@ -9,7 +9,7 @@ install win32 gui from:
 
     Step 1: Download the pywin32....whl
     Step 2: pip install pywin32....whl
-    Step 3: C:\python32\python.exe Scripts\pywin32_postinstall.py -install
+    Step 3: C:/python32/python.exe Scripts/pywin32_postinstall.py -install
     Step 4: python
 """
 import os
@@ -33,16 +33,6 @@ last_window = 'start tracking'
 last_event = ''
 idle_time = 3*60 # 3 minutes.
 html_update_time = time.time() + 60
-
-config = configparser.ConfigParser()
-try:
-    print(config.read('config.dat'))
-    string_cats = config.items('CATEGORIES')
-except Exception as e:
-    print(e)
-    print('Press ENTER to quit ...')
-    input()
-
 
 def main():
     global start_of_event
@@ -93,7 +83,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                         secs = int(np.floor(duration - mins*60))
                         local_t = time.localtime(start_of_event)
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour,local_t.tm_min, mins, secs),
-                              "{}\t".format(category),
+                              "{}	".format(category),
                               "({})".format(last_event[:120]))
                 except UnicodeDecodeError:
                     print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
@@ -110,18 +100,6 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 image_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\window_recorder\figs\tabs"
                 md_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\logseq-notes\journals"
                 result = generate_inspirational_html(image_folder, md_folder)
-
-
-def is_idle_category(window):
-    """
-    returns True if the window title can be categorized as an idle window
-    """
-    for string, cat in string_cats:
-        if string in window:
-            if cat == 'idle':
-                return True
-    return False
-
 
 def save_data(data):
     today = datetime.datetime.now()
