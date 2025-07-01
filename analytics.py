@@ -49,7 +49,12 @@ class Analytics():
 
     def __init__(self):
         self.path_data = 'data'
-        config = configparser.ConfigParser()
+        self.config = self._load_config()
+        self.string_cats = self.config.items('CATEGORIES')
+        self.color_list = self.config.items('COLORS')
+        self.proj_list = self.config.items('PROJECTS')
+
+    def _load_config(self):
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
             with open(path_config, 'w', encoding='utf-8') as file:
@@ -82,10 +87,34 @@ test:
                 file.write(config_template)
         if not os.path.isdir('figs'):
             os.mkdir('figs')
-        config.read('config.dat')
-        self.string_cats = config.items('CATEGORIES')
-        self.color_list = config.items('COLORS')
-        self.proj_list = config.items('PROJECTS')
+        
+        config = configparser.ConfigParser()
+        config.read(path_config)
+        
+        # custom logic to handle duplicates in CATEGORIES
+        categories = []
+        with open(path_config, 'r', encoding='utf-8') as f:
+            in_categories_section = False
+            for line in f:
+                line = line.strip()
+                if line == '[CATEGORIES]':
+                    in_categories_section = True
+                    continue
+                elif line.startswith('['):
+                    in_categories_section = False
+                    continue
+                
+                if in_categories_section and ':' in line:
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    if key not in [k for k, v in categories]:
+                        categories.append((key, value.strip()))
+        
+        config['CATEGORIES'] = {}
+        for key, value in categories:
+            config['CATEGORIES'][key] = value
+            
+        return config
 
 
     def print_timeline(self, logfile=''):
