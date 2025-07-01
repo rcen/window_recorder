@@ -97,8 +97,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
             analytic.create_html()
             html_update_time = time.time()+ 120
             if html_counter %  5  == 1 :
-                image_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\window_recorder\figs\tabs"
-                md_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\logseq-notes\journals"
+                image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
+                md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
                 result = generate_inspirational_html(image_folder, md_folder)
 
 def save_data(data):
