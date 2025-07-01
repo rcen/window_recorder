@@ -345,6 +345,8 @@ test:
         _, u_dur, date, df = self.analyze(logfile)
         log_list, date_list = self.get_log_list()
         u_cats = self.get_unique_categories()
+        colors = self.get_colors(logfile)
+
         with open('html/head.txt', 'r', encoding='utf-8') as file:
             head = file.readlines()
         with open('html/tail.txt', 'r', encoding='utf-8') as file:
@@ -354,10 +356,10 @@ test:
 
             # TABLE
             file.writelines(head)
-            row = '<table style=\"width:100%\">\n'
+            row = '<table style="width:100%">\n'
             row += '<tr>\n<td></td>'
-            for cat in u_cats:
-                row += '<td><b>{}</b></td>\n'.format(cat)
+            for idx, cat in enumerate(u_cats):
+                row += '<td style="background-color:{}"><b>{}</b></td>\n'.format(colors[idx], cat)
             row += '<td><b>Total Time</b></td></tr>'
 
             self.print_pi_chart()
@@ -369,12 +371,12 @@ test:
                 row += '<b>{0:02}.{1:02}.{2:04},{3}</b>'.format(date.month, date.day, date.year,week_days[date.weekday()])
                 row += '</td>'
                 total_time =0
-                for dur in u_dur:
+                for idx, dur in enumerate(u_dur):
                     total_time = total_time + dur
                     dur_hr = int(np.floor(dur/3600))
                     dur_min = int(np.floor((dur-dur_hr*3600)/60))
                     dur_sec = int(dur%60)
-                    row += '<td>'
+                    row += '<td style="background-color:{}">'.format(colors[idx])
                     row += '{0: 6}:{1:02}:{2:02}'.format(dur_hr, dur_min, dur_sec)
                     row += '</td>\n'
                 tot_time = sec2str(total_time)
@@ -382,8 +384,8 @@ test:
                 row += '</tr>\n'
 
             row += '<tr>\n<td></td>'
-            for cat in u_cats:
-                row += '<td><b>{}</b></td>\n'.format(cat)
+            for idx, cat in enumerate(u_cats):
+                row += '<td style="background-color:{}"><b>{}</b></td>\n'.format(colors[idx], cat)
             row += '<td><b>Total Time</b></td></tr>'
 
             file.write(row)
@@ -394,8 +396,8 @@ test:
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
                 img_row = '<div style="display: flex; justify-content: space-around;">\n'
-                img_row += '<img src=\"../figs/pie/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
-                img_row += '<img src=\"../figs/timeline/{}\"  width=\"450\" height=\"450\" >\n'.format(img)
+                img_row += '<img src="../figs/pie/{}"  width="450" height="450" >\n'.format(img)
+                img_row += '<img src="../figs/timeline/{}"  width="450" height="450" >\n'.format(img)
                 img_row += '</div></br>\n'
                 file.write(img_row)
             file.write('</div>\n')

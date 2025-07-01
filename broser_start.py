@@ -86,7 +86,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
         print(f"An error occurred while reading the file {md_file_path}.")
         exit()
 
-    url = "file:///C:/Users/cr3881/OneDrive%20-%20Zebra%20Technologies/window_recorder/html/index.html"
+    url = "html/index.html"
     url2 = "https://jira.zebra.com/secure/RapidBoard.jspa?rapidView=4424&quickFilter=24811"
     url3 = "https://jira.zebra.com/secure/RapidBoard.jspa?rapidView=3891&selectedIssue=IK-706&quickFilter=20925#"
 
