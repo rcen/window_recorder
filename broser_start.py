@@ -176,8 +176,6 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
                 </ul>
                 <pre>{md_content}</pre>
                 <p><a href="{url}" class="red-link"> time tracker </a> </p>
-                <p><a href="{url2}" class="green-link"> Zcode JIRA </a> </p>
-                <p><a href="{url3}" class="yellow-link"> DCCV JIRA </a> </p>
             </div>
         </div>
     </body>
@@ -194,8 +192,10 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
 # This allows the script to be run as a standalone program
 # or imported as a module without automatically executing
 if __name__ == "__main__":
-
-    image_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\window_recorder\figs\tabs"
-    md_folder = r"C:\Users\cr3881\OneDrive - Zebra Technologies\logseq-notes\journals"
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('config.dat')
+    image_folder = config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
+    md_folder = config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
     result = generate_inspirational_html(image_folder, md_folder)
     print(result)

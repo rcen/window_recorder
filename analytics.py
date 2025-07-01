@@ -58,7 +58,11 @@ class Analytics():
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
             with open(path_config, 'w', encoding='utf-8') as file:
-                config_template="""[CATEGORIES]
+                config_template="""[SETTINGS]
+image_folder = figs/pictures
+md_folder = C:/Users/YourUser/Documents/Notes
+
+[CATEGORIES]
 spyder: programming
 stackoverflow: programming
 stackexchange: programming
@@ -91,6 +95,14 @@ test:
         config = configparser.ConfigParser()
         config.read(path_config)
         
+        # Add settings section if it doesn't exist
+        if not config.has_section('SETTINGS'):
+            config.add_section('SETTINGS')
+            config.set('SETTINGS', 'image_folder', 'figs/pictures')
+            config.set('SETTINGS', 'md_folder', 'C:/Users/YourUser/Documents/Notes')
+            with open(path_config, 'w') as configfile:
+                config.write(configfile)
+
         # custom logic to handle duplicates in CATEGORIES
         categories = []
         with open(path_config, 'r', encoding='utf-8') as f:
