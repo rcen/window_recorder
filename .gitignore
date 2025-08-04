@@ -94,10 +94,11 @@ celerybeat-schedule
 .env
 .venv
 env/
-venv/
+virtualenv/
 ENV/
 env.bak/
-venv.bak/
+virtualenv.bak/
+winrecord_env/
 
 # Spyder project settings
 .spyderproject
@@ -112,4 +113,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 /html/index.html
-\"inspirational_image.html\" 
+inspirational_image.html
+.vscode/
+.gemini.yaml
+config.dat 

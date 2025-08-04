@@ -33,6 +33,8 @@ def Sec2hms(seconds):
     return hr, min, sec
 
 def reanalyze_all():
+    if not os.path.isdir('data'):
+        os.mkdir('data')
     logfiles = os.listdir('data')
     for logfile in logfiles:
         print('logfile', logfile)
@@ -60,7 +62,7 @@ class Analytics():
             with open(path_config, 'w', encoding='utf-8') as file:
                 config_template="""[SETTINGS]
 image_folder = figs/pictures
-md_folder = C:/Users/YourUser/Documents/Notes
+md_folder = os.path.expanduser('~/Documents/Notes')
 
 [CATEGORIES]
 spyder: programming
@@ -91,6 +93,12 @@ test:
                 file.write(config_template)
         if not os.path.isdir('figs'):
             os.mkdir('figs')
+        if not os.path.isdir('figs/pie'):
+            os.mkdir('figs/pie')
+        if not os.path.isdir('figs/timeline'):
+            os.mkdir('figs/timeline')
+        if not os.path.isdir('figs/pictures'):
+            os.mkdir('figs/pictures')
         
         config = configparser.ConfigParser()
         config.read(path_config)

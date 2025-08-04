@@ -1,0 +1,6 @@
+model: gemini-pro
+temperature: 0.2
+prompt_prefix: "You are a Python expert. Answer using idiomatic Python."
+history_dir: .gemini-history
+max_output_tokens: 1024
+

@@ -1,7 +1,8 @@
-matplotlib==3.2
-pywin32
+matplotlib
 pyautogui
 numpy
 pandas
 configparser
-matplotlib
+python-xlib
+pynput
+markdown2

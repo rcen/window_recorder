@@ -25,7 +25,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
         image_path = os.path.join(image_folder, random_image)
     else:
         print("No image files found in the specified folder.")
-        exit()
+        return
 
     # Open the image and convert it to base64
     with Image.open(image_path) as img:
@@ -196,6 +196,6 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read('config.dat')
     image_folder = config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
-    md_folder = config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
+    md_folder = config.get('SETTINGS', 'md_folder', fallback=os.path.expanduser('~/Documents/Notes'))
     result = generate_inspirational_html(image_folder, md_folder)
     print(result)

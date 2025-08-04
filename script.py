@@ -14,16 +14,23 @@ install win32 gui from:
 """
 import os
 import sys
-import win32gui
 import time
 import datetime
 import pyautogui
-import msvcrt
 import configparser
 import numpy as np
 import csv
 from analytics import Analytics
 from broser_start import generate_inspirational_html
+import platform
+
+if platform.system() == "Windows":
+    import win32gui
+    import msvcrt
+else:
+    import Xlib
+    from Xlib import display
+    from pynput import keyboard
 
 last_time_key_pressed = time.time()
 last_time_mouse_moved = time.time()
@@ -49,6 +56,10 @@ TRACK YOUR TIME - DON'T WASTE IT!
 ---------------------------------------
 
   TIME           CATEGORY""")
+
+    if platform.system() != "Windows":
+        listener = keyboard.Listener(on_press=on_press)
+        listener.start()
 
     while True:
         mouse_idle = is_mouse_idle()
@@ -83,7 +94,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                         secs = int(np.floor(duration - mins*60))
                         local_t = time.localtime(start_of_event)
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour,local_t.tm_min, mins, secs),
-                              "{}	".format(category),
+                              "{} \t".format(category),
                               "({})".format(last_event[:120]))
                 except UnicodeDecodeError:
                     print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
@@ -135,28 +146,54 @@ def is_mouse_idle():
 
 
 def get_window_name():
-    try:
-        parent = win32gui.GetForegroundWindow()
-        window_name = win32gui.GetWindowText(parent).lower()
-        window_name = window_name.replace(',', '')
-        window_name = window_name.lower().encode("latin_1", "ignore")
-        window_name = window_name.lower().decode("latin_1", "ignore")
+    if platform.system() == "Windows":
+        try:
+            parent = win32gui.GetForegroundWindow()
+            window_name = win32gui.GetWindowText(parent).lower()
+            window_name = window_name.replace(',', '')
+            window_name = window_name.lower().encode("latin_1", "ignore")
+            window_name = window_name.lower().decode("latin_1", "ignore")
 
-        return window_name
-    except win32gui.error as E:
-        print(E)
+            return window_name
+        except win32gui.error as E:
+            print(E)
+    else:
+        try:
+            d = display.Display()
+            root = d.screen().root
+            window_id = root.get_full_property(d.intern_atom('_NET_ACTIVE_WINDOW'), Xlib.X.AnyPropertyType).value[0]
+            window = d.create_resource_object('window', window_id)
+            window_name = window.get_full_property(d.intern_atom('_NET_WM_NAME'), Xlib.X.AnyPropertyType).value
+            if window_name:
+                return window_name.decode('utf-8', 'ignore').lower()
+            else:
+                # Fallback for windows that don't have _NET_WM_NAME
+                window_name = window.get_full_property(d.intern_atom('WM_NAME'), Xlib.X.AnyPropertyType).value
+                if window_name:
+                    return window_name.decode('utf-8', 'ignore').lower()
+                else:
+                    return "desktop"
+        except (Xlib.error.XError, IndexError):
+            return "desktop"
+        except Exception:
+            return "desktop"
 
+
+def on_press(key):
+    global last_time_key_pressed
+    last_time_key_pressed = time.time()
 
 def is_keyboard_idle(sleep_duration):
     global last_time_key_pressed
     global idle_time
 
-    time.sleep(sleep_duration)
-    key_pressed = msvcrt.kbhit()
+    if platform.system() == "Windows":
+        time.sleep(sleep_duration)
+        key_pressed = msvcrt.kbhit()
 
-    if key_pressed:
-        #keys = msvcrt.getch() # reads the keys and resets kbhit()
-        last_time_key_pressed = time.time()
+        if key_pressed:
+            #keys = msvcrt.getch() # reads the keys and resets kbhit()
+            last_time_key_pressed = time.time()
 
     if time.time() > last_time_key_pressed + idle_time:
         return True
@@ -164,12 +201,4 @@ def is_keyboard_idle(sleep_duration):
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print('Process interrupted.')
-    except Exception as e:
-        print (e)
-    finally:
-        print('Press ENTER to quit ...')
-        input()
+    main()
