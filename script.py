@@ -24,6 +24,7 @@ from analytics import Analytics
 from broser_start import generate_inspirational_html
 import platform
 import psutil
+from multiprocessing import Process
 
 if platform.system() == "Windows":
     import win32gui
@@ -42,6 +43,21 @@ last_event = ''
 idle_time = 3*60 # 3 minutes.
 html_update_time = time.time() + 60
 ram_check_time = time.time() + 10
+wasted_time_start = None
+wasted_time_warning_issued = False
+
+last_notification_time = 0
+notification_cooldown = 60  # seconds
+
+def show_non_blocking_alert(message, title):
+    global last_notification_time
+    if time.time() - last_notification_time < notification_cooldown:
+        return
+    last_notification_time = time.time()
+    if platform.system() == "Linux":
+        os.system(f'notify-send "{title}" "{message}"')
+    else:
+        Process(target=pyautogui.alert, args=(message, title)).start()
 
 def check_ram():
     global ram_check_time
@@ -49,7 +65,7 @@ def check_ram():
         free_ram_gb = psutil.virtual_memory().free / (1024 * 1024 * 1024)
         # print(f"Debug: Free RAM: {free_ram_gb:.2f} GB")
         if free_ram_gb < 1:
-            pyautogui.alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
+            show_non_blocking_alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
         ram_check_time = time.time() + 10
 
 
@@ -58,6 +74,8 @@ def main():
     global last_window
     global last_event
     global html_update_time
+    global wasted_time_warning_issued
+    global wasted_time_start
     np.seterr(all='ignore')
 
     analytic = Analytics()
@@ -124,7 +142,26 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
                 result = generate_inspirational_html(image_folder, md_folder)
 
+        current_category = 'idle' if idle else analytic.get_cat(current_window)
+        if "wasted" in current_category.lower():
+            if wasted_time_start is None:
+                wasted_time_start = time.time()
+                wasted_time_warning_issued = False
+
+            wasted_time = time.time() - wasted_time_start
+            print(f"wasted time is {wasted_time:.2f} seconds", end='\r')
+
+            if wasted_time > 6 * 60 and not wasted_time_warning_issued:
+                show_non_blocking_alert("You have been looking at a 'wasted' window for over 6 minutes.", "Wasted Time Warning")
+                wasted_time_warning_issued = True
+        else:
+            if wasted_time_start is not None:
+                print(" " * 50, end='\r')
+            wasted_time_start = None
+            wasted_time_warning_issued = False
+
         check_ram()
+        time.sleep(0.5)
 
 def save_data(data):
     today = datetime.datetime.now()
@@ -152,13 +189,6 @@ def is_mouse_idle():
 
     if mouse_coords != last_mouse_coords:
         last_mouse_coords = [x, y]
-        last_time_mouse_moved = time.time()
-    elif time.time() > last_time_mouse_moved + idle_time:
-        return True
-
-    return False
-
-
 def get_window_name():
     if platform.system() == "Windows":
         try:
@@ -173,6 +203,9 @@ def get_window_name():
             print(E)
     else:
         try:
+            # Check if DISPLAY is set and X server is available
+            if "DISPLAY" not in os.environ or not os.environ["DISPLAY"]:
+                return "desktop"
             d = display.Display()
             root = d.screen().root
             window_id = root.get_full_property(d.intern_atom('_NET_ACTIVE_WINDOW'), Xlib.X.AnyPropertyType).value[0]
