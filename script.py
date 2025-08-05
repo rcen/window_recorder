@@ -23,6 +23,7 @@ import csv
 from analytics import Analytics
 from broser_start import generate_inspirational_html
 import platform
+import psutil
 
 if platform.system() == "Windows":
     import win32gui
@@ -40,6 +41,17 @@ last_window = 'start tracking'
 last_event = ''
 idle_time = 3*60 # 3 minutes.
 html_update_time = time.time() + 60
+ram_check_time = time.time() + 10
+
+def check_ram():
+    global ram_check_time
+    if time.time() > ram_check_time:
+        free_ram_gb = psutil.virtual_memory().free / (1024 * 1024 * 1024)
+        # print(f"Debug: Free RAM: {free_ram_gb:.2f} GB")
+        if free_ram_gb < 1:
+            pyautogui.alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
+        ram_check_time = time.time() + 10
+
 
 def main():
     global start_of_event
@@ -111,6 +123,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
                 md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
                 result = generate_inspirational_html(image_folder, md_folder)
+
+        check_ram()
 
 def save_data(data):
     today = datetime.datetime.now()

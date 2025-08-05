@@ -11,7 +11,9 @@ fi
 source winrecord_env/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+if [[ " $@ " =~ " --new " ]]; then
+    pip install -r requirements.txt
+fi
 
 # Run analytics
 python3 analytics.py

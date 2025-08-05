@@ -6,3 +6,4 @@ configparser
 python-xlib
 pynput
 markdown2
+psutil
