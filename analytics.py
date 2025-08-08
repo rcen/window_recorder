@@ -36,10 +36,10 @@ def reanalyze_all():
     if not os.path.isdir('data'):
         os.mkdir('data')
     logfiles = os.listdir('data')
+    analytic = Analytics()
     for logfile in logfiles:
         print('logfile', logfile)
         #logfile = '' #'2018-9-5.csv'
-        analytic = Analytics()
         analytic.redo_cat(logfile)
         analytic.print_review(logfile)
         analytic.print_timeline(logfile)
@@ -55,12 +55,14 @@ class Analytics():
         self.string_cats = self.config.items('CATEGORIES')
         self.color_list = self.config.items('COLORS')
         self.proj_list = self.config.items('PROJECTS')
+        self.analysis_cache = {}
 
     def _load_config(self):
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
             with open(path_config, 'w', encoding='utf-8') as file:
-                config_template="""[SETTINGS]
+                config_template="""
+[SETTINGS]
 image_folder = figs/pictures
 md_folder = os.path.expanduser('~/Documents/Notes')
 
@@ -75,7 +77,7 @@ word: documents
 adobe acrobat reader: documents
 thunderbird: mail
 whatsapp: wasted time
-mozilla: wasted time
+mozilla: wasted.time
 chrome: wasted time
 mingw64: programming
 sperrbildschirm: idle
@@ -202,7 +204,9 @@ test:
     def analyze(self, logfile=''):
         # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
-            return
+            return None, None, None, None
+        if logfile in self.analysis_cache:
+            return self.analysis_cache[logfile]
 
         u_cats=[]
         u_dur=[]
@@ -217,7 +221,7 @@ test:
             filename = logfile
         path = self.path_data + '/' + filename
         if not os.path.isfile(path):
-            return u_cats, u_dur, date, df
+                return u_cats, u_dur, date, df
 
         date = datetime.datetime.strptime(filename[0:10], '%Y-%m-%d')
 
@@ -228,6 +232,8 @@ test:
             temp = df.loc[df.category == u_cat]
             dur = np.sum(temp.duration[temp.duration > 0])
             u_dur.append(dur)
+        
+        self.analysis_cache[logfile] = (u_cats, u_dur, date, df)
         return u_cats, u_dur, date, df
 
 
@@ -237,44 +243,59 @@ test:
         if "mod.log" in logfile:
             return
 
-        if logfile == '':
-            today = datetime.datetime.today()
-        else:
-            today = datetime.datetime.strptime(logfile[0:10], '%Y-%m-%d')
-
-        filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
         u_cats, u_dur, date, df = self.analyze(logfile)
+        
+        # Exit if there's no data to plot
+        if not date or not any(d > 0 for d in u_dur):
+            return
+
         total_dur = np.sum(u_dur)
-        total_hr = int(np.floor(total_dur / 3600))
-        total_min = int(np.floor((total_dur-total_hr*3600) / 60))
-        total_sec = int(total_dur%60)
-        if (total_dur > 0):
-            weekday_name = today.strftime('%a')
-            plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
-            plt.title(f'{weekday_name}, {today.month:02}.{today.day:02}.{today.year:04} - {total_hr:02}:{total_min:02}:{total_sec:02} h')
+        today = date
+        filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
 
-            for t in range(len(u_cats)):
-                hr,mn,sec = Sec2hms(u_dur[t])
-                u_cats[t] = u_cats[t] + "-" + '{0:02}:{1:02}:{2:02}'.format(hr,mn,sec)
+        # Filter out categories with zero duration to ensure colors, labels, and data align
+        pie_labels = []
+        pie_dur = []
+        pie_colors = []
+        all_colors = self.get_colors(logfile)
 
-            plt.pie(u_dur, labels=u_cats,  autopct='%1.1f%%', colors = self.get_colors(logfile))
-            plt.axis('equal')
-            plt.tight_layout()
-            path = 'figs/pie/'+filename
-            plt.savefig(path)
-            #plt.show()
-            plt.close()
+        for i, dur in enumerate(u_dur):
+            if dur > 0:
+                pie_dur.append(dur)
+                hr, mn, sec = Sec2hms(dur)
+                pie_labels.append(f"{u_cats[i]}-{hr:02}:{mn:02}:{sec:02}")
+                pie_colors.append(all_colors[i])
 
-            print('Pie chart saved as {}'.format(path))
+        # Proceed with plotting
+        weekday_name = today.strftime('%a')
+        total_hr, total_min, total_sec = Sec2hms(total_dur)
+        
+        plt.figure(num=None, figsize=(8, 6), dpi=80, facecolor='w', edgecolor='k')
+        plt.title(f'{weekday_name}, {today.month:02}.{today.day:02}.{today.year:04} - {total_hr:02}:{total_min:02}:{total_sec:02} h')
+
+        plt.pie(pie_dur, labels=pie_labels, autopct='%1.1f%%', colors=pie_colors)
+        plt.axis('equal')
+        plt.tight_layout()
+        path = 'figs/pie/' + filename
+        plt.savefig(path)
+        plt.close()
+
+        print('Pie chart saved as {}'.format(path))
 
 
     def get_colors(self, logfile):
         colors = []
         u_cats, _, _, _ = self.analyze(logfile)
+        if not u_cats:
+            return []
+        
+        color_map = dict(self.color_list)
+        # Use idle color as a fallback, otherwise a generic gray
+        default_color = color_map.get('idle', '#CCCCCC')
+        
         for u_cat in u_cats:
-            for col_cat, col in self.color_list:
-                if u_cat == col_cat:
-                    colors.append(col)
+            colors.append(color_map.get(u_cat, default_color))
+            
         return colors
 
     def redo_cat(self, logfile=''):
@@ -317,6 +338,8 @@ test:
             return
 
         u_cats, u_dur, date, df = self.analyze(logfile)
+        if not u_cats:
+            return
         print('')
         print('')
         total_dur = np.sum(df.duration)
@@ -391,10 +414,13 @@ test:
             return
 
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-        _, u_dur, date, df = self.analyze(logfile)
+        
         log_list, date_list = self.get_log_list()
-        u_cats = self.get_unique_categories()
-        colors = self.get_colors(logfile)
+        all_u_cats = self.get_unique_categories()
+        
+        # Create a stable color map for all categories
+        color_map = dict(self.color_list)
+        default_color = color_map.get('idle', '#CCCCCC') # Use idle color or gray as fallback
 
         with open('html/head.txt', 'r', encoding='utf-8') as file:
             head = file.readlines()
@@ -402,54 +428,62 @@ test:
             tail = file.read()
 
         with open('html/index.html', 'w', encoding='utf-8') as file:
-
-            # TABLE
             file.writelines(head)
-            row = '<table style="width:100%">\n'
-            row += '<tr>\n<td></td>'
-            for idx, cat in enumerate(u_cats):
-                row += '<td style="background-color:{}"><b>{}</b></td>\n'.format(colors[idx], cat)
-            row += '<td><b>Total Time</b></td></tr>'
 
+            # --- TABLE ---
+            table_html = '<table style="width:100%">'
+            
+            # --- TABLE HEADER ---
+            header_row = '<tr><td></td>'
+            for cat in all_u_cats:
+                color = color_map.get(cat, default_color)
+                header_row += f'<td style="background-color:{color}"><b>{cat}</b></td>\n'
+            header_row += '<td><b>Total Time</b></td></tr>\n'
+            table_html += header_row
+
+            # --- TABLE DATA ROWS ---
             self.print_pi_chart()
             self.print_timeline()
             for log in reversed(log_list):
-                row += '<tr>\n\t<td>'
-                u_cat, u_dur, date, df = self.analyze(log)
+                u_cats_log, u_dur_log, date, df = self.analyze(log)
+                if not date: continue
+                
+                dur_map = dict(zip(u_cats_log, u_dur_log))
                 date = datetime.datetime.strptime(log[0:10], '%Y-%m-%d')
-                row += '<b>{0:02}.{1:02}.{2:04},{3}</b>'.format(date.month, date.day, date.year,week_days[date.weekday()])
-                row += '</td>'
-                total_time =0
-                for idx, dur in enumerate(u_dur):
-                    total_time = total_time + dur
-                    dur_hr = int(np.floor(dur/3600))
-                    dur_min = int(np.floor((dur-dur_hr*3600)/60))
-                    dur_sec = int(dur%60)
-                    row += '<td style="background-color:{}">'.format(colors[idx])
-                    row += '{0: 6}:{1:02}:{2:02}'.format(dur_hr, dur_min, dur_sec)
-                    row += '</td>\n'
-                tot_time = sec2str(total_time)
-                row += '<td>{0: 6}:{1:02}:{2:02}</td>'.format(tot_time[0],tot_time[1],tot_time[2])
+                
+                row = '<tr>'
+                row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
+                
+                total_time = 0
+                for cat in all_u_cats:
+                    dur = dur_map.get(cat, 0)
+                    total_time += dur
+                    dur_hr, dur_min, dur_sec = Sec2hms(dur)
+                    color = color_map.get(cat, default_color)
+                    row += f'<td style="background-color:{color}">'
+                    row += '{0:02}:{1:02}:{2:02}'.format(dur_hr, dur_min, dur_sec)
+                    row += '</td>'
+                
+                tot_hr, tot_min, tot_sec = Sec2hms(total_time)
+                row += '<td>{0:02}:{1:02}:{2:02}</td>'.format(tot_hr, tot_min, tot_sec)
                 row += '</tr>\n'
+                table_html += row
 
-            row += '<tr>\n<td></td>'
-            for idx, cat in enumerate(u_cats):
-                row += '<td style="background-color:{}"><b>{}</b></td>\n'.format(colors[idx], cat)
-            row += '<td><b>Total Time</b></td></tr>'
+            # --- TABLE FOOTER ---
+            table_html += header_row
+            table_html += '</table>\n'
+            file.write(table_html)
 
-            file.write(row)
-            file.write('</table>\n')
-
-            # images
-            file.write('<div class="gallery">\n')
+            # --- IMAGES ---
+            file.write('<div class="gallery">')
             img_list = os.listdir('figs/pie')
             for img in reversed(img_list):
-                img_row = '<div style="display: flex; justify-content: space-around;">\n'
-                img_row += '<img src="../figs/pie/{}"  width="450" height="450" >\n'.format(img)
-                img_row += '<img src="../figs/timeline/{}"  width="450" height="450" >\n'.format(img)
-                img_row += '</div></br>\n'
+                img_row = '<div style="display: flex; justify-content: space-around;">'
+                img_row += '<img src="../figs/pie/{}"  width="450" height="450" >'.format(img)
+                img_row += '<img src="../figs/timeline/{}"  width="450" height="450" >'.format(img)
+                img_row += '</div></br>'
                 file.write(img_row)
-            file.write('</div>\n')
+            file.write('</div>')
             file.writelines(tail)
         print('html updated')
 

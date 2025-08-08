@@ -142,33 +142,45 @@ TRACK YOUR TIME - DON'T WASTE IT!
 
 
         if current_event != last_event:
-            if last_event == 'idle':
-                category = 'idle'
-            else:
-                category = analytic.get_cat(last_window)
-
+            # An event has just ended. Log it.
             duration = time.time() - start_of_event
-            bRecord = False
-            if duration < 18 and category == 'idle':
-                bRecord = True
-            if duration > 2 and category != 'idle':
-                bRecord = True
-            if bRecord == True:
-                save_data([time.time(), category, int(duration), last_window])
-                try:
-                    if sys.version_info.major >2:
-                        mins = int(np.floor(duration/60))
-                        secs = int(np.floor(duration - mins*60))
-                        local_t = time.localtime(start_of_event)
-                        print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour,local_t.tm_min, mins, secs),
-                              "{} \t".format(category),
-                              "({})".format(last_event[:120]))
-                except UnicodeDecodeError:
-                    print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
+            if last_event:  # Don't log the very first "event" on startup
+                if last_event == 'idle':
+                    category = 'idle'
+                else:
+                    category = analytic.get_cat(last_window)
 
+                bRecord = False
+                if duration < 18 and category == 'idle':
+                    bRecord = True
+                if duration > 2 and category != 'idle':
+                    bRecord = True
+                if bRecord == True:
+                    save_data([time.time(), category, int(duration), last_window])
+                    try:
+                        if sys.version_info.major > 2:
+                            mins = int(np.floor(duration/60))
+                            secs = int(np.floor(duration - mins*60))
+                            local_t = time.localtime(start_of_event)
+                            print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
+                                  "{} \t".format(category),
+                                  "({})".format(last_event[:120]))
+                    except UnicodeDecodeError:
+                        print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
+
+            # A new event has just started. Update state and print it for immediate feedback.
             last_window = current_window
             start_of_event = time.time()
             last_event = current_event
+            try:
+                new_category = 'idle' if idle else analytic.get_cat(current_event)
+                local_t = time.localtime(start_of_event)
+                print("{0:02}:{1:02} - Starting:\t".format(local_t.tm_hour, local_t.tm_min),
+                      "{} \t".format(new_category),
+                      "({})".format(current_event[:120]))
+            except Exception:
+                # Fail silently if printing the new event causes an issue
+                pass
 
         if time.time() > html_update_time:
             html_counter = html_counter +1
@@ -203,13 +215,12 @@ TRACK YOUR TIME - DON'T WASTE IT!
 def save_data(data):
     today = datetime.datetime.now()
     folder = 'data/'
-    filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
-    #filename = str(today.year) + '-' + str(today.month) + '-' + str(today.day) + '.csv'
+    filename = f'{today.year}-{today.month:02d}-{today.day:02d}.csv'
     path = folder + filename
     if not os.path.isdir(folder):
         os.mkdir(folder)
-    with open(path, 'a') as file:
-        writer = csv.writer(file, delimiter=',', lineterminator="\r")
+    with open(path, 'a', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
         writer.writerow(data)
 
 
@@ -218,6 +229,7 @@ def is_mouse_idle():
     global last_mouse_coords
     global idle_time
 
+    time.sleep(0.1)
     try:
         x, y = pyautogui.position()
         mouse_coords = [x,y]
@@ -226,6 +238,11 @@ def is_mouse_idle():
 
     if mouse_coords != last_mouse_coords:
         last_mouse_coords = [x, y]
+        last_time_mouse_moved = time.time()
+
+    if time.time() > last_time_mouse_moved + idle_time:
+        return True
+    return False
 def get_window_name():
     if platform.system() == "Windows":
         try:

@@ -29,6 +29,7 @@ def generate_inspirational_html(image_folder, md_folder, output_file="inspiratio
 
     # Open the image and convert it to base64
     with Image.open(image_path) as img:
+        img.thumbnail((1920, 1080))  # Resize image to a max of 1920x1080
         buffered = BytesIO()
         img.save(buffered, format="PNG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
