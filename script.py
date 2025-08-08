@@ -24,7 +24,8 @@ from analytics import Analytics
 from broser_start import generate_inspirational_html
 import platform
 import psutil
-from multiprocessing import Process
+from multiprocessing import Process, Queue
+import tkinter as tk
 
 if platform.system() == "Windows":
     import win32gui
@@ -48,6 +49,33 @@ wasted_time_warning_issued = False
 
 last_notification_time = 0
 notification_cooldown = 60  # seconds
+alert_queue = None
+alert_process = None
+
+def alert_process_func(queue):
+    def update_text():
+        try:
+            message, title = queue.get_nowait()
+            label.config(text=message)
+            root.title(title)
+            root.deiconify()  # Show the window
+        except Exception:
+            pass
+        root.after(100, update_text)
+
+    def on_closing():
+        root.withdraw()  # Hide the window instead of closing it
+
+    root = tk.Tk()
+    root.title("Warning")
+    label = tk.Label(root, text="", padx=20, pady=20)
+    label.pack()
+    ok_button = tk.Button(root, text="OK", command=on_closing)
+    ok_button.pack(pady=5)
+    root.protocol("WM_DELETE_WINDOW", on_closing)
+    root.withdraw()  # Hide the window initially
+    root.after(100, update_text)
+    root.mainloop()
 
 def show_non_blocking_alert(message, title):
     global last_notification_time
@@ -57,14 +85,15 @@ def show_non_blocking_alert(message, title):
     if platform.system() == "Linux":
         os.system(f'notify-send "{title}" "{message}"')
     else:
-        Process(target=pyautogui.alert, args=(message, title)).start()
+        if alert_queue:
+            alert_queue.put((message, title))
 
 def check_ram():
     global ram_check_time
     if time.time() > ram_check_time:
-        free_ram_gb = psutil.virtual_memory().free / (1024 * 1024 * 1024)
+        free_ram_gb = psutil.virtual_memory().free / (1024.0 * 1024 * 1024)
         # print(f"Debug: Free RAM: {free_ram_gb:.2f} GB")
-        if free_ram_gb < 1:
+        if free_ram_gb < 0.6:
             show_non_blocking_alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
         ram_check_time = time.time() + 10
 
@@ -76,6 +105,14 @@ def main():
     global html_update_time
     global wasted_time_warning_issued
     global wasted_time_start
+    global alert_queue
+    global alert_process
+
+    if platform.system() == "Windows":
+        alert_queue = Queue()
+        alert_process = Process(target=alert_process_func, args=(alert_queue,))
+        alert_process.start()
+
     np.seterr(all='ignore')
 
     analytic = Analytics()
@@ -152,7 +189,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             print(f"wasted time is {wasted_time:.2f} seconds", end='\r')
 
             if wasted_time > 6 * 60 and not wasted_time_warning_issued:
-                show_non_blocking_alert("You have been looking at a 'wasted' window for over 6 minutes.", "Wasted Time Warning")
+                show_non_blocking_alert(f"You have been looking at a 'wasted' window for {wasted_time/60.0:.0f} minutes.", "Wasted Time Warning")
                 wasted_time_warning_issued = True
         else:
             if wasted_time_start is not None:
@@ -248,4 +285,9 @@ def is_keyboard_idle(sleep_duration):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        if alert_process:
+            alert_process.terminate()
+            alert_process.join()

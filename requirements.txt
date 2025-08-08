@@ -7,3 +7,4 @@ python-xlib
 pynput
 markdown2
 psutil
+pywin32

@@ -226,7 +226,7 @@ test:
         u_dur = [] # duratio of unice category
         for u_cat in u_cats:
             temp = df.loc[df.category == u_cat]
-            dur = np.sum(temp.duration)
+            dur = np.sum(temp.duration[temp.duration > 0])
             u_dur.append(dur)
         return u_cats, u_dur, date, df
 
