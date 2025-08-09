@@ -17,6 +17,8 @@ import re
 import shutil
 import time
 import datetime
+import database
+
 def main():
     reanalyze_all()
 
@@ -35,16 +37,20 @@ def Sec2hms(seconds):
 def reanalyze_all():
     if not os.path.isdir('data'):
         os.mkdir('data')
-    logfiles = os.listdir('data')
+    
     analytic = Analytics()
-    for logfile in logfiles:
-        print('logfile', logfile)
-        #logfile = '' #'2018-9-5.csv'
-        analytic.redo_cat(logfile)
+    log_list, _ = analytic.get_log_list()
+
+    for logfile in log_list:
+        print('Processing analysis for:', logfile)
+        # The following functions now read from the database
         analytic.print_review(logfile)
         analytic.print_timeline(logfile)
         analytic.print_pi_chart(logfile)
-        analytic.create_html(logfile)
+    
+    # Create the main HTML report
+    analytic.create_html()
+
 
 
 class Analytics():
@@ -56,6 +62,7 @@ class Analytics():
         self.color_list = self.config.items('COLORS')
         self.proj_list = self.config.items('PROJECTS')
         self.analysis_cache = {}
+        database.initialize_database()
 
     def _load_config(self):
         path_config = 'config.dat'
@@ -144,95 +151,85 @@ test:
         if "mod.log" in logfile:
             return
 
-        if logfile == '':
-            today = datetime.datetime.now()
-            filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
-            path = self.path_data + '/' + filename
+        u_cats, u_dur, date, df = self.analyze(logfile)
 
-        else:
-            filename = logfile
-            today = datetime.datetime.strptime(logfile[:10], '%Y-%m-%d')
-        path = self.path_data + '/' + filename
-        if not os.path.isfile(path):
-                # print out an error message if the file is not found
-                print(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
-                # raise FileNotFoundError(f'{path} Logfile {logfile} not found (print_timeline). Start script.py first to generate data')
-                return
-
-        df = pd.read_csv(path, encoding="ISO-8859-1", names=['time', 'category', 'duration', 'title', 'timestamp'], sep=',')
-        u_cats = self.get_unique_categories(self.string_cats) # unique category name
+        if df is None or df.empty:
+            if logfile:
+                date_str = logfile.replace('.csv', '')
+                print(f'No data to generate timeline for {date_str}.')
+            return
 
         colors = self.get_colors(logfile)
-        plt.title('')
-        start_time = ''
+        plt.figure()
+        
+        plt.title(date.strftime('%Y-%m-%d'))
+
+        has_data_to_plot = False
         for idx, u_cat in enumerate(u_cats):
             temp = df.loc[df.category == u_cat]
-            time = temp.time.values
+            if temp.empty:
+                continue
+
+            has_data_to_plot = True
+            time_col = temp.time.values
             duration = temp.duration.values
 
-            for entry in range(len(time)):
-                start_time = datetime.datetime.fromtimestamp(float(time[0])).date()
-                start = datetime.datetime.fromtimestamp(float(time[entry]) - float(duration[entry]))
-                end = datetime.datetime.fromtimestamp(float(time[entry]))
-                #print(u_cat, start, end, '\t', duration[entry])
-                plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
+            for entry in range(len(time_col)):
+                start = datetime.datetime.fromtimestamp(float(time_col[entry]) - float(duration[entry]))
+                end = datetime.datetime.fromtimestamp(float(time_col[entry]))
+                
+                if idx < len(colors):
+                    plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
 
-        if(start_time != ''):
-           # plt.yticks(range(len(u_cat)+1), u_cats.append('test'),[])
-            plt.grid()
-            plt.title(start_time)
-            start_time = datetime.datetime.combine(start_time, datetime.time(0,1))
-            time_delta = datetime.time(hour=23, minute=59)
-            end_time = datetime.datetime.combine(start_time, time_delta)
-
-            plt.xlim([start_time, end_time])
-            plt.gcf().autofmt_xdate()
-            myFmt = mdates.DateFormatter('%H:%M')
-            plt.gca().xaxis.set_major_formatter(myFmt)
-            plt.tight_layout()
-
-            filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
-            #fig_path = str(today.year) + '-' + str(today.month) + '-' + str(today.day) + '.png'
-
-            path = 'figs/timeline/' + filename
-            plt.savefig(path)
-
+        if not has_data_to_plot:
             plt.close()
-            print('Timeline saved as {}'.format(path))
+            return
+
+        plt.grid()
+        plt.yticks(range(len(u_cats)), u_cats)
+        
+        start_of_day = datetime.datetime.combine(date, datetime.time.min)
+        end_of_day = datetime.datetime.combine(date, datetime.time.max)
+
+        plt.xlim([start_of_day, end_of_day])
+        plt.gcf().autofmt_xdate()
+        myFmt = mdates.DateFormatter('%H:%M')
+        plt.gca().xaxis.set_major_formatter(myFmt)
+        plt.tight_layout()
+
+        filename = f"{date.strftime('%Y-%m-%d')}.png"
+        path = 'figs/timeline/' + filename
+        plt.savefig(path)
+
+        plt.close()
+        print('Timeline saved as {}'.format(path))
 
 
     def analyze(self, logfile=''):
-        # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
             return None, None, None, None
         if logfile in self.analysis_cache:
             return self.analysis_cache[logfile]
 
-        u_cats=[]
-        u_dur=[]
-        date=[]
-        df=[]
         if logfile == '':
             today = datetime.datetime.now()
-            filename = '{0:d}-{1:02d}-{2:02d}.csv'.format(today.year, today.month, today.day)
-            path = self.path_data + '/' + filename
-
+            date_str = today.strftime('%Y-%m-%d')
         else:
-            filename = logfile
-        path = self.path_data + '/' + filename
-        if not os.path.isfile(path):
-                return u_cats, u_dur, date, df
+            date_str = logfile.replace('.csv', '')
 
-        date = datetime.datetime.strptime(filename[0:10], '%Y-%m-%d')
+        df = database.fetch_data_for_day(date_str)
 
-        df = pd.read_csv(path, encoding = "ISO-8859-1", names=['time', 'category', 'duration', 'title'], usecols=[0,1,2,3])
-        u_cats = self.get_unique_categories(self.string_cats) # unique category name
-        u_dur = [] # duratio of unice category
+        if df.empty:
+            return [], [], None, None
+
+        date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+        u_cats = self.get_unique_categories(self.string_cats)
+        u_dur = []
         for u_cat in u_cats:
-            temp = df.loc[df.category == u_cat]
-            dur = np.sum(temp.duration[temp.duration > 0])
+            temp = df.loc[df['category'] == u_cat]
+            dur = np.sum(temp['duration'][temp['duration'] > 0])
             u_dur.append(dur)
-        
+
         self.analysis_cache[logfile] = (u_cats, u_dur, date, df)
         return u_cats, u_dur, date, df
 
@@ -298,39 +295,6 @@ test:
             
         return colors
 
-    def redo_cat(self, logfile=''):
-        if "mod.log" in logfile:
-            return
-        path = self.path_data + '/' + logfile
-        if not os.path.isfile(path):
-                raise FileNotFoundError (path+' Logfile not found (redo_cat). Start script.py first do generate data')
-        outlog = ""
-        mylog = ""
-        try:
-            mylog = open(path, "r", encoding='utf-8',errors='ignore')
-            outlog = open(self.path_data + '/' +"mod.log", "w", encoding='utf-8')
-            time_str=''
-            for line in mylog:
-                words =[]
-                words = line.rstrip().split(',')
-                if (len(words) >3):
-                    words[1] = self.get_cat(words[3])
-                    if len(words[-1]) != 5 or not ':' in words[-1]:
-                        local_t = time.localtime(float(words[0]))
-                        time_str ="{0:02}:{1:02}".format(local_t.tm_hour,local_t.tm_min)
-                        words.append(time_str)
-
-                line = ",".join(words)
-                outlog.write(line+"\n")
-                line=[]
-
-            mylog.close()
-            outlog.close()
-        except (RuntimeError, TypeError, NameError):
-            return
-        if os.path.isfile(outlog.name) and os.path.isfile(mylog.name):
-            shutil.move(outlog.name,mylog.name)
-
     def print_review(self, logfile=''):
 
         # check the filename does not contain "mod.log" to avoid crash
@@ -338,7 +302,7 @@ test:
             return
 
         u_cats, u_dur, date, df = self.analyze(logfile)
-        if not u_cats:
+        if not u_cats or df is None:
             return
         print('')
         print('')
@@ -372,16 +336,22 @@ test:
 
 
     def get_log_list(self):
-        log_list = os.listdir(self.path_data)
-        date_list = []
-        outlog_list =[]
-        for log in log_list:
-            file_extension = Path(log).suffix
-            if file_extension == '.csv':
-                date_list.insert(0,datetime.datetime.strptime(log[0:10], '%Y-%m-%d'))
-                outlog_list.insert(0,log)
-
-        return outlog_list, date_list
+        """
+        Gets the list of days that have data from the database.
+        Returns a list of date strings ('YYYY-MM-DD.csv') and a list of datetime objects.
+        """
+        all_data = database.fetch_all_data_grouped_by_day()
+        log_list = [f"{day}.csv" for day in all_data.keys()]
+        date_list = [datetime.datetime.strptime(day, '%Y-%m-%d') for day in all_data.keys()]
+        
+        # Sort lists by date, descending
+        sorted_pairs = sorted(zip(date_list, log_list), reverse=True)
+        
+        if not sorted_pairs:
+            return [], []
+            
+        date_list, log_list = zip(*sorted_pairs)
+        return list(log_list), list(date_list)
 
 
     def get_unique_categories(self, string_cats=''):

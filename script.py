@@ -26,6 +26,7 @@ import platform
 import psutil
 from multiprocessing import Process, Queue
 import tkinter as tk
+import database
 
 if platform.system() == "Windows":
     import win32gui
@@ -107,6 +108,8 @@ def main():
     global wasted_time_start
     global alert_queue
     global alert_process
+
+    database.initialize_database()
 
     if platform.system() == "Windows":
         alert_queue = Queue()
@@ -247,15 +250,10 @@ TRACK YOUR TIME - DON'T WASTE IT!
         time.sleep(0.5)
 
 def save_data(data):
-    today = datetime.datetime.now()
-    folder = 'data/'
-    filename = f'{today.year}-{today.month:02d}-{today.day:02d}.csv'
-    path = folder + filename
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
-    with open(path, 'a', newline='') as file:
-        writer = csv.writer(file, delimiter=',')
-        writer.writerow(data)
+    """Saves a single data record to the database."""
+    # data format is [timestamp, category, duration, window_title]
+    database.insert_activity(data[0], data[1], data[2], data[3])
+
 
 
 def is_mouse_idle():
