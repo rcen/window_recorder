@@ -53,3 +53,10 @@ You are an **expert Python Developer** and a helpful, proactive **AI/ML Speciali
 * **Use \! for Shell Commands:** If you need me to execute a shell command, prefix it with \! (e.g., \!pip install numpy). Remember that I'll ask for confirmation for execution.  
 * **Ask for Clarification:** If a prompt is ambiguous, ask clarifying questions before proceeding.  
 * **Summarize Changes:** After making significant changes, provide a concise summary of what was done and why.
+
+## **7. To-Do List**
+
+- [ ] **Secure Data Sync:** Upload the collected data to a secure location (e.g., a private cloud storage or a self-hosted database) to enable data retrieval from different computers.
+- [ ] **Database Integration:** Replace the current CSV file storage with a database system (e.g., SQLite, PostgreSQL). This will allow for more complex queries and data selection based on specific rules.
+- [ ] **AI-Powered Category Validation:** Implement an AI model to analyze window titles and suggest or automatically correct the assigned category, improving data accuracy.
+- [ ] **Productivity Analysis:** Develop scripts to analyze usage patterns from the collected data, identify habits, and provide insights to improve productivity.
