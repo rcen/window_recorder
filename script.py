@@ -128,7 +128,41 @@ TRACK YOUR TIME - DON'T WASTE IT!
         listener = keyboard.Listener(on_press=on_press)
         listener.start()
 
+    last_loop_time = time.time()
     while True:
+        current_loop_time = time.time()
+        time_jump = current_loop_time - last_loop_time
+        last_loop_time = current_loop_time
+
+        # A jump of more than 5s is considered a sleep event, as the loop should run every ~0.5s
+        if time_jump > 5.0:
+            # System sleep detected. End the previous event.
+            duration_before_sleep = last_loop_time - start_of_event
+            if last_event:  # Log the event that was active before sleep
+                category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window)
+
+                bRecord = False
+                if duration_before_sleep < 18 and category == 'idle':
+                    bRecord = True
+                if duration_before_sleep > 2 and category != 'idle':
+                    bRecord = True
+                if bRecord:
+                    save_data([last_loop_time, category, int(duration_before_sleep), last_window])
+                    try:
+                        mins = int(np.floor(duration_before_sleep/60))
+                        secs = int(np.floor(duration_before_sleep - mins*60))
+                        local_t = time.localtime(start_of_event)
+                        print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
+                              "{} \t".format(category),
+                              "(pre-sleep) ({})".format(last_event[:120]))
+                    except UnicodeDecodeError:
+                        print("{0: 5.0f} s\t".format(duration_before_sleep), "UNICODE DECODE ERROR")
+
+            # The time spent sleeping is effectively idle time. We reset the state to idle.
+            start_of_event = last_loop_time
+            last_event = 'idle'
+            last_window = 'Computer Sleep'
+
         mouse_idle = is_mouse_idle()
         keyboard_idle = is_keyboard_idle(0.01)
 
