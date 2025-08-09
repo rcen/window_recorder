@@ -8,7 +8,7 @@ import time
 
 # --- Configuration ---
 # This will be replaced with your actual Render API URL during deployment
-API_BASE_URL = os.environ.get("WINDOW_RECORDER_API_URL", "http://127.0.0.1:8000")
+API_BASE_URL = os.environ.get("WINDOW_RECORDER_API_URL", "https://window-recorder-api.onrender.com")
 DB_FILE = 'data/activity.sqlite'
 
 # --- Global Cache ---
