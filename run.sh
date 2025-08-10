@@ -1,26 +1,40 @@
 #!/bin/bash
 set -e
 
-# Check for virtual environment
-if [ ! -d "winrecord_env" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv winrecord_env
-fi
+# Function to clean up background processes on exit
+cleanup() {
+    echo "Stopping background processes..."
+    # Kill the process group of the script, which includes all child processes
+    if [ -n "$tracker_pid" ]; then
+        kill $tracker_pid 2>/dev/null
+    fi
+    exit 0
+}
+
+# Trap script exit signals and call the cleanup function
+trap cleanup SIGINT SIGTERM
 
 # Activate virtual environment
 source winrecord_env/bin/activate
 
-# Install dependencies
+# Install dependencies if needed
 if [[ " $@ " =~ " --new " ]]; then
     pip install -r requirements.txt
 fi
 
-# Run analytics
-python3 analytics.py
-
-# Run the main script in a loop
-while true; do
+# Start the activity tracker in the background
+echo "Starting window recorder in the background..."
+(
+  while true; do
     python3 script.py
-    echo "Script stopped. Restarting in 5 seconds..."
+    echo "Tracker script stopped. Restarting in 5 seconds..."
     sleep 5
-done
+  done
+) &
+tracker_pid=$!
+
+echo "Tracker started with PID: $tracker_pid"
+echo "Starting automatic report generator in the foreground..."
+
+# Start the report generator in the foreground
+./update_report.sh

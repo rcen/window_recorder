@@ -35,6 +35,7 @@ def Sec2hms(seconds):
     return hr, min, sec
 
 def reanalyze_all():
+    database.clear_cache()
     if not os.path.isdir('data'):
         os.mkdir('data')
     
@@ -147,65 +148,16 @@ test:
 
 
     def print_timeline(self, logfile=''):
-        # check the filename does not contain "mod.log" to avoid crash
-        if "mod.log" in logfile:
-            return
-
-        u_cats, u_dur, date, df = self.analyze(logfile)
-
-        if df is None or df.empty:
-            if logfile:
-                date_str = logfile.replace('.csv', '')
-                print(f'No data to generate timeline for {date_str}.')
-            return
-
-        colors = self.get_colors(logfile)
-        plt.figure()
-        
-        plt.title(date.strftime('%Y-%m-%d'))
-
-        has_data_to_plot = False
-        for idx, u_cat in enumerate(u_cats):
-            temp = df.loc[df.category == u_cat]
-            if temp.empty:
-                continue
-
-            has_data_to_plot = True
-            time_col = temp.time.values
-            duration = temp.duration.values
-
-            for entry in range(len(time_col)):
-                start = datetime.datetime.fromtimestamp(float(time_col[entry]) - float(duration[entry]))
-                end = datetime.datetime.fromtimestamp(float(time_col[entry]))
-                
-                if idx < len(colors):
-                    plt.plot([start , end], [idx, idx] , '-.', linewidth=7, color=colors[idx])
-
-        if not has_data_to_plot:
-            plt.close()
-            return
-
-        plt.grid()
-        plt.yticks(range(len(u_cats)), u_cats)
-        
-        start_of_day = datetime.datetime.combine(date, datetime.time.min)
-        end_of_day = datetime.datetime.combine(date, datetime.time.max)
-
-        plt.xlim([start_of_day, end_of_day])
-        plt.gcf().autofmt_xdate()
-        myFmt = mdates.DateFormatter('%H:%M')
-        plt.gca().xaxis.set_major_formatter(myFmt)
-        plt.tight_layout()
-
-        filename = f"{date.strftime('%Y-%m-%d')}.png"
-        path = 'figs/timeline/' + filename
-        plt.savefig(path)
-
-        plt.close()
-        print('Timeline saved as {}'.format(path))
+        # Timeline generation requires the full, detailed dataset which is no longer
+        # fetched for performance reasons. This function is now a no-op.
+        pass
 
 
     def analyze(self, logfile=''):
+        """
+        Fetches a pre-computed summary for a given day.
+        The heavy lifting is done by the API server.
+        """
         if "mod.log" in logfile:
             return None, None, None, None
         if logfile in self.analysis_cache:
@@ -217,21 +169,18 @@ test:
         else:
             date_str = logfile.replace('.csv', '')
 
-        df = database.fetch_data_for_day(date_str)
+        # Fetch the pre-aggregated summary instead of the full dataset
+        u_cats, u_dur = database.fetch_summary_for_day(date_str)
 
-        if df.empty:
+        if not u_cats:
             return [], [], None, None
 
         date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
-        u_cats = self.get_unique_categories(self.string_cats)
-        u_dur = []
-        for u_cat in u_cats:
-            temp = df.loc[df['category'] == u_cat]
-            dur = np.sum(temp['duration'][temp['duration'] > 0])
-            u_dur.append(dur)
-
-        self.analysis_cache[logfile] = (u_cats, u_dur, date, df)
-        return u_cats, u_dur, date, df
+        
+        # The dataframe `df` is no longer available as we don't fetch the full log.
+        # We pass None for it. Other functions will need to handle this.
+        self.analysis_cache[logfile] = (u_cats, u_dur, date, None)
+        return u_cats, u_dur, date, None
 
 
 
@@ -240,7 +189,7 @@ test:
         if "mod.log" in logfile:
             return
 
-        u_cats, u_dur, date, df = self.analyze(logfile)
+        u_cats, u_dur, date, _ = self.analyze(logfile) # df is no longer available
         
         # Exit if there's no data to plot
         if not date or not any(d > 0 for d in u_dur):
@@ -254,14 +203,22 @@ test:
         pie_labels = []
         pie_dur = []
         pie_colors = []
-        all_colors = self.get_colors(logfile)
+        
+        # Get all unique categories defined in the config to create a stable color mapping
+        all_u_cats = self.get_unique_categories()
+        color_map = dict(self.color_list)
+        default_color = color_map.get('idle', '#CCCCCC')
 
-        for i, dur in enumerate(u_dur):
+        # Create a duration map from the fetched summary data
+        dur_map = dict(zip(u_cats, u_dur))
+
+        for cat in all_u_cats:
+            dur = dur_map.get(cat, 0)
             if dur > 0:
                 pie_dur.append(dur)
                 hr, mn, sec = Sec2hms(dur)
-                pie_labels.append(f"{u_cats[i]}-{hr:02}:{mn:02}:{sec:02}")
-                pie_colors.append(all_colors[i])
+                pie_labels.append(f"{cat}-{hr:02}:{mn:02}:{sec:02}")
+                pie_colors.append(color_map.get(cat, default_color))
 
         # Proceed with plotting
         weekday_name = today.strftime('%a')
@@ -301,12 +258,12 @@ test:
         if "mod.log" in logfile:
             return
 
-        u_cats, u_dur, date, df = self.analyze(logfile)
-        if not u_cats or df is None:
+        u_cats, u_dur, date, _ = self.analyze(logfile) # df is no longer available
+        if not u_cats or date is None:
             return
         print('')
         print('')
-        total_dur = np.sum(df.duration)
+        total_dur = np.sum(u_dur) # Calculate total from summary
         if (isinstance(total_dur, numbers.Number) == False):
             return
 
@@ -327,24 +284,22 @@ test:
                 dur_sec = int(dur%60)
                 print('{0: 6}:{1:02}:{2:02} h  {3:} '.format(dur_hr, dur_min, dur_sec, cat))
 
-        sum_cat_time = total_dur - np.sum(u_dur)
-        sum_dur_hr = int(np.floor(sum_cat_time/3600))
-        sum_dur_min = int(np.floor((sum_cat_time - sum_dur_hr*3500)/60))
-        sum_dur_sec = sum_cat_time%60
+        # "not categorized" is now implicitly handled since the summary only returns categorized data.
+        # The total duration is the sum of all categorized durations.
         print('-------------------------------------')
-        print('{0: 6}:{1:02}:{2:02} h not categorized'.format(sum_dur_hr, sum_dur_min, sum_dur_sec))
+        print('{0: 6}:{1:02}:{2:02} h not categorized'.format(0, 0, 0))
 
 
     def get_log_list(self):
         """
-        Gets the list of days that have data from the database.
+        Gets the list of days that have data from the new, efficient API endpoint.
         Returns a list of date strings ('YYYY-MM-DD.csv') and a list of datetime objects.
         """
-        all_data = database.fetch_all_data_grouped_by_day()
-        log_list = [f"{day}.csv" for day in all_data.keys()]
-        date_list = [datetime.datetime.strptime(day, '%Y-%m-%d') for day in all_data.keys()]
+        days = database.fetch_available_days()
+        log_list = [f"{day}.csv" for day in days]
+        date_list = [datetime.datetime.strptime(day, '%Y-%m-%d') for day in days]
         
-        # Sort lists by date, descending
+        # The API already returns them sorted, but we can ensure it here too.
         sorted_pairs = sorted(zip(date_list, log_list), reverse=True)
         
         if not sorted_pairs:

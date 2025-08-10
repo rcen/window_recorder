@@ -7,4 +7,6 @@ python-xlib
 pynput
 markdown2
 psutil
-pywin32requests
+pywin32 ; sys_platform == 'win32'
+requests
+pytz
