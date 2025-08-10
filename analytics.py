@@ -164,7 +164,10 @@ test:
             return self.analysis_cache[logfile]
 
         if logfile == '':
-            today = datetime.datetime.now()
+            from config import TIMEZONE
+            import pytz
+            tz = pytz.timezone(TIMEZONE)
+            today = datetime.datetime.now(tz)
             date_str = today.strftime('%Y-%m-%d')
         else:
             date_str = logfile.replace('.csv', '')

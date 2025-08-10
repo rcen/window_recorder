@@ -143,21 +143,14 @@ def fetch_summary_for_day(date_str):
 
 def _fetch_local_data_grouped_by_day():
     """
-    Fetches all activity data from the local SQLite database.
+    Fetches all activity data from the local SQLite database and groups by day
+    according to the configured TIMEZONE.
     """
     if not os.path.exists(DB_FILE):
         return {}
         
     conn = sqlite3.connect(DB_FILE)
-    query = """
-        SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch', 'localtime') as day,
-               timestamp as time,
-               category,
-               duration,
-               window_title as title
-        FROM activity
-        ORDER BY day
-    """
+    query = "SELECT timestamp, category, duration, window_title as title FROM activity"
     try:
         df = pd.read_sql_query(query, conn)
     finally:
@@ -166,5 +159,13 @@ def _fetch_local_data_grouped_by_day():
     if df.empty:
         return {}
 
+    # Convert UNIX timestamp to timezone-aware datetime objects
+    from config import TIMEZONE
+    import pytz
+    tz = pytz.timezone(TIMEZONE)
+    df['time'] = df['timestamp'].apply(lambda ts: datetime.datetime.fromtimestamp(ts, tz))
+    # Determine the day based on the localized time
+    df['day'] = df['time'].dt.strftime('%Y-%m-%d')
+
     grouped = df.groupby('day')
-    return {name: group.drop('day', axis=1) for name, group in grouped}
+    return {name: group.drop(['day', 'time'], axis=1) for name, group in grouped}

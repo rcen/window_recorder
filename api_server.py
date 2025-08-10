@@ -1,16 +1,18 @@
 
 import os
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func, cast, Date
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 import datetime
 import pytz
+from config import TIMEZONE
 
-# This should match the client's timezone.
-# In a real-world scenario, this might be configurable per-user.
-CLIENT_TIMEZONE = os.environ.get("TZ", "America/New_York")
+# Use the timezone from the config file
+CLIENT_TIMEZONE = TIMEZONE
+# Convert the string timezone to a pytz timezone object
+tz = pytz.timezone(CLIENT_TIMEZONE)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./activity.db")
 
@@ -21,7 +23,7 @@ Base = declarative_base()
 class Activity(Base):
     __tablename__ = "activities"
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow) # Timestamps are stored in UTC
+    timestamp = Column(DateTime, default=lambda: datetime.datetime.utcnow()) # Store as UTC
     category = Column(String)
     duration = Column(Integer)
     window_title = Column(String)
@@ -60,10 +62,13 @@ class DailySummary(BaseModel):
 
 @app.post("/log", response_model=ActivityResponse)
 def create_activity(activity: ActivityCreate, db: Session = Depends(get_db)):
-    # The incoming timestamp is from the client's local time, convert to UTC for storage
-    local_dt = datetime.datetime.fromtimestamp(activity.timestamp)
+    # Convert local timestamp to a timezone-aware datetime object
+    local_dt = tz.localize(datetime.datetime.fromtimestamp(activity.timestamp))
+    # Convert to UTC for storage
+    utc_dt = local_dt.astimezone(pytz.utc)
+    
     db_activity = Activity(
-        timestamp=local_dt, # Storing as naive datetime, but it represents UTC
+        timestamp=utc_dt,
         category=activity.category,
         duration=activity.duration,
         window_title=activity.window_title
@@ -84,9 +89,19 @@ def get_available_days(db: Session = Depends(get_db)):
     Returns a sorted list of unique days ('YYYY-MM-DD') that have activity data,
     adjusted for the client's timezone.
     """
-    days = db.query(
-        func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime'))
-    ).distinct().order_by(func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime')).desc()).all()
+    # The conversion from UTC to the local timezone needs to be handled carefully.
+    # For SQLite, we can use the 'localtime' modifier, but for PostgreSQL, it's different.
+    # This implementation will assume SQLite for simplicity of the example.
+    # A more robust solution would handle different database backends.
+    if "sqlite" in DATABASE_URL:
+        days = db.query(
+            func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime'))
+        ).distinct().order_by(func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime')).desc()).all()
+    else: # Assuming PostgreSQL
+        days = db.query(
+            func.to_char(Activity.timestamp.op('AT TIME ZONE')(CLIENT_TIMEZONE), 'YYYY-MM-DD')
+        ).distinct().order_by(func.to_char(Activity.timestamp.op('AT TIME ZONE')(CLIENT_TIMEZONE), 'YYYY-MM-DD').desc()).all()
+
     return [day[0] for day in days]
 
 
@@ -97,19 +112,29 @@ def get_daily_summary(day: str, db: Session = Depends(get_db)):
     adjusted for the client's timezone.
     """
     try:
-        # Validate date format
         datetime.datetime.strptime(day, '%Y-%m-%d')
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    summary = db.query(
-        Activity.category,
-        func.sum(Activity.duration).label("total_duration")
-    ).filter(
-        func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime')) == day
-    ).group_by(
-        Activity.category
-    ).all()
+    if "sqlite" in DATABASE_URL:
+        summary = db.query(
+            Activity.category,
+            func.sum(Activity.duration).label("total_duration")
+        ).filter(
+            func.strftime('%Y-%m-%d', func.datetime(Activity.timestamp, 'localtime')) == day
+        ).group_by(
+            Activity.category
+        ).all()
+    else: # Assuming PostgreSQL
+        summary = db.query(
+            Activity.category,
+            func.sum(Activity.duration).label("total_duration")
+        ).filter(
+            func.to_char(Activity.timestamp.op('AT TIME ZONE')(CLIENT_TIMEZONE), 'YYYY-MM-DD') == day
+        ).group_by(
+            Activity.category
+        ).all()
+        
     return summary
 
 @app.get("/")
