@@ -220,13 +220,13 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 pass
 
         if time.time() > html_update_time:
-            html_counter = html_counter +1
+            # Clear the cache to force re-reading data from the database
+            analytic.analysis_cache.clear()
             analytic.create_html()
-            html_update_time = time.time()+ 120
-            if html_counter %  5  == 1 :
-                image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
-                md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
-                result = generate_inspirational_html(image_folder, md_folder)
+            image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
+            md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
+            result = generate_inspirational_html(image_folder, md_folder)
+            html_update_time = time.time() + 120
 
         current_category = 'idle' if idle else analytic.get_cat(current_window)
         if "wasted" in current_category.lower():

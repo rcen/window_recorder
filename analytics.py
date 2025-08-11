@@ -408,7 +408,6 @@ test:
             for img in reversed(img_list):
                 img_row = '<div style="display: flex; justify-content: space-around;">'
                 img_row += '<img src="../figs/pie/{}"  width="450" height="450" >'.format(img)
-                img_row += '<img src="../figs/timeline/{}"  width="450" height="450" >'.format(img)
                 img_row += '</div></br>'
                 file.write(img_row)
             file.write('</div>')

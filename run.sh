@@ -1,40 +1,27 @@
 #!/bin/bash
-set -e
-
-# Function to clean up background processes on exit
-cleanup() {
-    echo "Stopping background processes..."
-    # Kill the process group of the script, which includes all child processes
-    if [ -n "$tracker_pid" ]; then
-        kill $tracker_pid 2>/dev/null
-    fi
-    exit 0
-}
-
-# Trap script exit signals and call the cleanup function
-trap cleanup SIGINT SIGTERM
 
 # Activate virtual environment
 source winrecord_env/bin/activate
 
-# Install dependencies if needed
-if [[ " $@ " =~ " --new " ]]; then
-    pip install -r requirements.txt
-fi
+# Function to be called on exit
+cleanup() {
+    echo -e "\nCaught Ctrl-C. Stopping the Python script..."
+    if [ -n "$python_pid" ]; then
+        kill $python_pid
+    fi
+    exit 0
+}
 
-# Start the activity tracker in the background
-echo "Starting window recorder in the background..."
-(
-  while true; do
-    python3 script.py
-    echo "Tracker script stopped. Restarting in 5 seconds..."
-    sleep 5
-  done
-) &
-tracker_pid=$!
+# Set the trap
+trap cleanup SIGINT SIGTERM
 
-echo "Tracker started with PID: $tracker_pid"
-echo "Starting automatic report generator in the foreground..."
+echo "Starting the window recorder script..."
+echo "Press Ctrl-C to stop."
 
-# Start the report generator in the foreground
-./update_report.sh
+# Run the python script in the background
+python3 script.py &
+python_pid=$!
+
+# Wait for the python script to exit
+wait $python_pid
+
