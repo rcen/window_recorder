@@ -110,3 +110,18 @@ def _fetch_local_data_grouped_by_day():
     # This function is no longer needed, but we'll keep it for now to avoid breaking other parts of the code.
     # It will not be called by the main analytics flow anymore.
     pass
+
+def fetch_log_for_day(date_str):
+    """
+    Fetches the detailed activity log for a specific day from the local_date column.
+    Returns a pandas DataFrame.
+    """
+    print(f"--> Getting detailed log for {date_str} from the local_date column.")
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            query = "SELECT timestamp, category, duration FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
+            df = pd.read_sql_query(query, conn, params=(date_str,))
+            return df
+    except Exception as e:
+        print(f"Error fetching detailed log for day {date_str} from local DB: {e}")
+        return pd.DataFrame()

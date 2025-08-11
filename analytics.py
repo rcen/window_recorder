@@ -148,9 +148,74 @@ test:
 
 
     def print_timeline(self, logfile=''):
-        # Timeline generation requires the full, detailed dataset which is no longer
-        # fetched for performance reasons. This function is now a no-op.
-        pass
+        if "mod.log" in logfile:
+            return
+
+        from config import TIMEZONE
+        import pytz
+        
+        date_str = logfile.replace('.csv', '')
+        path = f'figs/timeline/{date_str}.png'
+
+        # --- Intelligent Chart Generation ---
+        tz = pytz.timezone(TIMEZONE)
+        today_date = datetime.datetime.now(tz).date()
+        try:
+            chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return # Invalid date format in logfile name
+
+        # If the chart is for a past day and it already exists, skip redrawing.
+        if chart_date < today_date and os.path.exists(path):
+            return
+        # --- End of Optimization ---
+
+        df = database.fetch_log_for_day(date_str)
+        if df.empty:
+            return
+
+        # Convert timestamps to datetime objects, adjusted for timezone
+        df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
+        df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
+
+        # Get unique categories and assign them a y-level
+        u_cats = self.get_unique_categories()
+        cat_y_map = {cat: i for i, cat in enumerate(u_cats)}
+        
+        # Get colors
+        color_map = dict(self.color_list)
+        default_color = color_map.get('idle', '#CCCCCC')
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        for index, row in df.iterrows():
+            y = cat_y_map.get(row['category'])
+            if y is None:
+                continue
+            start = row['start_time']
+            end = row['end_time']
+            color = color_map.get(row['category'], default_color)
+            
+            ax.barh(y, (end - start), left=start, height=0.6, color=color, edgecolor='black')
+
+        # Formatting the plot
+        ax.set_yticks(range(len(u_cats)))
+        ax.set_yticklabels(u_cats)
+        ax.invert_yaxis()
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=tz))
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        plt.xticks(rotation=45)
+
+        plt.title(f'Activity Timeline for {date_str}')
+        plt.xlabel('Time of Day')
+        plt.ylabel('Category')
+        plt.tight_layout()
+        plt.grid(axis='x', linestyle='--', alpha=0.6)
+
+        plt.savefig(path)
+        plt.close()
+        print(f'Timeline chart saved as {path}')
 
 
     def analyze(self, logfile=''):
