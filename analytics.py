@@ -188,6 +188,26 @@ test:
 
 
     def print_pi_chart(self, logfile=''):
+        # --- Intelligent Chart Generation ---
+        from config import TIMEZONE
+        import pytz
+        tz = pytz.timezone(TIMEZONE)
+        today_date = datetime.datetime.now(tz).date()
+
+        if logfile:
+            date_str = logfile.replace('.csv', '')
+            chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        else:
+            date_str = today_date.strftime('%Y-%m-%d')
+            chart_date = today_date
+        
+        path = f'figs/pie/{date_str}.png'
+
+        # If the chart is for a past day and it already exists, skip redrawing.
+        if chart_date < today_date and os.path.exists(path):
+            return
+        # --- End of Optimization ---
+
         # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
             return
@@ -233,7 +253,7 @@ test:
         plt.pie(pie_dur, labels=pie_labels, autopct='%1.1f%%', colors=pie_colors)
         plt.axis('equal')
         plt.tight_layout()
-        path = 'figs/pie/' + filename
+        # The path is already determined at the top of the function
         plt.savefig(path)
         plt.close()
 
@@ -370,9 +390,10 @@ test:
             table_html += header_row
 
             # --- TABLE DATA ROWS ---
-            self.print_pi_chart()
-            self.print_timeline()
             for log in reversed(log_list):
+                # Generate a pie chart for each day (it will be skipped if it's old)
+                self.print_pi_chart(log)
+                
                 u_cats_log, u_dur_log, date, df = self.analyze(log)
                 if not date: continue
                 
@@ -394,7 +415,8 @@ test:
                 
                 tot_hr, tot_min, tot_sec = Sec2hms(total_time)
                 row += '<td>{0:02}:{1:02}:{2:02}</td>'.format(tot_hr, tot_min, tot_sec)
-                row += '</tr>\n'
+                row += '</tr>'
+
                 table_html += row
 
             # --- TABLE FOOTER ---
@@ -404,7 +426,7 @@ test:
 
             # --- IMAGES ---
             file.write('<div class="gallery">')
-            img_list = os.listdir('figs/pie')
+            img_list = sorted(os.listdir('figs/pie'))
             for img in reversed(img_list):
                 img_row = '<div style="display: flex; justify-content: space-around;">'
                 img_row += '<img src="../figs/pie/{}"  width="450" height="450" >'.format(img)

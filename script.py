@@ -43,7 +43,7 @@ start_of_event = time.time()
 last_window = 'start tracking'
 last_event = ''
 idle_time = 3*60 # 3 minutes.
-html_update_time = time.time() + 60
+html_update_time = time.time() + 30
 ram_check_time = time.time() + 10
 wasted_time_start = None
 wasted_time_warning_issued = False
@@ -226,7 +226,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
             md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
             result = generate_inspirational_html(image_folder, md_folder)
-            html_update_time = time.time() + 120
+            html_update_time = time.time() + 30
 
         current_category = 'idle' if idle else analytic.get_cat(current_window)
         if "wasted" in current_category.lower():
