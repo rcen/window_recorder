@@ -16,8 +16,10 @@ from pathlib import Path
 import re
 import shutil
 import time
-import datetime
+import json
+import pytz
 import database
+from config import TIMEZONE
 
 def main():
     reanalyze_all()
@@ -35,7 +37,6 @@ def Sec2hms(seconds):
     return hr, min, sec
 
 def reanalyze_all():
-    database.clear_cache()
     if not os.path.isdir('data'):
         os.mkdir('data')
     
@@ -62,7 +63,8 @@ class Analytics():
         self.string_cats = self.config.items('CATEGORIES')
         self.color_list = self.config.items('COLORS')
         self.proj_list = self.config.items('PROJECTS')
-        self.analysis_cache = {}
+        self.cache_path = 'data/analysis_cache.json'
+        self.analysis_cache = self._load_analysis_cache()
         database.initialize_database()
 
     def _load_config(self):
@@ -82,7 +84,7 @@ github: programming
 eingabeaufforderung: programming
 texstudio: documents
 word: documents
-adobe acrobat reader: documents
+adobe\u00a0acrobat\u00a0reader: documents
 thunderbird: mail
 whatsapp: wasted time
 mozilla: wasted.time
@@ -146,19 +148,32 @@ test:
             
         return config
 
+    def _load_analysis_cache(self):
+        if os.path.exists(self.cache_path):
+            try:
+                with open(self.cache_path, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                return {}
+        return {}
+
+    def _save_analysis_cache(self):
+        try:
+            with open(self.cache_path, 'w') as f:
+                json.dump(self.analysis_cache, f, indent=4)
+        except IOError:
+            print("Error: Could not save analysis cache.")
 
     def print_timeline(self, logfile=''):
         if "mod.log" in logfile:
             return
 
-        from config import TIMEZONE
-        import pytz
+        tz = pytz.timezone(TIMEZONE)
         
         date_str = logfile.replace('.csv', '')
         path = f'figs/timeline/{date_str}.png'
 
         # --- Intelligent Chart Generation ---
-        tz = pytz.timezone(TIMEZONE)
         today_date = datetime.datetime.now(tz).date()
         try:
             chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -219,25 +234,26 @@ test:
 
 
     def analyze(self, logfile=''):
-        """
-        Fetches a pre-computed summary for a given day.
-        The heavy lifting is done by the API server.
-        """
         if "mod.log" in logfile:
             return None, None, None, None
-        if logfile in self.analysis_cache:
-            return self.analysis_cache[logfile]
+
+        tz = pytz.timezone(TIMEZONE)
+        today_str = datetime.datetime.now(tz).strftime('%Y-%m-%d')
 
         if logfile == '':
-            from config import TIMEZONE
-            import pytz
-            tz = pytz.timezone(TIMEZONE)
-            today = datetime.datetime.now(tz)
-            date_str = today.strftime('%Y-%m-%d')
+            date_str = today_str
+            logfile = f"{date_str}.csv"
         else:
             date_str = logfile.replace('.csv', '')
 
-        # Fetch the pre-aggregated summary instead of the full dataset
+        # For past days, use the cache if available
+        if date_str != today_str and logfile in self.analysis_cache:
+            cached_data = self.analysis_cache[logfile]
+            # The date is stored as a string in JSON, convert it back
+            date_obj = datetime.datetime.fromisoformat(cached_data[2]) if cached_data[2] else None
+            return cached_data[0], cached_data[1], date_obj, None
+
+        # For today or for uncached past days, fetch from DB
         u_cats, u_dur = database.fetch_summary_for_day(date_str)
 
         if not u_cats:
@@ -245,23 +261,24 @@ test:
 
         date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
         
-        # The dataframe `df` is no longer available as we don't fetch the full log.
-        # We pass None for it. Other functions will need to handle this.
-        self.analysis_cache[logfile] = (u_cats, u_dur, date, None)
+        # Store in cache. Convert date to string for JSON serialization.
+        self.analysis_cache[logfile] = (u_cats, u_dur, date.isoformat(), None)
+        
         return u_cats, u_dur, date, None
 
 
 
     def print_pi_chart(self, logfile=''):
         # --- Intelligent Chart Generation ---
-        from config import TIMEZONE
-        import pytz
         tz = pytz.timezone(TIMEZONE)
         today_date = datetime.datetime.now(tz).date()
 
         if logfile:
             date_str = logfile.replace('.csv', '')
-            chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            try:
+                chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return # Invalid date format
         else:
             date_str = today_date.strftime('%Y-%m-%d')
             chart_date = today_date
@@ -273,13 +290,11 @@ test:
             return
         # --- End of Optimization ---
 
-        # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
             return
 
-        u_cats, u_dur, date, _ = self.analyze(logfile) # df is no longer available
+        u_cats, u_dur, date, _ = self.analyze(logfile)
         
-        # Exit if there's no data to plot
         if not date or not any(d > 0 for d in u_dur):
             return
 
@@ -287,17 +302,14 @@ test:
         today = date
         filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
 
-        # Filter out categories with zero duration to ensure colors, labels, and data align
         pie_labels = []
         pie_dur = []
         pie_colors = []
         
-        # Get all unique categories defined in the config to create a stable color mapping
         all_u_cats = self.get_unique_categories()
         color_map = dict(self.color_list)
         default_color = color_map.get('idle', '#CCCCCC')
 
-        # Create a duration map from the fetched summary data
         dur_map = dict(zip(u_cats, u_dur))
 
         for cat in all_u_cats:
@@ -308,7 +320,6 @@ test:
                 pie_labels.append(f"{cat}-{hr:02}:{mn:02}:{sec:02}")
                 pie_colors.append(color_map.get(cat, default_color))
 
-        # Proceed with plotting
         weekday_name = today.strftime('%a')
         total_hr, total_min, total_sec = Sec2hms(total_dur)
         
@@ -318,7 +329,6 @@ test:
         plt.pie(pie_dur, labels=pie_labels, autopct='%1.1f%%', colors=pie_colors)
         plt.axis('equal')
         plt.tight_layout()
-        # The path is already determined at the top of the function
         plt.savefig(path)
         plt.close()
 
@@ -332,7 +342,6 @@ test:
             return []
         
         color_map = dict(self.color_list)
-        # Use idle color as a fallback, otherwise a generic gray
         default_color = color_map.get('idle', '#CCCCCC')
         
         for u_cat in u_cats:
@@ -341,17 +350,15 @@ test:
         return colors
 
     def print_review(self, logfile=''):
-
-        # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
             return
 
-        u_cats, u_dur, date, _ = self.analyze(logfile) # df is no longer available
+        u_cats, u_dur, date, _ = self.analyze(logfile)
         if not u_cats or date is None:
             return
         print('')
         print('')
-        total_dur = np.sum(u_dur) # Calculate total from summary
+        total_dur = np.sum(u_dur)
         if (isinstance(total_dur, numbers.Number) == False):
             return
 
@@ -372,22 +379,15 @@ test:
                 dur_sec = int(dur%60)
                 print('{0: 6}:{1:02}:{2:02} h  {3:} '.format(dur_hr, dur_min, dur_sec, cat))
 
-        # "not categorized" is now implicitly handled since the summary only returns categorized data.
-        # The total duration is the sum of all categorized durations.
         print('-------------------------------------')
         print('{0: 6}:{1:02}:{2:02} h not categorized'.format(0, 0, 0))
 
 
     def get_log_list(self):
-        """
-        Gets the list of days that have data from the new, efficient API endpoint.
-        Returns a list of date strings ('YYYY-MM-DD.csv') and a list of datetime objects.
-        """
         days = database.fetch_available_days()
         log_list = [f"{day}.csv" for day in days]
         date_list = [datetime.datetime.strptime(day, '%Y-%m-%d') for day in days]
         
-        # The API already returns them sorted, but we can ensure it here too.
         sorted_pairs = sorted(zip(date_list, log_list), reverse=True)
         
         if not sorted_pairs:
@@ -410,7 +410,7 @@ test:
     def get_cat(self, window):
         ret = 'not categorized'
         if len(window) <=1:
-            return 'idle' #this is a "pre-defined" cat in script.py
+            return 'idle'
         for string, category in self.string_cats:
             try:
                 match = re.search(string, window)
@@ -422,7 +422,6 @@ test:
         return ret
 
     def create_html(self, logfile=''):
-        # check the filename does not contain "mod.log" to avoid crash
         if "mod.log" in logfile:
             return
 
@@ -431,9 +430,8 @@ test:
         log_list, date_list = self.get_log_list()
         all_u_cats = self.get_unique_categories()
         
-        # Create a stable color map for all categories
         color_map = dict(self.color_list)
-        default_color = color_map.get('idle', '#CCCCCC') # Use idle color or gray as fallback
+        default_color = color_map.get('idle', '#CCCCCC')
 
         with open('html/head.txt', 'r', encoding='utf-8') as file:
             head = file.readlines()
@@ -443,10 +441,8 @@ test:
         with open('html/index.html', 'w', encoding='utf-8') as file:
             file.writelines(head)
 
-            # --- TABLE ---
             table_html = '<table style="width:100%">'
             
-            # --- TABLE HEADER ---
             header_row = '<tr><td></td>'
             for cat in all_u_cats:
                 color = color_map.get(cat, default_color)
@@ -454,16 +450,13 @@ test:
             header_row += '<td><b>Total Time</b></td></tr>\n'
             table_html += header_row
 
-            # --- TABLE DATA ROWS ---
             for log in reversed(log_list):
-                # Generate a pie chart for each day (it will be skipped if it's old)
                 self.print_pi_chart(log)
                 
                 u_cats_log, u_dur_log, date, df = self.analyze(log)
                 if not date: continue
                 
                 dur_map = dict(zip(u_cats_log, u_dur_log))
-                date = datetime.datetime.strptime(log[0:10], '%Y-%m-%d')
                 
                 row = '<tr>'
                 row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
@@ -484,12 +477,10 @@ test:
 
                 table_html += row
 
-            # --- TABLE FOOTER ---
             table_html += header_row
             table_html += '</table>\n'
             file.write(table_html)
 
-            # --- IMAGES ---
             file.write('<div class="gallery">')
             img_list = sorted(os.listdir('figs/pie'))
             for img in reversed(img_list):
@@ -499,6 +490,8 @@ test:
                 file.write(img_row)
             file.write('</div>')
             file.writelines(tail)
+        
+        self._save_analysis_cache()
         print('html updated')
 
 

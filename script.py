@@ -44,6 +44,7 @@ last_window = 'start tracking'
 last_event = ''
 idle_time = 3*60 # 3 minutes.
 html_update_time = time.time() + 30
+inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
 wasted_time_start = None
 wasted_time_warning_issued = False
@@ -100,10 +101,10 @@ def check_ram():
 
 
 def main():
-    global start_of_event
     global last_window
     global last_event
     global html_update_time
+    global inspirational_html_update_time
     global wasted_time_warning_issued
     global wasted_time_start
     global alert_queue
@@ -220,13 +221,16 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 pass
 
         if time.time() > html_update_time:
-            # Clear the cache to force re-reading data from the database
-            analytic.analysis_cache.clear()
+            # This updates the main analysis report (index.html)
             analytic.create_html()
+            html_update_time = time.time() + 30
+
+        if time.time() > inspirational_html_update_time:
+            # This updates the inspirational image page
             image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
             md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
             result = generate_inspirational_html(image_folder, md_folder)
-            html_update_time = time.time() + 30
+            inspirational_html_update_time = time.time() + 600 # Reset for another 10 minutes
 
         current_category = 'idle' if idle else analytic.get_cat(current_window)
         if "wasted" in current_category.lower():

@@ -77,7 +77,6 @@ def fetch_available_days():
     """
     Fetches a list of unique days directly from the local_date column.
     """
-    print("--> Getting available days from the CORRECT local_date column.")
     try:
         # This is the fallback path, so we always read from the local DB
         with sqlite3.connect(DB_FILE) as conn:
@@ -93,7 +92,6 @@ def fetch_summary_for_day(date_str):
     """
     Fetches a summary for a specific day directly from the local_date column.
     """
-    print(f"--> Getting summary for {date_str} from the CORRECT local_date column.")
     try:
         # This is the fallback path, so we always read from the local DB
         with sqlite3.connect(DB_FILE) as conn:
@@ -116,7 +114,6 @@ def fetch_log_for_day(date_str):
     Fetches the detailed activity log for a specific day from the local_date column.
     Returns a pandas DataFrame.
     """
-    print(f"--> Getting detailed log for {date_str} from the local_date column.")
     try:
         with sqlite3.connect(DB_FILE) as conn:
             query = "SELECT timestamp, category, duration FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
