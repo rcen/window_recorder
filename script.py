@@ -103,6 +103,7 @@ def check_ram():
 def main():
     global last_window
     global last_event
+    global start_of_event
     global html_update_time
     global inspirational_html_update_time
     global wasted_time_warning_issued
