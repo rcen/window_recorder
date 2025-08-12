@@ -452,6 +452,7 @@ test:
 
             for log in reversed(log_list):
                 self.print_pi_chart(log)
+                self.print_timeline(log)
                 
                 u_cats_log, u_dur_log, date, df = self.analyze(log)
                 if not date: continue
@@ -481,14 +482,25 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
-            file.write('<div class="gallery">')
+            file.write('<div class="gallery" style="width: 100%;">')
             img_list = sorted(os.listdir('figs/pie'))
+            timeline_img_list = sorted(os.listdir('figs/timeline'))
+
+            # Create a dictionary for timeline images for quick lookup
+            timeline_map = {img.split('.')[0]: img for img in timeline_img_list}
+
             for img in reversed(img_list):
-                img_row = '<div style="display: flex; justify-content: space-around;">'
-                img_row += '<img src="../figs/pie/{}"  width="450" height="450" >'.format(img)
+                date_str = img.split('.')[0]
+                timeline_img = timeline_map.get(date_str)
+
+                img_row = '<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
+                img_row += f'<img src="../figs/pie/{img}" style="width: 48%; max-width: 500px;" >'
+                if timeline_img:
+                    img_row += f'<img src="../figs/timeline/{timeline_img}" style="width: 48%; max-width: 900px;" >'
                 img_row += '</div></br>'
                 file.write(img_row)
             file.write('</div>')
+
             file.writelines(tail)
         
         self._save_analysis_cache()

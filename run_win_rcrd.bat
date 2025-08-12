@@ -1,12 +1,26 @@
-echo on
-call "%~dp0winrecord_env\Scripts\activate.bat"
-cd "%~dp0"
-title WatchTime
-C:\Windows\System32\timeout.exe 620
-rem C:\Python310\python.exe analytics.py
-python.exe analytics.py
+@echo off
+setlocal
+
+REM Check for virtual environment
+if not exist "winrecord_env" (
+    echo "Creating virtual environment..."
+    python -m venv winrecord_env
+)
+
+REM Activate virtual environment
+call "winrecord_env\Scripts\activate.bat"
+
+REM Install dependencies if --new is passed
+if "%1"=="--new" (
+    pip install -r requirements.txt
+)
+
+REM Run analytics
+python analytics.py
+
+REM Run the main script in a loop
 :loop
-rem C:\Python310\python.exe script.py
-python.exe script.py
-PowerShell -Command "Add-Type -AssemblyName PresentationFramework;[System.Windows.MessageBox]::Show('Need to Re-Start THIS!!','WARNING', 0, 48)"
+python script.py
+echo "Script stopped. Restarting in 5 seconds..."
+timeout /t 5
 goto loop
