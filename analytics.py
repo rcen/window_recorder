@@ -18,6 +18,7 @@ import shutil
 import time
 import json
 import pytz
+import plotly.express as px
 import database
 from config import TIMEZONE
 
@@ -47,7 +48,7 @@ def reanalyze_all():
         print('Processing analysis for:', logfile)
         # The following functions now read from the database
         analytic.print_review(logfile)
-        analytic.print_timeline(logfile)
+        analytic.create_interactive_timeline(logfile)
         analytic.print_pi_chart(logfile)
     
     # Create the main HTML report
@@ -107,8 +108,8 @@ test:
             os.mkdir('figs')
         if not os.path.isdir('figs/pie'):
             os.mkdir('figs/pie')
-        if not os.path.isdir('figs/timeline'):
-            os.mkdir('figs/timeline')
+        if not os.path.isdir('html/timelines'):
+            os.makedirs('html/timelines')
         if not os.path.isdir('figs/pictures'):
             os.mkdir('figs/pictures')
         
@@ -164,14 +165,13 @@ test:
         except IOError:
             print("Error: Could not save analysis cache.")
 
-    def print_timeline(self, logfile=''):
+    def create_interactive_timeline(self, logfile=''):
         if "mod.log" in logfile:
             return
 
         tz = pytz.timezone(TIMEZONE)
-        
         date_str = logfile.replace('.csv', '')
-        path = f'figs/timeline/{date_str}.png'
+        path = f'html/timelines/{date_str}.html'
 
         # --- Intelligent Chart Generation ---
         today_date = datetime.datetime.now(tz).date()
@@ -193,44 +193,29 @@ test:
         df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
         df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
 
-        # Get unique categories and assign them a y-level
-        u_cats = self.get_unique_categories()
-        cat_y_map = {cat: i for i, cat in enumerate(u_cats)}
-        
         # Get colors
         color_map = dict(self.color_list)
-        default_color = color_map.get('idle', '#CCCCCC')
+        
+        fig = px.timeline(
+            df,
+            x_start="start_time",
+            x_end="end_time",
+            y="category",
+            color="category",
+            hover_name="window_title",
+            color_discrete_map=color_map,
+            title=f'Activity Timeline for {date_str}'
+        )
 
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig.update_yaxes(categoryorder='total ascending')
+        fig.update_layout(
+            xaxis_title="Time of Day",
+            yaxis_title="Category",
+            showlegend=False
+        )
 
-        for index, row in df.iterrows():
-            y = cat_y_map.get(row['category'])
-            if y is None:
-                continue
-            start = row['start_time']
-            end = row['end_time']
-            color = color_map.get(row['category'], default_color)
-            
-            ax.barh(y, (end - start), left=start, height=0.6, color=color, edgecolor='black')
-
-        # Formatting the plot
-        ax.set_yticks(range(len(u_cats)))
-        ax.set_yticklabels(u_cats)
-        ax.invert_yaxis()
-
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=tz))
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
-        plt.xticks(rotation=45)
-
-        plt.title(f'Activity Timeline for {date_str}')
-        plt.xlabel('Time of Day')
-        plt.ylabel('Category')
-        plt.tight_layout()
-        plt.grid(axis='x', linestyle='--', alpha=0.6)
-
-        plt.savefig(path)
-        plt.close()
-        print(f'Timeline chart saved as {path}')
+        fig.write_html(path, full_html=False, include_plotlyjs='cdn')
+        print(f'Interactive timeline chart saved as {path}')
 
 
     def analyze(self, logfile=''):
@@ -452,7 +437,7 @@ test:
 
             for log in reversed(log_list):
                 self.print_pi_chart(log)
-                self.print_timeline(log)
+                self.create_interactive_timeline(log)
                 
                 u_cats_log, u_dur_log, date, df = self.analyze(log)
                 if not date: continue
@@ -484,19 +469,19 @@ test:
 
             file.write('<div class="gallery" style="width: 100%;">')
             img_list = sorted(os.listdir('figs/pie'))
-            timeline_img_list = sorted(os.listdir('figs/timeline'))
+            timeline_html_list = sorted(os.listdir('html/timelines'))
 
             # Create a dictionary for timeline images for quick lookup
-            timeline_map = {img.split('.')[0]: img for img in timeline_img_list}
+            timeline_map = {html.split('.')[0]: html for html in timeline_html_list}
 
             for img in reversed(img_list):
                 date_str = img.split('.')[0]
-                timeline_img = timeline_map.get(date_str)
+                timeline_html = timeline_map.get(date_str)
 
                 img_row = '<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
                 img_row += f'<img src="../figs/pie/{img}" style="width: 48%; max-width: 500px;" >'
-                if timeline_img:
-                    img_row += f'<img src="../figs/timeline/{timeline_img}" style="width: 48%; max-width: 900px;" >'
+                if timeline_html:
+                    img_row += f'<iframe src="timelines/{timeline_html}" style="width: 48%; height: 500px; border: none;"></iframe>'
                 img_row += '</div></br>'
                 file.write(img_row)
             file.write('</div>')

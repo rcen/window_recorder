@@ -1,6 +1,10 @@
 [API]
 key = e3kEGZOiG98TY9U+x0fii5mXKdwD8lMV76RUWiXJS2E=
 
+[FOCUS_SLOTS]
+morning_focus = 09:00-11:30
+afternoon_focus = 14:00-16:45
+
 [SETTINGS]
 timezone = America/New_York
 image_folder = figs/pictures

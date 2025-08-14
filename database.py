@@ -133,7 +133,7 @@ def fetch_log_for_day(date_str):
     """
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            query = "SELECT timestamp, category, duration FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
+            query = "SELECT timestamp, category, duration, window_title FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
             df = pd.read_sql_query(query, conn, params=(date_str,))
             return df
     except Exception as e:

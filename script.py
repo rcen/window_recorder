@@ -27,6 +27,7 @@ import psutil
 from multiprocessing import Process, Queue
 import tkinter as tk
 import database
+from config import FOCUS_SLOTS
 
 if platform.system() == "Windows":
     import win32gui
@@ -47,7 +48,7 @@ html_update_time = time.time() + 30
 inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
 wasted_time_start = None
-wasted_time_warning_issued = False
+last_warning_minute = 0
 
 last_notification_time = 0
 notification_cooldown = 60  # seconds
@@ -98,6 +99,19 @@ def check_ram():
         if free_ram_gb < 0.6:
             show_non_blocking_alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
         ram_check_time = time.time() + 10
+
+def get_current_focus_slot():
+    """
+    Checks if the current time is within any of the defined focus slots.
+    Returns the start and end time of the current slot if active, otherwise None.
+    """
+    now = datetime.datetime.now().time()
+    for start_str, end_str in FOCUS_SLOTS:
+        start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
+        end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
+        if start_time <= now <= end_time:
+            return start_str, end_str
+    return None
 
 
 def main():
@@ -237,19 +251,32 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if "wasted" in current_category.lower():
             if wasted_time_start is None:
                 wasted_time_start = time.time()
-                wasted_time_warning_issued = False
+                # last_warning_minute is reset when the activity is no longer "wasted"
 
             wasted_time = time.time() - wasted_time_start
+            current_wasted_minutes = int(wasted_time / 60)
             print(f"wasted time is {wasted_time:.2f} seconds", end='\r')
 
-            if wasted_time > 6 * 60 and not wasted_time_warning_issued:
-                show_non_blocking_alert(f"You have been looking at a 'wasted' window for {wasted_time/60.0:.0f} minutes.", "Wasted Time Warning")
-                wasted_time_warning_issued = True
+            focus_slot = get_current_focus_slot()
+            
+            # Set the warning threshold in minutes
+            warning_threshold_minutes = 1 if focus_slot else 6
+
+            # Check if a new warning should be issued
+            if current_wasted_minutes >= warning_threshold_minutes and current_wasted_minutes > last_warning_minute:
+                if focus_slot:
+                    start, end = focus_slot
+                    message = f"Focus time is {start} till {end}. You have wasted {current_wasted_minutes} minute(s)."
+                else:
+                    message = f"You have been on a 'wasted' task for {current_wasted_minutes} minute(s)."
+                
+                show_non_blocking_alert(message, "Wasted Time Warning")
+                last_warning_minute = current_wasted_minutes # Update the last warning time
         else:
             if wasted_time_start is not None:
                 print(" " * 50, end='\r')
             wasted_time_start = None
-            wasted_time_warning_issued = False
+            last_warning_minute = 0 # Reset when activity is no longer wasted
 
         check_ram()
         time.sleep(0.5)
@@ -284,14 +311,18 @@ def get_window_name():
     if platform.system() == "Windows":
         try:
             parent = win32gui.GetForegroundWindow()
-            window_name = win32gui.GetWindowText(parent).lower()
-            window_name = window_name.replace(',', '')
-            window_name = window_name.lower().encode("latin_1", "ignore")
-            window_name = window_name.lower().decode("latin_1", "ignore")
+            window_name = win32gui.GetWindowText(parent)
+            
+            # If the title is "not a fan", ignore it and return the last known window.
+            if window_name == "not a fan":
+                return last_window
 
+            # Clean the title
+            window_name = window_name.replace(',', '').lower()
             return window_name
         except win32gui.error as E:
             print(E)
+            return "desktop" # Return a default value on error
     else:
         try:
             # Check if DISPLAY is set and X server is available
@@ -301,16 +332,24 @@ def get_window_name():
             root = d.screen().root
             window_id = root.get_full_property(d.intern_atom('_NET_ACTIVE_WINDOW'), Xlib.X.AnyPropertyType).value[0]
             window = d.create_resource_object('window', window_id)
-            window_name = window.get_full_property(d.intern_atom('_NET_WM_NAME'), Xlib.X.AnyPropertyType).value
-            if window_name:
-                return window_name.decode('utf-8', 'ignore').lower()
+            window_name_prop = window.get_full_property(d.intern_atom('_NET_WM_NAME'), Xlib.X.AnyPropertyType)
+            
+            if window_name_prop and window_name_prop.value:
+                window_name = window_name_prop.value.decode('utf-8', 'ignore').lower()
             else:
                 # Fallback for windows that don't have _NET_WM_NAME
-                window_name = window.get_full_property(d.intern_atom('WM_NAME'), Xlib.X.AnyPropertyType).value
-                if window_name:
-                    return window_name.decode('utf-8', 'ignore').lower()
+                window_name_prop = window.get_full_property(d.intern_atom('WM_NAME'), Xlib.X.AnyPropertyType)
+                if window_name_prop and window_name_prop.value:
+                    window_name = window_name_prop.value.decode('utf-8', 'ignore').lower()
                 else:
-                    return "desktop"
+                    window_name = "desktop"
+
+            # If the title is "not a fan", ignore it and return the last known window.
+            if "not a fan" in window_name:
+                return last_window
+                
+            return window_name
+
         except (Xlib.error.XError, IndexError):
             return "desktop"
         except Exception:

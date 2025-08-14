@@ -1,6 +1,7 @@
 # config.py
 import os
 import configparser
+import datetime
 
 def get_config_parser():
     """Initializes and returns a ConfigParser object with the config file loaded."""
@@ -35,5 +36,28 @@ def get_api_key():
     except Exception:
         return None
 
+def get_focus_slots():
+    """
+    Reads the focus time slots from the [FOCUS_SLOTS] section of config.dat.
+    Returns a list of tuples, where each tuple contains the start and end time as strings.
+    """
+    slots = []
+    try:
+        config = get_config_parser()
+        if config.has_section('FOCUS_SLOTS'):
+            for key, value in config.items('FOCUS_SLOTS'):
+                try:
+                    start_time, end_time = value.split('-')
+                    # Basic validation
+                    datetime.datetime.strptime(start_time.strip(), '%H:%M')
+                    datetime.datetime.strptime(end_time.strip(), '%H:%M')
+                    slots.append((start_time.strip(), end_time.strip()))
+                except ValueError:
+                    print(f"Warning: Invalid time format for focus slot '{key}'. Please use HH:MM-HH:MM.")
+    except Exception:
+        pass
+    return slots
+
 TIMEZONE = get_app_timezone()
 API_KEY = get_api_key()
+FOCUS_SLOTS = get_focus_slots()
