@@ -1,6 +1,7 @@
 
 import os
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -8,6 +9,15 @@ from pydantic import BaseModel
 import datetime
 import pytz
 from config import TIMEZONE
+
+# --- Security ---
+security = HTTPBearer()
+SERVER_API_KEY = os.environ.get("SERVER_API_KEY", "your_default_secret_key")
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
+    if credentials.scheme != "Bearer" or credentials.credentials != SERVER_API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid or missing API key")
+    return True
 
 # Use the timezone from the config file
 CLIENT_TIMEZONE = TIMEZONE
@@ -61,7 +71,7 @@ class DailySummary(BaseModel):
     total_duration: int
 
 @app.post("/log", response_model=ActivityResponse)
-def create_activity(activity: ActivityCreate, db: Session = Depends(get_db)):
+def create_activity(activity: ActivityCreate, db: Session = Depends(get_db), authenticated: bool = Depends(get_current_user)):
     # Convert local timestamp to a timezone-aware datetime object
     local_dt = tz.localize(datetime.datetime.fromtimestamp(activity.timestamp))
     # Convert to UTC for storage

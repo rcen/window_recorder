@@ -5,7 +5,7 @@ import requests
 import datetime
 import time
 import pytz
-from config import TIMEZONE
+from config import TIMEZONE, API_KEY
 
 # --- Configuration ---
 API_BASE_URL = os.environ.get("WINDOW_RECORDER_API_URL", "https://window-recorder-api.onrender.com")
@@ -57,10 +57,27 @@ def _insert_local_activity(timestamp, category, duration, window_title, synced=F
 
 # --- API Communication Functions ---
 
+def get_headers():
+    """Returns the authorization headers for API requests."""
+    if not API_KEY:
+        return {}
+    return {"Authorization": f"Bearer {API_KEY}"}
+
 def insert_activity(timestamp, category, duration, window_title):
+    """
+    Inserts an activity record. It first tries to send it to the remote API.
+    If that fails, it saves the record locally.
+    """
+    if not API_KEY:
+        print("API key not configured. Saving locally.")
+        _insert_local_activity(timestamp, category, duration, window_title, synced=False)
+        return False
+
     payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title}
+    headers = get_headers()
+    
     try:
-        response = requests.post(f"{API_BASE_URL}/log", json=payload, timeout=5)
+        response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
         if response.status_code == 200:
             _insert_local_activity(timestamp, category, duration, window_title, synced=True)
             return True
@@ -122,3 +139,56 @@ def fetch_log_for_day(date_str):
     except Exception as e:
         print(f"Error fetching detailed log for day {date_str} from local DB: {e}")
         return pd.DataFrame()
+
+def sync_local_data():
+    """
+    Synchronizes unsynced local data with the remote server.
+    """
+    if not API_KEY:
+        print("API key not configured. Skipping sync.")
+        return
+
+    unsynced_data = _get_unsynced_local_data()
+    if not unsynced_data:
+        print("No local data to sync.")
+        return
+
+    print(f"Found {len(unsynced_data)} unsynced records. Syncing...")
+    
+    headers = get_headers()
+    successful_ids = []
+    for record in unsynced_data:
+        record_id, timestamp, category, duration, window_title = record[:5]
+        payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title}
+        
+        try:
+            response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
+            if response.status_code == 200:
+                successful_ids.append(record_id)
+            else:
+                print(f"API Error for record {record_id}: {response.status_code}. Will retry later.")
+        except requests.RequestException as e:
+            print(f"Network Error for record {record_id}: {e}. Will retry later.")
+            # Stop trying to sync on network error to avoid repeated failures
+            break
+    
+    if successful_ids:
+        _mark_as_synced(successful_ids)
+        print(f"Successfully synced {len(successful_ids)} records.")
+
+def _get_unsynced_local_data():
+    """
+    Retrieves all records from the local database that have not been synced.
+    """
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, timestamp, category, duration, window_title FROM activity WHERE synced = 0")
+        return cursor.fetchall()
+
+def _mark_as_synced(record_ids):
+    """
+    Marks a list of records as synced in the local database.
+    """
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.executemany("UPDATE activity SET synced = 1 WHERE id = ?", [(id,) for id in record_ids])
