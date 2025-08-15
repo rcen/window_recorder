@@ -123,6 +123,7 @@ def main():
     global inspirational_html_update_time
     global wasted_time_warning_issued
     global wasted_time_start
+    global last_warning_minute
     global alert_queue
     global alert_process
 
