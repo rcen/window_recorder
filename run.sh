@@ -15,6 +15,9 @@ cleanup() {
 # Set the trap
 trap cleanup SIGINT SIGTERM
 
+echo "Synchronizing databases..."
+python3 sync_databases.py
+
 echo "Starting the window recorder script..."
 echo "Press Ctrl-C to stop."
 

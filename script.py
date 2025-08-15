@@ -28,6 +28,7 @@ from multiprocessing import Process, Queue
 import tkinter as tk
 import database
 from config import FOCUS_SLOTS
+import socket
 
 if platform.system() == "Windows":
     import win32gui
@@ -125,6 +126,7 @@ def main():
     global alert_queue
     global alert_process
 
+    hostname = socket.gethostname()
     database.initialize_database()
 
     if platform.system() == "Windows":
@@ -148,6 +150,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         listener.start()
 
     last_loop_time = time.time()
+    last_sync_time = time.time()
     while True:
         current_loop_time = time.time()
         time_jump = current_loop_time - last_loop_time
@@ -166,7 +169,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if duration_before_sleep > 2 and category != 'idle':
                     bRecord = True
                 if bRecord:
-                    save_data([last_loop_time, category, int(duration_before_sleep), last_window])
+                    save_data([last_loop_time, category, int(duration_before_sleep), last_window], hostname)
                     try:
                         mins = int(np.floor(duration_before_sleep/60))
                         secs = int(np.floor(duration_before_sleep - mins*60))
@@ -209,7 +212,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if duration > 2 and category != 'idle':
                     bRecord = True
                 if bRecord == True:
-                    save_data([time.time(), category, int(duration), last_window])
+                    save_data([time.time(), category, int(duration), last_window], hostname)
                     try:
                         if sys.version_info.major > 2:
                             mins = int(np.floor(duration/60))
@@ -279,12 +282,18 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_warning_minute = 0 # Reset when activity is no longer wasted
 
         check_ram()
+        
+        if time.time() - last_sync_time > 300: # 5 minutes
+            print("Running periodic sync...")
+            database.sync_local_data()
+            last_sync_time = time.time()
+
         time.sleep(0.5)
 
-def save_data(data):
+def save_data(data, source):
     """Saves a single data record to the database."""
     # data format is [timestamp, category, duration, window_title]
-    database.insert_activity(data[0], data[1], data[2], data[3])
+    database.insert_activity(data[0], data[1], data[2], data[3], source)
 
 
 

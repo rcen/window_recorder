@@ -30,8 +30,10 @@ def initialize_database():
         columns = [column[1] for column in cursor.fetchall()]
         if 'synced' not in columns:
             cursor.execute('ALTER TABLE activity ADD COLUMN synced INTEGER DEFAULT 0')
+        if 'source' not in columns:
+            cursor.execute('ALTER TABLE activity ADD COLUMN source TEXT')
 
-def _insert_local_activity(timestamp, category, duration, window_title, synced=False):
+def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False):
     """Inserts a single activity record into the local database, including the local_date."""
     tz = pytz.timezone(TIMEZONE)
     utc_dt = pytz.utc.localize(datetime.datetime.utcfromtimestamp(timestamp))
@@ -45,15 +47,15 @@ def _insert_local_activity(timestamp, category, duration, window_title, synced=F
         columns = [column[1] for column in cursor.fetchall()]
         if 'local_date' in columns:
             cursor.execute('''
-                INSERT INTO activity (timestamp, category, duration, window_title, synced, local_date)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (timestamp, category, duration, window_title, 1 if synced else 0, local_date_str))
+                INSERT INTO activity (timestamp, category, duration, window_title, synced, local_date, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (timestamp, category, duration, window_title, 1 if synced else 0, local_date_str, source))
         else:
             # Fallback for before the migration is run
             cursor.execute('''
-                INSERT INTO activity (timestamp, category, duration, window_title, synced)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (timestamp, category, duration, window_title, 1 if synced else 0))
+                INSERT INTO activity (timestamp, category, duration, window_title, synced, source)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (timestamp, category, duration, window_title, 1 if synced else 0, source))
 
 # --- API Communication Functions ---
 
@@ -63,31 +65,31 @@ def get_headers():
         return {}
     return {"Authorization": f"Bearer {API_KEY}"}
 
-def insert_activity(timestamp, category, duration, window_title):
+def insert_activity(timestamp, category, duration, window_title, source):
     """
     Inserts an activity record. It first tries to send it to the remote API.
     If that fails, it saves the record locally.
     """
     if not API_KEY:
         print("API key not configured. Saving locally.")
-        _insert_local_activity(timestamp, category, duration, window_title, synced=False)
+        _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
         return False
 
-    payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title}
+    payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title, "source": source}
     headers = get_headers()
     
     try:
         response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
         if response.status_code == 200:
-            _insert_local_activity(timestamp, category, duration, window_title, synced=True)
+            _insert_local_activity(timestamp, category, duration, window_title, source, synced=True)
             return True
         else:
             print(f"API Error: {response.status_code}. Saving locally.")
-            _insert_local_activity(timestamp, category, duration, window_title, synced=False)
+            _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
             return False
     except requests.RequestException:
         print("Network Error. Saving locally.")
-        _insert_local_activity(timestamp, category, duration, window_title, synced=False)
+        _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
         return False
 
 def fetch_available_days():
@@ -133,7 +135,7 @@ def fetch_log_for_day(date_str):
     """
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            query = "SELECT timestamp, category, duration, window_title FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
+            query = "SELECT timestamp, category, duration, window_title, source FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
             df = pd.read_sql_query(query, conn, params=(date_str,))
             return df
     except Exception as e:
@@ -158,8 +160,8 @@ def sync_local_data():
     headers = get_headers()
     successful_ids = []
     for record in unsynced_data:
-        record_id, timestamp, category, duration, window_title = record[:5]
-        payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title}
+        record_id, timestamp, category, duration, window_title, source = record[:6]
+        payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title, "source": source}
         
         try:
             response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
@@ -182,7 +184,7 @@ def _get_unsynced_local_data():
     """
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, timestamp, category, duration, window_title FROM activity WHERE synced = 0")
+        cursor.execute("SELECT id, timestamp, category, duration, window_title, source FROM activity WHERE synced = 0")
         return cursor.fetchall()
 
 def _mark_as_synced(record_ids):
@@ -192,3 +194,64 @@ def _mark_as_synced(record_ids):
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
         cursor.executemany("UPDATE activity SET synced = 1 WHERE id = ?", [(id,) for id in record_ids])
+
+def sync_remote_to_local():
+    """
+    Fetches all records from the remote server and inserts any missing records
+    into the local database. This allows for a unified view of data from all clients.
+    """
+    print("Starting sync from remote server to local database...")
+    
+    # 1. Fetch all data from the remote server
+    try:
+        response = requests.get(f"{API_BASE_URL}/logs?limit=20000", headers=get_headers(), timeout=30)
+        response.raise_for_status()
+        remote_data = response.json()
+        if not remote_data:
+            print("No data on remote server. Sync complete.")
+            return
+        print(f"Fetched {len(remote_data)} records from remote server.")
+    except requests.RequestException as e:
+        print(f"Network Error: Could not fetch data from remote server. {e}")
+        return
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching remote data: {e}")
+        return
+
+    # 2. Get existing local timestamps to avoid duplicates
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT timestamp, window_title, source FROM activity")
+            local_records = set(cursor.fetchall())
+    except Exception as e:
+        print(f"Error reading from local database: {e}")
+        return
+
+    # 3. Insert new records
+    new_records_to_insert = []
+    for record in remote_data:
+        # Check for existence based on a tuple of timestamp, title, and source
+        source = record.get('source', 'unknown') # Handle records from before source was added
+        if (record['timestamp'], record['window_title'], source) not in local_records:
+            new_records_to_insert.append(record)
+
+    if not new_records_to_insert:
+        print("Local database is already up-to-date.")
+        return
+
+    print(f"Found {len(new_records_to_insert)} new records to insert locally.")
+    
+    # 4. Use the existing local insert function
+    for record in new_records_to_insert:
+        # The remote data is considered "synced" by definition.
+        _insert_local_activity(
+            record['timestamp'],
+            record['category'],
+            record['duration'],
+            record['window_title'],
+            source=record.get('source', 'unknown'),
+            synced=True 
+        )
+    
+    print("Successfully synced remote data to local database.")

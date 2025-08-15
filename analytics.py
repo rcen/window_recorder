@@ -37,6 +37,88 @@ def Sec2hms(seconds):
     sec = int(seconds%60)
     return hr, min, sec
 
+def resolve_conflicts(df):
+    """
+    Resolves overlapping activities from different sources based on category priority.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing a day's activities with 'timestamp', 
+                           'duration', 'category', and 'source' columns.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with conflicts resolved.
+    """
+    if df.empty or 'source' not in df.columns or df['source'].nunique() <= 1:
+        return df
+
+    # Define category priorities (lower number is higher priority)
+    priority = {
+        'programming': 1,
+        'documents': 1,
+        'mail': 2,
+        'not categorized': 3,
+        'wasted time': 4,
+        'idle': 5
+    }
+    df['priority'] = df['category'].map(priority).fillna(99)
+
+    # Convert timestamps to datetime objects for easier comparison
+    df['start_time'] = pd.to_datetime(df['timestamp'], unit='s')
+    df['end_time'] = df.apply(lambda row: row['start_time'] + datetime.timedelta(seconds=row['duration']), axis=1)
+    df = df.sort_values(by=['start_time', 'priority']).reset_index(drop=True)
+
+    resolved = []
+    
+    # Group by source to process each timeline independently first
+    for source, source_df in df.groupby('source'):
+        for _, row in source_df.iterrows():
+            resolved.append(row.to_dict())
+
+    # Now, iterate through the combined list and resolve overlaps
+    if not resolved:
+        return pd.DataFrame()
+
+    final_timeline = []
+    # Sort by start time, then by priority
+    resolved_sorted = sorted(resolved, key=lambda x: (x['start_time'], x['priority']))
+    
+    current_event = resolved_sorted[0]
+
+    for i in range(1, len(resolved_sorted)):
+        next_event = resolved_sorted[i]
+
+        # Check for overlap
+        if next_event['start_time'] < current_event['end_time']:
+            # Overlap detected, decide which event wins based on priority
+            if next_event['priority'] < current_event['priority']:
+                # Next event is higher priority. Truncate the current one.
+                if next_event['start_time'] > current_event['start_time']:
+                    current_event['end_time'] = next_event['start_time']
+                    final_timeline.append(current_event)
+                current_event = next_event
+            else:
+                # Current event is higher or equal priority. Ignore the overlapping part of the next event.
+                pass # The next event is effectively skipped or will be handled in the next iteration
+        else:
+            # No overlap, add the current event to the timeline
+            final_timeline.append(current_event)
+            current_event = next_event
+    
+    final_timeline.append(current_event) # Add the last event
+
+    if not final_timeline:
+        return pd.DataFrame()
+
+    # Convert back to a DataFrame and recalculate duration
+    result_df = pd.DataFrame(final_timeline)
+    result_df['duration'] = (result_df['end_time'] - result_df['start_time']).dt.total_seconds()
+    result_df = result_df[result_df['duration'] > 1] # Remove tiny fragments
+
+    # Clean up columns
+    result_df = result_df.drop(columns=['start_time', 'end_time', 'priority'])
+    
+    return result_df
+
 def reanalyze_all():
     if not os.path.isdir('data'):
         os.mkdir('data')
@@ -189,6 +271,9 @@ test:
         if df.empty:
             return
 
+        # Resolve conflicts before generating the timeline
+        df = resolve_conflicts(df)
+
         # Convert timestamps to datetime objects, adjusted for timezone
         df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
         df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
@@ -238,8 +323,17 @@ test:
             date_obj = datetime.datetime.fromisoformat(cached_data[2]) if cached_data[2] else None
             return cached_data[0], cached_data[1], date_obj, None
 
-        # For today or for uncached past days, fetch from DB
-        u_cats, u_dur = database.fetch_summary_for_day(date_str)
+        # For today or for uncached past days, fetch from DB and resolve conflicts
+        df = database.fetch_log_for_day(date_str)
+        if df.empty:
+            return [], [], None, None
+
+        df = resolve_conflicts(df)
+
+        # Perform the summary analysis on the resolved data
+        summary = df.groupby('category')['duration'].sum().reset_index()
+        u_cats = summary['category'].tolist()
+        u_dur = summary['duration'].tolist()
 
         if not u_cats:
             return [], [], None, None

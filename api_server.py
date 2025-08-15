@@ -37,6 +37,7 @@ class Activity(Base):
     category = Column(String)
     duration = Column(Integer)
     window_title = Column(String)
+    source = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 
@@ -55,6 +56,7 @@ class ActivityCreate(BaseModel):
     category: str
     duration: int
     window_title: str
+    source: str | None = None
 
 class ActivityResponse(BaseModel):
     id: int
@@ -62,6 +64,7 @@ class ActivityResponse(BaseModel):
     category: str
     duration: int
     window_title: str
+    source: str | None = None
 
     class Config:
         orm_mode = True
@@ -81,7 +84,8 @@ def create_activity(activity: ActivityCreate, db: Session = Depends(get_db), aut
         timestamp=utc_dt,
         category=activity.category,
         duration=activity.duration,
-        window_title=activity.window_title
+        window_title=activity.window_title,
+        source=activity.source
     )
     db.add(db_activity)
     db.commit()
