@@ -7,8 +7,7 @@ def main():
     # First, push any unsynced local data to the remote server.
     print("--- Step 1: Syncing local data to remote ---")
     database.sync_local_data()
-    print("--- Finished local to remote sync ---
-")
+    print("--- Finished local to remote sync ---")
 
     # Second, pull all remote data down to the local database to get a unified view.
     print("--- Step 2: Syncing remote data to local ---")

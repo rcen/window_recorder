@@ -99,6 +99,10 @@ ENV/
 env.bak/
 virtualenv.bak/
 winrecord_env/
+__pycache__/
+*.pyc
+data/analysis_cache.json
+activity.db
 
 # Spyder project settings
 .spyderproject
