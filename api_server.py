@@ -75,10 +75,18 @@ class DailySummary(BaseModel):
 
 @app.post("/log", response_model=ActivityResponse)
 def create_activity(activity: ActivityCreate, db: Session = Depends(get_db), authenticated: bool = Depends(get_current_user)):
-    # Convert local timestamp to a timezone-aware datetime object
-    local_dt = tz.localize(datetime.datetime.fromtimestamp(activity.timestamp))
-    # Convert to UTC for storage
-    utc_dt = local_dt.astimezone(pytz.utc)
+    # Convert timestamp to a timezone-aware datetime object
+    try:
+        if isinstance(activity.timestamp, str):
+            # If timestamp is a string, parse it assuming it's in ISO format from the server
+            utc_dt = pytz.utc.localize(datetime.datetime.fromisoformat(activity.timestamp.replace('Z', '+00:00')))
+        else:
+            # Otherwise, assume it's a Unix timestamp (float/int)
+            local_dt = tz.localize(datetime.datetime.fromtimestamp(activity.timestamp))
+            # Convert to UTC for storage
+            utc_dt = local_dt.astimezone(pytz.utc)
+    except (ValueError, OSError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid timestamp: {e}")
     
     db_activity = Activity(
         timestamp=utc_dt,

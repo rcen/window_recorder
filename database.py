@@ -245,8 +245,12 @@ def sync_remote_to_local():
     # 4. Use the existing local insert function
     for record in new_records_to_insert:
         # The remote data is considered "synced" by definition.
+        # Convert ISO 8601 timestamp string from server to a Unix timestamp float
+        utc_dt = datetime.datetime.fromisoformat(record['timestamp'].replace('Z', '+00:00'))
+        timestamp_float = utc_dt.timestamp()
+
         _insert_local_activity(
-            record['timestamp'],
+            timestamp_float,
             record['category'],
             record['duration'],
             record['window_title'],
