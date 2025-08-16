@@ -163,17 +163,3 @@ def get_daily_summary(day: str, db: Session = Depends(get_db)):
 def read_root():
     return {"message": "Welcome to the Window Recorder API"}
 
-@app.delete("/clear-data", status_code=204)
-def clear_all_data(db: Session = Depends(get_db), authenticated: bool = Depends(get_current_user)):
-    """
-    [DANGEROUS] This endpoint deletes all records from the activities table.
-    It is protected by the API key. Use with extreme caution.
-    """
-    try:
-        num_deleted = db.query(Activity).delete()
-        db.commit()
-        print(f"Successfully deleted {num_deleted} records.")
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete data: {e}")
-
