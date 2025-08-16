@@ -39,6 +39,7 @@ class Activity(Base):
     window_title = Column(String)
     source = Column(String, nullable=True)
 
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
