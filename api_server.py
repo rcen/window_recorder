@@ -2,7 +2,7 @@
 import os
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
@@ -158,6 +158,15 @@ def get_daily_summary(day: str, db: Session = Depends(get_db)):
         ).all()
         
     return summary
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        # Try to execute a simple query to check the database connection
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail={"status": "error", "database": "disconnected", "error": str(e)})
 
 @app.get("/")
 def read_root():
