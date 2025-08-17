@@ -1,6 +1,3 @@
-[API]
-key = e3kEGZOiG98TY9U+x0fii5mXKdwD8lMV76RUWiXJS2E=
-
 [FOCUS_SLOTS]
 morning_focus = 09:00-11:30
 afternoon_focus = 14:00-16:45
@@ -51,7 +48,7 @@ chiproc: coding
 green hills: coding
 tera term: coding
 multi launcher: coding
-program files (x86): coding
+program files (x88): coding
 sourcetrail: coding
 microsoft learn: coding
 ibm rational: coding
@@ -253,7 +250,7 @@ open folder: coding
 figure ?: coding
 cmd: coding
 start tracking: coding
-c\+\+ : coding
+c++ : coding
 zconnect home: coding
 scrum: learning
 agile: learning
@@ -291,29 +288,29 @@ binaural beats: coding
 texstudio: docs
 documentation: docs
 xls : docs
-- word: docs
+word: docs
 adobe acrobat reader: docs
 gmail: mail
 thunderbird: mail
 mingw64: coding
 vs2017: coding
-Notepad\+\+: coding
+Notepad++: coding
 projects: coding
 sperrbildschirm: idle
 stayfocusd: idle
 microsoft visual studio: coding
 command prompt: coding
-windows\system32: coding
+windowssystem32: coding
 microsoft teams: mail
 inbox: mail
-- outlook: mail
-- message: mail
+outlook: mail
+message: mail
 message (html): mail
 run_win_record: coding
 visual studio: coding
 tortoisegit: coding
 .py: coding
-- shortcut: coding
+shortcut: coding
 this pc: coding
 Chimera: coding
 task manager: coding
@@ -332,7 +329,7 @@ whatsapp: wasted
 news: wasted
 zebra: coding
 imageglass: coding
-- paint: coding
+paint: coding
 paint.net: coding
 GIMP: coding
 netnanny: family

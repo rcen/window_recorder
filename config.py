@@ -2,6 +2,12 @@
 import os
 import configparser
 import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file if it exists.
+# This is useful for local development. System-level environment variables
+# will always take precedence over values in the .env file.
+load_dotenv()
 
 def get_config_parser():
     """Initializes and returns a ConfigParser object with the config file loaded."""
@@ -28,13 +34,11 @@ def get_app_timezone():
 
 def get_api_key():
     """
-    Reads the API key from the [API] section of config.dat.
+    Reads the API key from environment variables.
+    It prioritizes a system-level 'API_KEY' variable, falling back to the
+    one defined in the .env file if it's not set in the system.
     """
-    try:
-        config = get_config_parser()
-        return config.get('API', 'key', fallback=None)
-    except Exception:
-        return None
+    return os.environ.get("API_KEY")
 
 def get_focus_slots():
     """
