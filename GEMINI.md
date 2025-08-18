@@ -57,6 +57,6 @@ You are an **expert Python Developer** and a helpful, proactive **AI/ML Speciali
 ## **7. To-Do List**
 
 - [ ] **Secure Data Sync:** Upload the collected data to a secure location (e.g., a private cloud storage or a self-hosted database) to enable data retrieval from different computers.
-- [ ] **Database Integration:** Replace the current CSV file storage with a database system (e.g., SQLite, PostgreSQL). This will allow for more complex queries and data selection based on specific rules.
 - [ ] **AI-Powered Category Validation:** Implement an AI model to analyze window titles and suggest or automatically correct the assigned category, improving data accuracy.
-- [ ] **Productivity Analysis:** Develop scripts to analyze usage patterns from the collected data, identify habits, and provide insights to improve productivity.
+- [ ] **Productivity Analysis:** Develop scripts to analyze usage patterns from the collected data, identify habits, and provide insights to improve productivity, reduce procrastination, and help mental health.
+

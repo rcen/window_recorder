@@ -59,6 +59,30 @@ def _insert_local_activity(timestamp, category, duration, window_title, source='
 
 # --- API Communication Functions ---
 
+def wait_for_server(max_retries=5, delay=10):
+    """
+    Waits for the remote server to be available by making a simple request.
+    Retries a few times before giving up.
+    """
+    if not API_KEY:
+        print("API key not configured. Skipping server check.")
+        return True
+
+    print("Checking remote server availability...")
+    headers = get_headers()
+    for i in range(max_retries):
+        try:
+            # Using a small timeout and a lightweight query to check for server availability.
+            requests.get(f"{API_BASE_URL}/logs?limit=1", headers=headers, timeout=5)
+            print("Remote server is available.")
+            return True
+        except requests.RequestException:
+            print(f"Could not connect to remote server. Attempt {i+1}/{max_retries}. Retrying in {delay}s...")
+            time.sleep(delay)
+    
+    print("Could not connect to remote server after several retries.")
+    return False
+
 def get_headers():
     """Returns the authorization headers for API requests."""
     if not API_KEY:

@@ -4,6 +4,11 @@ def main():
     """
     This script orchestrates the synchronization between the local and remote databases.
     """
+    # Wait for the server to be available before starting the sync process.
+    if not database.wait_for_server():
+        print("Exiting: Remote server is not available.")
+        return
+
     # First, push any unsynced local data to the remote server.
     print("--- Step 1: Syncing local data to remote ---")
     database.sync_local_data()

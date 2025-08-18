@@ -8,6 +8,7 @@ image_folder = figs/pictures
 md_folder = ../crlog_laptop
 
 [CATEGORIES]
+gmail: mail
 wechat: wasted
 mfc-l2700dw: family
 brother utilities: family
@@ -290,7 +291,6 @@ documentation: docs
 xls : docs
 word: docs
 adobe acrobat reader: docs
-gmail: mail
 thunderbird: mail
 mingw64: coding
 vs2017: coding
