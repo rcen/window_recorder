@@ -62,19 +62,11 @@ def resolve_conflicts(df):
     }
     df['priority'] = df['category'].map(priority).fillna(99)
 
-    # Convert timestamps to datetime objects for easier comparison
-    df['start_time'] = pd.to_datetime(df['timestamp'], unit='s')
-    df['end_time'] = df.apply(lambda row: row['start_time'] + datetime.timedelta(seconds=row['duration']), axis=1)
     df = df.sort_values(by=['start_time', 'priority']).reset_index(drop=True)
 
-    resolved = []
-    
-    # Group by source to process each timeline independently first
-    for source, source_df in df.groupby('source'):
-        for _, row in source_df.iterrows():
-            resolved.append(row.to_dict())
+    # When converting to dict, datetime objects are preserved.
+    resolved = df.to_dict('records')
 
-    # Now, iterate through the combined list and resolve overlaps
     if not resolved:
         return pd.DataFrame()
 
@@ -114,8 +106,8 @@ def resolve_conflicts(df):
     result_df['duration'] = (result_df['end_time'] - result_df['start_time']).dt.total_seconds()
     result_df = result_df[result_df['duration'] > 1] # Remove tiny fragments
 
-    # Clean up columns
-    result_df = result_df.drop(columns=['start_time', 'end_time', 'priority'])
+    # Clean up columns, but keep the essential time columns
+    result_df = result_df.drop(columns=['priority'])
     
     return result_df
 
@@ -149,6 +141,22 @@ class Analytics():
         self.cache_path = 'data/analysis_cache.json'
         self.analysis_cache = self._load_analysis_cache()
         database.initialize_database()
+
+    def _get_and_prepare_day_df(self, date_str):
+        """
+        Fetches the log for a given day and prepares it for analysis.
+        - Converts UTC timestamps to localized, timezone-aware datetime objects.
+        - Calculates start_time and end_time.
+        """
+        tz = pytz.timezone(TIMEZONE)
+        df = database.fetch_log_for_day(date_str)
+        if df.empty:
+            return pd.DataFrame()
+
+        # This is the critical step: convert and localize time immediately after fetching.
+        df['start_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
+        df['end_time'] = df.apply(lambda row: row['start_time'] + datetime.timedelta(seconds=row['duration']), axis=1)
+        return df
 
     def _load_config(self):
         path_config = 'config.dat'
@@ -267,16 +275,12 @@ test:
             return
         # --- End of Optimization ---
 
-        df = database.fetch_log_for_day(date_str)
+        df = self._get_and_prepare_day_df(date_str)
         if df.empty:
             return
 
-        # Resolve conflicts before generating the timeline
+        # Resolve conflicts on the timezone-aware data
         df = resolve_conflicts(df)
-
-        # Convert timestamps to datetime objects, adjusted for timezone
-        df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
-        df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
 
         # Get colors
         color_map = dict(self.color_list)
@@ -323,11 +327,12 @@ test:
             date_obj = datetime.datetime.fromisoformat(cached_data[2]) if cached_data[2] else None
             return cached_data[0], cached_data[1], date_obj, None
 
-        # For today or for uncached past days, fetch from DB and resolve conflicts
-        df = database.fetch_log_for_day(date_str)
+        # For today or for uncached past days, fetch and prepare data consistently
+        df = self._get_and_prepare_day_df(date_str)
         if df.empty:
             return [], [], None, None
 
+        # Now, resolve conflicts on the correctly prepared DataFrame
         df = resolve_conflicts(df)
 
         # Perform the summary analysis on the resolved data
