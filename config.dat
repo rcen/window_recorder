@@ -10,6 +10,7 @@ md_folder = ../crlog_laptop
 [CATEGORIES]
 gmail: mail
 wechat: wasted
+facebook: wasted
 mfc-l2700dw: family
 brother utilities: family
 controlcenter4: family
@@ -324,7 +325,6 @@ airbnb: gaming
 google news: wasted
 mozilla: wasted
 chrome: wasted
-facebook: wasted
 whatsapp: wasted
 news: wasted
 zebra: coding
