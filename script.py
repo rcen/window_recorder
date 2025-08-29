@@ -130,6 +130,9 @@ def main():
     hostname = socket.gethostname()
     database.initialize_database()
 
+    # Sync with the remote server at startup to get the latest data
+    database.sync_remote_to_local()
+
     if platform.system() == "Windows":
         alert_queue = Queue()
         alert_process = Process(target=alert_process_func, args=(alert_queue,))
