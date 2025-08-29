@@ -154,8 +154,8 @@ class Analytics():
             return pd.DataFrame()
 
         # This is the critical step: convert and localize time immediately after fetching.
-        df['start_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
-        df['end_time'] = df.apply(lambda row: row['start_time'] + datetime.timedelta(seconds=row['duration']), axis=1)
+        df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
+        df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
         return df
 
     def _load_config(self):
@@ -512,6 +512,17 @@ test:
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         
         log_list, date_list = self.get_log_list()
+        
+        # Read display_limit from config, with a fallback
+        try:
+            display_limit = self.config.getint('SETTINGS', 'display_limit', fallback=20)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            display_limit = 20
+        
+        # Limit the number of logs to be displayed
+        if len(log_list) > display_limit:
+            log_list = log_list[:display_limit]
+            
         all_u_cats = self.get_unique_categories()
         
         color_map = dict(self.color_list)
