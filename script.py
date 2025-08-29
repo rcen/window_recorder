@@ -245,7 +245,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if time.time() > html_update_time:
             # This updates the main analysis report (index.html)
             analytic.create_html()
-            html_update_time = time.time() + 30
+            html_update_time = time.time() + 120
 
         if time.time() > inspirational_html_update_time:
             # This updates the inspirational image page
