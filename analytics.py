@@ -153,7 +153,7 @@ class Analytics():
         if df.empty:
             return pd.DataFrame()
 
-        # This is the critical step: convert and localize time immediately after fetching.
+        # Correctly interpret the timestamp as UTC, then convert to local time
         df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
         df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
         return df
