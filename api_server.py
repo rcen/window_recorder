@@ -159,6 +159,22 @@ def get_daily_summary(day: str, db: Session = Depends(get_db)):
         
     return summary
 
+class DeletionResponse(BaseModel):
+    message: str
+
+@app.delete("/logs/by_title", response_model=DeletionResponse)
+def delete_activities_by_title(window_title: str, db: Session = Depends(get_db), authenticated: bool = Depends(get_current_user)):
+    """
+    Deletes all activity records that match the given window_title.
+    """
+    if not window_title:
+        raise HTTPException(status_code=400, detail="Window title cannot be empty.")
+
+    num_deleted = db.query(Activity).filter(Activity.window_title == window_title).delete(synchronize_session=False)
+    db.commit()
+    
+    return {"message": f"Successfully deleted {num_deleted} records with window_title '{window_title}'."}
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     try:
