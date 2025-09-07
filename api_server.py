@@ -175,6 +175,25 @@ def delete_activities_by_title(window_title: str, db: Session = Depends(get_db),
     
     return {"message": f"Successfully deleted {num_deleted} records with window_title '{window_title}'."}
 
+class IDList(BaseModel):
+    ids: list[int]
+
+@app.post("/logs/delete_by_ids", response_model=DeletionResponse)
+def delete_activities_by_ids(id_list: IDList, db: Session = Depends(get_db), authenticated: bool = Depends(get_current_user)):
+    """
+    Deletes a list of activity records based on their IDs.
+    """
+    if not id_list.ids:
+        raise HTTPException(status_code=400, detail="ID list cannot be empty.")
+
+    num_deleted = db.query(Activity).filter(Activity.id.in_(id_list.ids)).delete(synchronize_session=False)
+    db.commit()
+    
+    if num_deleted != len(id_list.ids):
+        return {"message": f"Warning: Requested to delete {len(id_list.ids)} records, but only deleted {num_deleted}. Some IDs may not have existed."}
+
+    return {"message": f"Successfully deleted {num_deleted} records."}
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     try:
