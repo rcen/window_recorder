@@ -2,13 +2,13 @@
 setlocal
 
 REM Check for virtual environment
-if not exist "winrecord_env" (
+if not exist "venv" (
     echo "Creating virtual environment..."
-    python -m venv winrecord_env
+    python -m venv venv
 )
 
 REM Activate virtual environment
-call "winrecord_env\Scripts\activate.bat"
+call "venv\Scripts\activate.bat"
 
 REM Install dependencies if --new is passed
 if "%1"=="--new" (

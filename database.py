@@ -224,11 +224,14 @@ def sync_remote_to_local():
     Fetches all records from the remote server and inserts any missing records
     into the local database. This allows for a unified view of data from all clients.
     """
+    print("turn this off for now. the timestamp is a mess between remote and local")
+    return
+    
     print("Starting sync from remote server to local database...")
     
     # 1. Fetch all data from the remote server
     try:
-        response = requests.get(f"{API_BASE_URL}/logs?limit=20000", headers=get_headers(), timeout=30)
+        response = requests.get(f"{API_BASE_URL}/logs?limit=30000", headers=get_headers(), timeout=60)
         response.raise_for_status()
         remote_data = response.json()
         if not remote_data:
@@ -242,22 +245,28 @@ def sync_remote_to_local():
         print(f"An unexpected error occurred while fetching remote data: {e}")
         return
 
-    # 2. Get existing local timestamps to avoid duplicates
+    # 2. Get existing local records to avoid duplicates
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT timestamp, window_title, source FROM activity")
-            local_records = set(cursor.fetchall())
+            # Create a set of tuples for quick lookup. Round timestamp to avoid float precision issues.
+            local_records = {(round(ts, 2), title, src) for ts, title, src in cursor.fetchall()}
     except Exception as e:
         print(f"Error reading from local database: {e}")
         return
 
-    # 3. Insert new records
+    # 3. Find new records by comparing with the local set
     new_records_to_insert = []
     for record in remote_data:
-        # Check for existence based on a tuple of timestamp, title, and source
-        source = record.get('source', 'unknown') # Handle records from before source was added
-        if (record['timestamp'], record['window_title'], source) not in local_records:
+        # Convert remote timestamp string to float for comparison
+        utc_dt = datetime.datetime.fromisoformat(record['timestamp'].replace('Z', '+00:00'))
+        timestamp_float = utc_dt.timestamp()
+
+        # Check for existence based on a tuple of rounded timestamp, title, and source
+        source = record.get('source') # This will be None if not present
+        
+        if (round(timestamp_float, 2), record['window_title'], source) not in local_records:
             new_records_to_insert.append(record)
 
     if not new_records_to_insert:
@@ -266,20 +275,82 @@ def sync_remote_to_local():
 
     print(f"Found {len(new_records_to_insert)} new records to insert locally.")
     
-    # 4. Use the existing local insert function
+    # 4. Batch insert new records
+    batch = []
+    tz = pytz.timezone(TIMEZONE)
     for record in new_records_to_insert:
-        # The remote data is considered "synced" by definition.
-        # Convert ISO 8601 timestamp string from server to a Unix timestamp float
+        # Always treat remote timestamp as UTC
         utc_dt = datetime.datetime.fromisoformat(record['timestamp'].replace('Z', '+00:00'))
         timestamp_float = utc_dt.timestamp()
+        category = record['category']
+        duration = record['duration']
+        window_title = record['window_title']
+        source = record.get('source') # Keep as None if not present
+        
+        # Convert to local time just for calculating the local_date string
+        local_dt = utc_dt.astimezone(tz)
+        local_date_str = local_dt.strftime('%Y-%m-%d')
+        
+        batch.append((timestamp_float, category, duration, window_title, 1, local_date_str, source))
 
-        _insert_local_activity(
-            timestamp_float,
-            record['category'],
-            record['duration'],
-            record['window_title'],
-            source=record.get('source', 'unknown'),
-            synced=True 
-        )
-    
+    if batch:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            # This assumes the local_date column exists, which it should by now.
+            cursor.executemany(
+                'INSERT INTO activity (timestamp, category, duration, window_title, synced, local_date, source) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                batch
+            )
+        print(f"Batch inserted {len(batch)} new records.")
     print("Successfully synced remote data to local database.")
+
+def delete_remote_activities_by_title(window_title):
+    """
+    Sends a request to the remote API to delete all records with a specific window_title.
+    """
+    if not API_KEY:
+        print("API key not configured. Cannot delete remote data.")
+        return False
+
+    print(f"Sending request to delete remote records with title: '{window_title}'")
+    headers = get_headers()
+    params = {"window_title": window_title}
+    
+    try:
+        response = requests.delete(f"{API_BASE_URL}/logs/by_title", params=params, headers=headers, timeout=15)
+        if response.status_code == 200:
+            print(f"API Success: {response.json().get('message')}")
+            return True
+        else:
+            print(f"API Error: {response.status_code} - {response.text}")
+            return False
+    except requests.RequestException as e:
+        print(f"Network Error: Could not send delete request. {e}")
+        return False
+
+def delete_remote_activities_by_ids(ids):
+    """
+    Sends a request to the remote API to delete a list of records by their IDs.
+    """
+    if not API_KEY:
+        print("API key not configured. Cannot delete remote data.")
+        return False
+    if not ids:
+        print("No IDs provided to delete.")
+        return True
+
+    print(f"Sending request to delete {len(ids)} remote records by ID...")
+    headers = get_headers()
+    payload = {"ids": ids}
+    
+    try:
+        response = requests.post(f"{API_BASE_URL}/logs/delete_by_ids", json=payload, headers=headers, timeout=30)
+        if response.status_code == 200:
+            print(f"API Success: {response.json().get('message')}")
+            return True
+        else:
+            print(f"API Error: {response.status_code} - {response.text}")
+            return False
+    except requests.RequestException as e:
+        print(f"Network Error: Could not send delete request. {e}")
+        return False

@@ -12,3 +12,5 @@ requests
 pytz
 plotly
 python-dotenv
+fastapi
+alembic

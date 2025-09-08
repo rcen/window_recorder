@@ -44,7 +44,7 @@ last_mouse_coords = [0, 0]
 start_of_event = time.time()
 last_window = 'start tracking'
 last_event = ''
-idle_time = 3*60 # 3 minutes.
+idle_time = 60 # 1 minute.
 html_update_time = time.time() + 30
 inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
@@ -131,7 +131,7 @@ def main():
     database.initialize_database()
 
     # Sync with the remote server at startup to get the latest data
-    database.sync_remote_to_local()
+    # database.sync_remote_to_local()
 
     if platform.system() == "Windows":
         alert_queue = Queue()
@@ -160,40 +160,70 @@ TRACK YOUR TIME - DON'T WASTE IT!
         time_jump = current_loop_time - last_loop_time
         last_loop_time = current_loop_time
 
-        # A jump of more than 5s is considered a sleep event, as the loop should run every ~0.5s
+        # A jump of more than 5s is considered a sleep/off event.
         if time_jump > 5.0:
-            # System sleep detected. End the previous event.
-            duration_before_sleep = last_loop_time - start_of_event
-            if last_event:  # Log the event that was active before sleep
+            # System sleep/off detected. End the event that was active before the jump.
+            duration_before_jump = last_loop_time - start_of_event
+            if last_event:
                 category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window)
 
                 bRecord = False
-                if duration_before_sleep < 18 and category == 'idle':
+                if duration_before_jump < 18 and category == 'idle':
                     bRecord = True
-                if duration_before_sleep > 2 and category != 'idle':
+                if duration_before_jump > 2 and category != 'idle':
                     bRecord = True
                 if bRecord:
-                    save_data([last_loop_time, category, int(duration_before_sleep), last_window], hostname)
+                    save_data([last_loop_time, category, int(duration_before_jump), last_window], hostname)
                     try:
-                        mins = int(np.floor(duration_before_sleep/60))
-                        secs = int(np.floor(duration_before_sleep - mins*60))
+                        mins = int(np.floor(duration_before_jump/60))
+                        secs = int(np.floor(duration_before_jump - mins*60))
                         local_t = time.localtime(start_of_event)
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                               "{} \t".format(category),
                               "(pre-sleep) ({})".format(last_event[:120]))
                     except UnicodeDecodeError:
-                        print("{0: 5.0f} s\t".format(duration_before_sleep), "UNICODE DECODE ERROR")
+                        print("{0: 5.0f} s\t".format(duration_before_jump), "UNICODE DECODE ERROR")
 
-            # The time spent sleeping is effectively idle time. We reset the state to idle.
-            start_of_event = last_loop_time
+            # Reset the state for the post-sleep/wake event.
+            # Crucially, we set the start time to NOW, ignoring the sleep duration.
+            start_of_event = current_loop_time
+            last_event = 'idle' # Assume idle on wake, will be re-evaluated.
+            last_window = 'Computer Wake'
+            last_loop_time = current_loop_time # Reset last_loop_time as well
+            continue # Skip the rest of this loop iteration.
+
+        # --- New: Cap any single event duration to 30 min (1800s) ---
+        max_event_duration = 1800  # 30 minutes
+        if last_event and (time.time() - start_of_event) > max_event_duration:
+            # End the current event and start a new one (idle or current window)
+            duration = max_event_duration
+            category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window)
+            save_data([start_of_event + max_event_duration, category, int(duration), last_window], hostname)
+            try:
+                mins = int(np.floor(duration/60))
+                secs = int(np.floor(duration - mins*60))
+                local_t = time.localtime(start_of_event)
+                print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
+                      "{} \t".format(category),
+                      "(auto-split) ({})".format(last_event[:120]))
+            except UnicodeDecodeError:
+                print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
+            # Start a new event from now
+            start_of_event = time.time()
             last_event = 'idle'
-            last_window = 'Computer Sleep'
+            last_window = 'auto-split (idle)'
+
 
         mouse_idle = is_mouse_idle()
         keyboard_idle = is_keyboard_idle(0.01)
-
         current_window = get_window_name()
         idle = mouse_idle and keyboard_idle
+
+        # --- New: Treat 'start page' as idle if focused > 5 min ---
+        start_page_idle_threshold = 300  # 5 minutes
+        if current_window.strip().lower() == 'start page' and (time.time() - start_of_event) > start_page_idle_threshold:
+            idle = True
+            current_window = 'start page (idle)'
 
         if idle:
             current_event = 'idle'
@@ -289,7 +319,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         
         if time.time() - last_sync_time > 300: # 5 minutes
             print("Running periodic sync...")
-            database.sync_local_data()
+            # database.sync_local_data()
             last_sync_time = time.time()
 
         time.sleep(0.5)

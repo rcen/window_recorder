@@ -21,6 +21,8 @@ import pytz
 import plotly.express as px
 import database
 from config import TIMEZONE
+import sqlite3
+import requests
 
 def main():
     reanalyze_all()
@@ -40,82 +42,122 @@ def Sec2hms(seconds):
 def resolve_conflicts(df):
     """
     Resolves overlapping activities from different sources based on category priority.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing a day's activities with 'timestamp', 
-                           'duration', 'category', and 'source' columns.
-
-    Returns:
-        pd.DataFrame: A new DataFrame with conflicts resolved.
+    This new implementation is more robust and handles complex overlap scenarios.
     """
-    if df.empty or 'source' not in df.columns or df['source'].nunique() <= 1:
-        return df
+    if df.empty:
+        return pd.DataFrame()
 
-    # Define category priorities (lower number is higher priority)
+    # If no source column or only one source, no conflicts to resolve.
+    if 'source' not in df.columns or df['source'].nunique() <= 1:
+        return df.sort_values(by='start_time').reset_index(drop=True)
+
     priority = {
-        'programming': 1,
-        'documents': 1,
-        'mail': 2,
-        'not categorized': 3,
-        'wasted time': 4,
-        'idle': 5
+        'programming': 1, 'documents': 1, 'mail': 2,
+        'not categorized': 3, 'wasted time': 4, 'idle': 5
     }
     df['priority'] = df['category'].map(priority).fillna(99)
 
-    df = df.sort_values(by=['start_time', 'priority']).reset_index(drop=True)
+    # Sort events by start time, then by priority to process them in order.
+    sorted_events = df.sort_values(by=['start_time', 'priority']).to_dict('records')
 
-    # When converting to dict, datetime objects are preserved.
-    resolved = df.to_dict('records')
-
-    if not resolved:
+    if not sorted_events:
         return pd.DataFrame()
 
-    final_timeline = []
-    # Sort by start time, then by priority
-    resolved_sorted = sorted(resolved, key=lambda x: (x['start_time'], x['priority']))
+    # This list will hold the final, non-overlapping events.
+    resolved_timeline = []
     
-    current_event = resolved_sorted[0]
+    for event in sorted_events:
+        # Keep track of the parts of the current event that need to be added.
+        # Initially, this is the whole event.
+        events_to_add = [event]
+        
+        # This will hold the timeline after considering the current event.
+        new_resolved_timeline = []
+        
+        # Iterate through the already resolved events to check for overlaps.
+        for existing_event in resolved_timeline:
+            
+            # This will hold the parts of the new event that don't get overwritten.
+            remaining_parts = []
+            
+            for part_to_add in events_to_add:
+                # --- Overlap Check ---
+                # (StartA < EndB) and (EndA > StartB)
+                is_overlapping = (part_to_add['start_time'] < existing_event['end_time'] and 
+                                  part_to_add['end_time'] > existing_event['start_time'])
 
-    for i in range(1, len(resolved_sorted)):
-        next_event = resolved_sorted[i]
+                if not is_overlapping:
+                    remaining_parts.append(part_to_add)
+                    continue
 
-        # Check for overlap
-        if next_event['start_time'] < current_event['end_time']:
-            # Overlap detected, decide which event wins based on priority
-            if next_event['priority'] < current_event['priority']:
-                # Next event is higher priority. Truncate the current one.
-                if next_event['start_time'] > current_event['start_time']:
-                    current_event['end_time'] = next_event['start_time']
-                    final_timeline.append(current_event)
-                current_event = next_event
-            else:
-                # Current event is higher or equal priority. Ignore the overlapping part of the next event.
-                pass # The next event is effectively skipped or will be handled in the next iteration
+                # --- Overlap exists, resolve based on priority ---
+                
+                # Split the new event part into up to three pieces:
+                # 1. The part before the existing event.
+                if part_to_add['start_time'] < existing_event['start_time']:
+                    before_part = part_to_add.copy()
+                    before_part['end_time'] = existing_event['start_time']
+                    remaining_parts.append(before_part)
+
+                # 2. The part after the existing event.
+                if part_to_add['end_time'] > existing_event['end_time']:
+                    after_part = part_to_add.copy()
+                    after_part['start_time'] = existing_event['end_time']
+                    remaining_parts.append(after_part)
+            
+            # The parts that survived the overlap check are carried over.
+            events_to_add = remaining_parts
+            
+            # The existing event is kept as it has higher priority (it was processed earlier).
+            new_resolved_timeline.append(existing_event)
+        
+        # Add the surviving parts of the new event and the existing resolved events.
+        resolved_timeline = sorted(new_resolved_timeline + events_to_add, key=lambda x: x['start_time'])
+
+    if not resolved_timeline:
+        return pd.DataFrame()
+
+    # --- Post-processing: Merge adjacent events of the same category ---
+    
+    # Filter out any tiny fragments that might have been created.
+    cleaned_timeline = [e for e in resolved_timeline if (e['end_time'] - e['start_time']).total_seconds() > 1]
+    
+    if not cleaned_timeline:
+        return pd.DataFrame()
+
+    merged_timeline = [cleaned_timeline[0]]
+    for current_event in cleaned_timeline[1:]:
+        last_merged = merged_timeline[-1]
+        
+        # Check if categories match and events are contiguous (or very close).
+        if (current_event['category'] == last_merged['category'] and
+            abs((current_event['start_time'] - last_merged['end_time']).total_seconds()) < 2):
+            # Merge by extending the end time of the last event.
+            last_merged['end_time'] = current_event['end_time']
         else:
-            # No overlap, add the current event to the timeline
-            final_timeline.append(current_event)
-            current_event = next_event
-    
-    final_timeline.append(current_event) # Add the last event
+            merged_timeline.append(current_event)
 
-    if not final_timeline:
+    if not merged_timeline:
         return pd.DataFrame()
 
-    # Convert back to a DataFrame and recalculate duration
-    result_df = pd.DataFrame(final_timeline)
+    # Convert back to a DataFrame, recalculate duration, and clean up.
+    result_df = pd.DataFrame(merged_timeline)
     result_df['duration'] = (result_df['end_time'] - result_df['start_time']).dt.total_seconds()
-    result_df = result_df[result_df['duration'] > 1] # Remove tiny fragments
-
-    # Clean up columns, but keep the essential time columns
-    result_df = result_df.drop(columns=['priority'])
     
-    return result_df
+    if 'priority' in result_df.columns:
+        result_df = result_df.drop(columns=['priority'])
+    
+    return result_df.sort_values(by='start_time').reset_index(drop=True)
 
 def reanalyze_all():
     if not os.path.isdir('data'):
         os.mkdir('data')
     
     analytic = Analytics()
+    
+    # Check for future data before processing
+    analytic.check_for_future_data()
+    
     log_list, _ = analytic.get_log_list()
 
     for logfile in log_list:
@@ -152,6 +194,10 @@ class Analytics():
         df = database.fetch_log_for_day(date_str)
         if df.empty:
             return pd.DataFrame()
+
+        # Filter out 'start' events, as they are not real activities
+        if 'window_title' in df.columns:
+            df = df[df['window_title'].str.strip().str.lower() != 'start'].copy()
 
         # Correctly interpret the timestamp as UTC, then convert to local time
         df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
@@ -268,23 +314,46 @@ test:
         try:
             chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
-            return # Invalid date format in logfile name
+            return  # Invalid date format in logfile name
 
         # If the chart is for a past day and it already exists, skip redrawing.
         if chart_date < today_date and os.path.exists(path):
             return
         # --- End of Optimization ---
 
-        df = self._get_and_prepare_day_df(date_str)
+        # --- Fetch data for the local day, which may span two UTC days ---
+        current_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get data for the target UTC day and the next day to cover the full local day
+        df1 = self._get_and_prepare_day_df(date_str)
+        next_date_str = (current_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+        df2 = self._get_and_prepare_day_df(next_date_str)
+        
+        df = pd.concat([df1, df2], ignore_index=True)
         if df.empty:
             return
 
-        # Resolve conflicts on the timezone-aware data
+        # --- Filter and clamp data to the exact local day range ---
+        start_of_local_day = pd.Timestamp.combine(current_date, datetime.time.min).tz_localize(tz)
+        end_of_local_day = pd.Timestamp.combine(current_date, datetime.time.max).tz_localize(tz)
+
+        # Filter activities that overlap with the local day
+        df = df[(df['start_time'] < end_of_local_day) & (df['end_time'] > start_of_local_day)].copy()
+        if df.empty:
+            return
+
+        # Clamp start and end times to the boundaries of the local day
+        df['start_time'] = df['start_time'].clip(lower=start_of_local_day)
+        df['end_time'] = df['end_time'].clip(upper=end_of_local_day)
+
+        # Resolve conflicts on the filtered and clamped data
         df = resolve_conflicts(df)
+        if df.empty:
+            return
 
         # Get colors
         color_map = dict(self.color_list)
-        
+
         fig = px.timeline(
             df,
             x_start="start_time",
@@ -297,10 +366,16 @@ test:
         )
 
         fig.update_yaxes(categoryorder='total ascending')
+
+        # Set x-axis to the local day's range
         fig.update_layout(
             xaxis_title="Time of Day",
             yaxis_title="Category",
-            showlegend=False
+            showlegend=False,
+            xaxis=dict(
+                tickformat="%H:%M",
+                range=[start_of_local_day, end_of_local_day]
+            )
         )
 
         fig.write_html(path, full_html=False, include_plotlyjs='cdn')
@@ -344,6 +419,10 @@ test:
             return [], [], None, None
 
         date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+
+        # Do not cache data for future dates
+        if date.date() > datetime.datetime.now(tz).date():
+            return u_cats, u_dur, date, None
         
         # Store in cache. Convert date to string for JSON serialization.
         self.analysis_cache[logfile] = (u_cats, u_dur, date.isoformat(), None)
@@ -472,6 +551,20 @@ test:
         log_list = [f"{day}.csv" for day in days]
         date_list = [datetime.datetime.strptime(day, '%Y-%m-%d') for day in days]
         
+        # Filter out future dates
+        tz = pytz.timezone(TIMEZONE)
+        today = datetime.datetime.now(tz).date()
+        filtered_pairs = []
+        for date, log in zip(date_list, log_list):
+            if date.date() <= today:
+                filtered_pairs.append((date, log))
+            else:
+                print(f"Warning: Skipping future date {date.date()} ({log}) to avoid processing future data and potential data loss.")
+        
+        if not filtered_pairs:
+            return [], []
+        
+        date_list, log_list = zip(*filtered_pairs)
         sorted_pairs = sorted(zip(date_list, log_list), reverse=True)
         
         if not sorted_pairs:
@@ -492,6 +585,9 @@ test:
 
 
     def get_cat(self, window):
+        # Always treat 'desktop' as idle
+        if window.strip().lower() == 'desktop':
+            return 'idle'
         ret = 'not categorized'
         if len(window) <=1:
             return 'idle'
@@ -600,6 +696,70 @@ test:
         
         self._save_analysis_cache()
         print('html updated')
+
+    def check_for_future_data(self):
+        """
+        Checks local database, remote database (if accessible), and cache for any future-dated records.
+        Prints warnings for any future data found.
+        """
+        tz = pytz.timezone(TIMEZONE)
+        today = datetime.datetime.now(tz).date()
+        
+        print("Checking for future data in databases and cache...")
+        
+        # Check local database using database module
+        try:
+            days = database.fetch_available_days()
+            future_dates = [day for day in days if datetime.datetime.strptime(day, '%Y-%m-%d').date() > today]
+            if future_dates:
+                print(f"Warning: Found future dates in local database: {future_dates}")
+            else:
+                print("Local database: No future dates found.")
+        except Exception as e:
+            print(f"Error checking local database: {e}")
+        
+        # Check remote database (if API key is set) using database module
+        if database.API_KEY:
+            try:
+                # Use the sync function to fetch remote data
+                database.sync_remote_to_local()  # This will fetch and insert new data
+                # Then check again
+                days_after = database.fetch_available_days()
+                future_dates_after = [day for day in days_after if datetime.datetime.strptime(day, '%Y-%m-%d').date() > today]
+                if future_dates_after:
+                    print(f"Warning: Found future dates in remote database: {future_dates_after}")
+                else:
+                    print("Remote database: No future dates found.")
+            except Exception as e:
+                print(f"Error checking remote database: {e}")
+        else:
+            print("Remote database: API key not configured, skipping.")
+        
+        # Check cache
+        if os.path.exists(self.cache_path):
+            try:
+                with open(self.cache_path, 'r') as f:
+                    cache = json.load(f)
+                future_cache = []
+                for key, value in cache.items():
+                    if key.endswith('.csv'):
+                        date_str = key.replace('.csv', '')
+                        try:
+                            cache_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+                            if cache_date > today:
+                                future_cache.append(date_str)
+                        except ValueError:
+                            pass
+                if future_cache:
+                    print(f"Warning: Found future dates in cache: {future_cache}")
+                else:
+                    print("Cache: No future dates found.")
+            except Exception as e:
+                print(f"Error checking cache: {e}")
+        else:
+            print("Cache: File not found.")
+        
+        print("Future data check complete.")
 
 
 if __name__ == '__main__':
