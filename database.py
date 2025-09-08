@@ -64,57 +64,23 @@ def wait_for_server(max_retries=5, delay=10):
     Waits for the remote server to be available by making a simple request.
     Retries a few times before giving up.
     """
-    if not API_KEY:
-        print("API key not configured. Skipping server check.")
-        return True
-
-    print("Checking remote server availability...")
-    headers = get_headers()
-    for i in range(max_retries):
-        try:
-            # Using a small timeout and a lightweight query to check for server availability.
-            requests.get(f"{API_BASE_URL}/logs?limit=1", headers=headers, timeout=5)
-            print("Remote server is available.")
-            return True
-        except requests.RequestException:
-            print(f"Could not connect to remote server. Attempt {i+1}/{max_retries}. Retrying in {delay}s...")
-            time.sleep(delay)
-    
-    print("Could not connect to remote server after several retries.")
+    # Remote functionality is disabled.
+    print("Remote sync is disabled. Assuming server is unavailable.")
     return False
 
 def get_headers():
     """Returns the authorization headers for API requests."""
-    if not API_KEY:
-        return {}
-    return {"Authorization": f"Bearer {API_KEY}"}
+    # Remote functionality is disabled.
+    return {}
 
 def insert_activity(timestamp, category, duration, window_title, source):
     """
     Inserts an activity record. It first tries to send it to the remote API.
     If that fails, it saves the record locally.
     """
-    if not API_KEY:
-        print("API key not configured. Saving locally.")
-        _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
-        return False
-
-    payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title, "source": source}
-    headers = get_headers()
-    
-    try:
-        response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
-        if response.status_code == 200:
-            _insert_local_activity(timestamp, category, duration, window_title, source, synced=True)
-            return True
-        else:
-            print(f"API Error: {response.status_code}. Saving locally.")
-            _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
-            return False
-    except requests.RequestException:
-        print("Network Error. Saving locally.")
-        _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
-        return False
+    # Remote functionality is disabled, always save locally.
+    _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
+    return True # Assuming local save is successful.
 
 def fetch_available_days():
     """
@@ -170,37 +136,9 @@ def sync_local_data():
     """
     Synchronizes unsynced local data with the remote server.
     """
-    if not API_KEY:
-        print("API key not configured. Skipping sync.")
-        return
-
-    unsynced_data = _get_unsynced_local_data()
-    if not unsynced_data:
-        print("No local data to sync.")
-        return
-
-    print(f"Found {len(unsynced_data)} unsynced records. Syncing...")
-    
-    headers = get_headers()
-    successful_ids = []
-    for record in unsynced_data:
-        record_id, timestamp, category, duration, window_title, source = record[:6]
-        payload = {"timestamp": timestamp, "category": category, "duration": duration, "window_title": window_title, "source": source}
-        
-        try:
-            response = requests.post(f"{API_BASE_URL}/log", json=payload, headers=headers, timeout=5)
-            if response.status_code == 200:
-                successful_ids.append(record_id)
-            else:
-                print(f"API Error for record {record_id}: {response.status_code}. Will retry later.")
-        except requests.RequestException as e:
-            print(f"Network Error for record {record_id}: {e}. Will retry later.")
-            # Stop trying to sync on network error to avoid repeated failures
-            break
-    
-    if successful_ids:
-        _mark_as_synced(successful_ids)
-        print(f"Successfully synced {len(successful_ids)} records.")
+    # Remote functionality is disabled.
+    print("Remote sync is disabled. Skipping sync.")
+    return
 
 def _get_unsynced_local_data():
     """
@@ -308,49 +246,14 @@ def delete_remote_activities_by_title(window_title):
     """
     Sends a request to the remote API to delete all records with a specific window_title.
     """
-    if not API_KEY:
-        print("API key not configured. Cannot delete remote data.")
-        return False
-
-    print(f"Sending request to delete remote records with title: '{window_title}'")
-    headers = get_headers()
-    params = {"window_title": window_title}
-    
-    try:
-        response = requests.delete(f"{API_BASE_URL}/logs/by_title", params=params, headers=headers, timeout=15)
-        if response.status_code == 200:
-            print(f"API Success: {response.json().get('message')}")
-            return True
-        else:
-            print(f"API Error: {response.status_code} - {response.text}")
-            return False
-    except requests.RequestException as e:
-        print(f"Network Error: Could not send delete request. {e}")
-        return False
+    # Remote functionality is disabled.
+    print("Remote sync is disabled. Cannot delete remote data.")
+    return False
 
 def delete_remote_activities_by_ids(ids):
     """
     Sends a request to the remote API to delete a list of records by their IDs.
     """
-    if not API_KEY:
-        print("API key not configured. Cannot delete remote data.")
-        return False
-    if not ids:
-        print("No IDs provided to delete.")
-        return True
-
-    print(f"Sending request to delete {len(ids)} remote records by ID...")
-    headers = get_headers()
-    payload = {"ids": ids}
-    
-    try:
-        response = requests.post(f"{API_BASE_URL}/logs/delete_by_ids", json=payload, headers=headers, timeout=30)
-        if response.status_code == 200:
-            print(f"API Success: {response.json().get('message')}")
-            return True
-        else:
-            print(f"API Error: {response.status_code} - {response.text}")
-            return False
-    except requests.RequestException as e:
-        print(f"Network Error: Could not send delete request. {e}")
-        return False
+    # Remote functionality is disabled.
+    print("Remote sync is disabled. Cannot delete remote data.")
+    return False

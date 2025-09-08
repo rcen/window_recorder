@@ -181,8 +181,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                               "{} \t".format(category),
                               "(pre-sleep) ({})".format(last_event[:120]))
-                    except UnicodeDecodeError:
-                        print("{0: 5.0f} s\t".format(duration_before_jump), "UNICODE DECODE ERROR")
+                    except UnicodeError:
+                        print("{0: 5.0f} s\t".format(duration_before_jump), "UNICODE ERROR")
 
             # Reset the state for the post-sleep/wake event.
             # Crucially, we set the start time to NOW, ignoring the sleep duration.
@@ -206,8 +206,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                       "{} \t".format(category),
                       "(auto-split) ({})".format(last_event[:120]))
-            except UnicodeDecodeError:
-                print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
+            except UnicodeError:
+                print("{0: 5.0f} s\t".format(duration), "UNICODE ERROR")
             # Start a new event from now
             start_of_event = time.time()
             last_event = 'idle'
@@ -255,8 +255,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                             print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                                   "{} \t".format(category),
                                   "({})".format(last_event[:120]))
-                    except UnicodeDecodeError:
-                        print("{0: 5.0f} s\t".format(duration), "UNICODE DECODE ERROR")
+                    except UnicodeError:
+                        print("{0: 5.0f} s\t".format(duration), "UNICODE ERROR")
 
             # A new event has just started. Update state and print it for immediate feedback.
             last_window = current_window

@@ -63,5 +63,6 @@ def get_focus_slots():
     return slots
 
 TIMEZONE = get_app_timezone()
-API_KEY = get_api_key()
+# API_KEY = get_api_key()
+API_KEY = None
 FOCUS_SLOTS = get_focus_slots()

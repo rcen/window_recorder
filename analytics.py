@@ -351,6 +351,14 @@ test:
         if df.empty:
             return
 
+        # --- Exclude 'idle' category from the timeline ---
+        if 'category' in df.columns:
+            df = df[df['category'].str.lower() != 'idle']
+        
+        if df.empty:
+            return
+        # --- End of exclusion ---
+
         # Get colors
         color_map = dict(self.color_list)
 
