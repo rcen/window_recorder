@@ -44,7 +44,7 @@ last_mouse_coords = [0, 0]
 start_of_event = time.time()
 last_window = 'start tracking'
 last_event = ''
-idle_time = 60 # 1 minute.
+idle_time = 600 # 10 minutes.
 html_update_time = time.time() + 30
 inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
@@ -264,6 +264,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_event = current_event
             try:
                 new_category = 'idle' if idle else analytic.get_cat(current_event)
+                print(f"DEBUG: Window title for categorization is: '{current_event}' -> Category: '{new_category}'") # DEBUG LINE
                 local_t = time.localtime(start_of_event)
                 print("{0:02}:{1:02} - Starting:\t".format(local_t.tm_hour, local_t.tm_min),
                       "{} \t".format(new_category),
@@ -275,7 +276,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if time.time() > html_update_time:
             # This updates the main analysis report (index.html)
             analytic.create_html()
-            html_update_time = time.time() + 120
+            html_update_time = time.time() + 240
 
         if time.time() > inspirational_html_update_time:
             # This updates the inspirational image page

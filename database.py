@@ -257,3 +257,32 @@ def delete_remote_activities_by_ids(ids):
     # Remote functionality is disabled.
     print("Remote sync is disabled. Cannot delete remote data.")
     return False
+
+def fetch_recent_activities(limit=20, offset=0):
+    """Fetches recent activities from the local database with a limit and offset."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, timestamp, window_title, duration, category
+                FROM activity
+                ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
+            ''', (limit, offset))
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error fetching recent activities: {e}")
+        return []
+
+def delete_activity(activity_id):
+    """Deletes a single activity from the local database by its ID."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM activity WHERE id = ?", (activity_id,))
+            conn.commit()
+            # Check if the row was actually deleted
+            return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Error deleting activity with ID {activity_id}: {e}")
+        return False

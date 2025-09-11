@@ -375,14 +375,13 @@ test:
 
         fig.update_yaxes(categoryorder='total ascending')
 
-        # Set x-axis to the local day's range
+        # Set x-axis to autoscale
         fig.update_layout(
             xaxis_title="Time of Day",
             yaxis_title="Category",
             showlegend=False,
             xaxis=dict(
-                tickformat="%H:%M",
-                range=[start_of_local_day, end_of_local_day]
+                tickformat="%H:%M"
             )
         )
 
@@ -469,6 +468,13 @@ test:
         if not date or not any(d > 0 for d in u_dur):
             return
 
+        # Filter out 'idle' category
+        non_idle_data = [(c, d) for c, d in zip(u_cats, u_dur) if c.lower() != 'idle']
+        if not non_idle_data:
+            return
+        
+        u_cats, u_dur = zip(*non_idle_data)
+
         total_dur = np.sum(u_dur)
         today = date
         filename = '{0:d}-{1:02d}-{2:02d}.png'.format(today.year, today.month, today.day)
@@ -477,14 +483,10 @@ test:
         pie_dur = []
         pie_colors = []
         
-        all_u_cats = self.get_unique_categories()
         color_map = dict(self.color_list)
         default_color = color_map.get('idle', '#CCCCCC')
 
-        dur_map = dict(zip(u_cats, u_dur))
-
-        for cat in all_u_cats:
-            dur = dur_map.get(cat, 0)
+        for cat, dur in zip(u_cats, u_dur):
             if dur > 0:
                 pie_dur.append(dur)
                 hr, mn, sec = Sec2hms(dur)
@@ -596,7 +598,6 @@ test:
         # Always treat 'desktop' as idle
         if window.strip().lower() == 'desktop':
             return 'idle'
-        ret = 'not categorized'
         if len(window) <=1:
             return 'idle'
         for string, category in self.string_cats:
@@ -606,8 +607,7 @@ test:
                     return category
             except TypeError:
                 pass
-            ret = category
-        return ret
+        return 'not categorized'
 
     def create_html(self, logfile=''):
         if "mod.log" in logfile:
@@ -664,7 +664,8 @@ test:
                 total_time = 0
                 for cat in all_u_cats:
                     dur = dur_map.get(cat, 0)
-                    total_time += dur
+                    if cat.lower() != 'idle':
+                        total_time += dur
                     dur_hr, dur_min, dur_sec = Sec2hms(dur)
                     color = color_map.get(cat, default_color)
                     row += f'<td style="background-color:{color}">'

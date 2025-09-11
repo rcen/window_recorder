@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 
 REM Check for virtual environment
 if not exist "venv" (
