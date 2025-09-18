@@ -8,6 +8,10 @@ image_folder = figs/pictures
 md_folder = ../crlog_laptop
 
 [CATEGORIES]
+google news: wasted
+laver cup: wasted
+finereader: coding
+OCRT: coding
 windows default lock screen: idle
 gnome screen shield: idle
 gmail: mail
@@ -324,7 +328,6 @@ powerpoint: docs
 fidelity: gaming
 portfolio: gaming
 airbnb: gaming
-google news: wasted
 mozilla: wasted
 chrome: wasted
 whatsapp: wasted
@@ -345,8 +348,10 @@ widow: wasted
 philadelphia eagles: wasted
 desi: wasted
 lydic: wasted
-tldr: coding
+tldr: learning
 modular: learning
+shell: coding
+options: coding
 
 [COLORS]
 coding: #4954EA
