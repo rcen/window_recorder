@@ -176,7 +176,7 @@ def view_project(short_name):
         else:
             print("No activity recorded for this project yet.")
 
-def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str):
+def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str, new_endtime_str):
     """Adjusts the properties of a specific project session."""
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
@@ -209,9 +209,27 @@ def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str):
             except ValueError:
                 print("Invalid end time format. Please use YYYY-MM-DD HH:MM:SS.")
                 return
+        elif new_endtime_str:
+            try:
+                cursor.execute("SELECT start_time FROM projects WHERE id = ?", (project_id,))
+                result = cursor.fetchone()
+                if not result:
+                    print(f"Project ID {project_id} not found.")
+                    return
+                
+                original_start_time = result[0]
+                original_date = datetime.fromtimestamp(original_start_time).date()
+                new_time = datetime.strptime(new_endtime_str, '%H:%M:%S').time()
+                new_end_dt = datetime.combine(original_date, new_time)
+                
+                updates.append("end_time = ?")
+                params.append(new_end_dt.timestamp())
+            except ValueError:
+                print("Invalid end time format. Please use HH:MM:SS.")
+                return
 
         if not updates:
-            print("No adjustments provided. Use --name, --desc, --start, or --end.")
+            print("No adjustments provided. Use --name, --desc, --start, --end, or --endtime.")
             return
 
         params.append(project_id)
@@ -258,6 +276,7 @@ def main():
     adjust_parser.add_argument('--desc', type=str, help='The new description for the session.')
     adjust_parser.add_argument('--start', type=str, help='The new start time in "YYYY-MM-DD HH:MM:SS" format.')
     adjust_parser.add_argument('--end', type=str, help='The new end time in "YYYY-MM-DD HH:MM:SS" format.')
+    adjust_parser.add_argument('--endtime', type=str, help='The new end time in "HH:MM:SS" format, keeping the original date.')
 
     args = parser.parse_args()
 
@@ -272,7 +291,7 @@ def main():
     elif args.command == 'view':
         view_project(args.short_name)
     elif args.command == 'adjust':
-        adjust_project(args.project_id, args.name, args.desc, args.start, args.end)
+        adjust_project(args.project_id, args.name, args.desc, args.start, args.end, args.endtime)
 
 
 if __name__ == '__main__':

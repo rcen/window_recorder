@@ -55,7 +55,7 @@ You are an **expert Python Developer** and a helpful, proactive **AI/ML Speciali
 * **Summarize Changes:** After making significant changes, provide a concise summary of what was done and why.
 
 ## **7. To-Do List**
-
+- [ ] a new timesheet functionality, so that I can see what is my current project, what kind of activities I have done for this project, how long I spend time on this project. How much time I have spent on all the projects.
 - [ ] **Secure Data Sync:** Upload the collected data to a secure location (e.g., a private cloud storage or a self-hosted database) to enable data retrieval from different computers.
 - [ ] **AI-Powered Category Validation:** Implement an AI model to analyze window titles and suggest or automatically correct the assigned category, improving data accuracy.
 - [ ] **Productivity Analysis:** Develop scripts to analyze usage patterns from the collected data, identify habits, and provide insights to improve productivity, reduce procrastination, and help mental health.
