@@ -14,3 +14,5 @@ plotly
 python-dotenv
 fastapi
 alembic
+browser-history
+pywinauto

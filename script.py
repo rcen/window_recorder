@@ -33,6 +33,9 @@ import socket
 if platform.system() == "Windows":
     import win32gui
     import msvcrt
+    import win32process
+    from pywinauto import Application
+    from pywinauto.findwindows import ElementNotFoundError
 else:
     import Xlib
     from Xlib import display
@@ -44,7 +47,7 @@ last_mouse_coords = [0, 0]
 start_of_event = time.time()
 last_window = 'start tracking'
 last_event = ''
-idle_time = 600 # 10 minutes.
+idle_time = 180 # 3 minutes.
 html_update_time = time.time() + 30
 inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
@@ -355,21 +358,50 @@ def get_window_name():
     if platform.system() == "Windows":
         try:
             parent = win32gui.GetForegroundWindow()
+            pid = win32process.GetWindowThreadProcessId(parent)
+            process_name = psutil.Process(pid[-1]).name().lower()
+
+            # Default to window title as a fallback
             window_name = win32gui.GetWindowText(parent)
-            
-            # If the title is "not a fan", ignore it and return the last known window.
+
+            if process_name in ["msedge.exe", "chrome.exe"]:
+                try:
+                    app = Application(backend="uia").connect(process=pid[-1], timeout=3)
+                    dlg = app.top_window()
+                    
+                    url = None
+                    # Specific logic for Edge based on inspection
+                    if process_name == "msedge.exe":
+                        app_bar = dlg.child_window(title="App bar", control_type="ToolBar")
+                        url_bar = app_bar.child_window(control_type="Edit")
+                        url = url_bar.get_value()
+
+                    # Common logic for Chrome
+                    elif process_name == "chrome.exe":
+                        wrapper = dlg.child_window(title="Address and search bar", control_type="Edit")
+                        url = wrapper.get_value()
+
+                    if url and url.startswith("http"):
+                        return url
+
+                except (ElementNotFoundError, TimeoutError):
+                    # This is an expected failure if the UI is not as we guess.
+                    # We simply fall back to the window title.
+                    pass
+                except Exception:
+                    # For any other unexpected pywinauto errors.
+                    pass
+
+            # Fallback for non-browsers or if URL fetch fails
             if window_name == "not a fan":
                 return last_window
+            return window_name.replace(',', '').lower()
 
-            # Clean the title
-            window_name = window_name.replace(',', '').lower()
-            return window_name
-        except win32gui.error as E:
-            print(E)
-            return "desktop" # Return a default value on error
+        except (win32gui.error, psutil.NoSuchProcess, psutil.AccessDenied):
+            return "desktop"
     else:
+        # ... (existing Linux implementation remains the same)
         try:
-            # Check if DISPLAY is set and X server is available
             if "DISPLAY" not in os.environ or not os.environ["DISPLAY"]:
                 return "desktop"
             d = display.Display()
@@ -379,25 +411,18 @@ def get_window_name():
             window_name_prop = window.get_full_property(d.intern_atom('_NET_WM_NAME'), Xlib.X.AnyPropertyType)
             
             if window_name_prop and window_name_prop.value:
-                window_name = window_name_prop.value.decode('utf-8', 'ignore').lower()
+                return window_name_prop.value.decode('utf-8', 'ignore').lower()
             else:
-                # Fallback for windows that don't have _NET_WM_NAME
                 window_name_prop = window.get_full_property(d.intern_atom('WM_NAME'), Xlib.X.AnyPropertyType)
                 if window_name_prop and window_name_prop.value:
-                    window_name = window_name_prop.value.decode('utf-8', 'ignore').lower()
+                    return window_name_prop.value.decode('utf-8', 'ignore').lower()
                 else:
-                    window_name = "desktop"
-
-            # If the title is "not a fan", ignore it and return the last known window.
-            if "not a fan" in window_name:
-                return last_window
-                
-            return window_name
-
+                    return "desktop"
         except (Xlib.error.XError, IndexError):
             return "desktop"
         except Exception:
             return "desktop"
+
 
 
 def on_press(key):
