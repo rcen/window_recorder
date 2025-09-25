@@ -20,20 +20,37 @@ import pyautogui
 import configparser
 import numpy as np
 import csv
+import logging
 from analytics import Analytics
 from broser_start import generate_inspirational_html
 import platform
+
+# --- Setup Logging ---
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debug.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
+    filename=log_file_path,
+    filemode='w' # Overwrite log file on each run
+)
+logging.getLogger('matplotlib').setLevel(logging.INFO)
+# --- End Logging Setup ---
+
 import psutil
 from multiprocessing import Process, Queue
 import tkinter as tk
 import database
 from config import FOCUS_SLOTS
 import socket
+from urllib.parse import urlparse
+from threading import Thread
+import queue
 
 if platform.system() == "Windows":
     import win32gui
     import msvcrt
     import win32process
+    import pythoncom
     from pywinauto import Application
     from pywinauto.findwindows import ElementNotFoundError
 else:
@@ -136,7 +153,18 @@ def main():
     # Sync with the remote server at startup to get the latest data
     # database.sync_remote_to_local()
 
+    hidden_tk_root = None
     if platform.system() == "Windows":
+        try:
+            # Create a hidden root Tk window in the main thread.
+            # This helps prevent tkinter-related garbage collection errors that can be
+            # triggered by other libraries in worker threads.
+            hidden_tk_root = tk.Tk()
+            hidden_tk_root.withdraw()
+        except (tk.TclError, ImportError):
+            # Fail gracefully if tkinter is not available or fails to initialize
+            hidden_tk_root = None
+
         alert_queue = Queue()
         alert_process = Process(target=alert_process_func, args=(alert_queue,))
         alert_process.start()
@@ -267,7 +295,6 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_event = current_event
             try:
                 new_category = 'idle' if idle else analytic.get_cat(current_event)
-                print(f"DEBUG: Window title for categorization is: '{current_event}' -> Category: '{new_category}'") # DEBUG LINE
                 local_t = time.localtime(start_of_event)
                 print("{0:02}:{1:02} - Starting:\t".format(local_t.tm_hour, local_t.tm_min),
                       "{} \t".format(new_category),
@@ -326,6 +353,13 @@ TRACK YOUR TIME - DON'T WASTE IT!
             # database.sync_local_data()
             last_sync_time = time.time()
 
+        if hidden_tk_root:
+            try:
+                hidden_tk_root.update()
+            except tk.TclError:
+                # The window might have been destroyed, ignore.
+                pass
+
         time.sleep(0.5)
 
 def save_data(data, source):
@@ -354,45 +388,45 @@ def is_mouse_idle():
     if time.time() > last_time_mouse_moved + idle_time:
         return True
     return False
+
+def shorten_url(url):
+    """Shortens a URL to make it more human-readable."""
+    try:
+        parsed = urlparse(url)
+        path_parts = [part for part in parsed.path.split('/') if part]
+        if len(path_parts) > 3:
+            shortened_path = '/' + '/'.join(path_parts[:3]) + '/...'
+        else:
+            shortened_path = parsed.path
+        
+        return f"{parsed.scheme}://{parsed.netloc}{shortened_path}"
+    except Exception:
+        return url # Return original url if parsing fails
+
+import platform
+import psutil
+from multiprocessing import Process, Queue
+import tkinter as tk
+import database
+from config import FOCUS_SLOTS
+import socket
+from urllib.parse import urlparse
+
+if platform.system() == "Windows":
+    import win32gui
+    import msvcrt
+    import win32process
+else:
+    import Xlib
+    from Xlib import display
+    from pynput import keyboard
+
 def get_window_name():
     if platform.system() == "Windows":
         try:
             parent = win32gui.GetForegroundWindow()
-            pid = win32process.GetWindowThreadProcessId(parent)
-            process_name = psutil.Process(pid[-1]).name().lower()
-
-            # Default to window title as a fallback
             window_name = win32gui.GetWindowText(parent)
-
-            if process_name in ["msedge.exe", "chrome.exe"]:
-                try:
-                    app = Application(backend="uia").connect(process=pid[-1], timeout=3)
-                    dlg = app.top_window()
-                    
-                    url = None
-                    # Specific logic for Edge based on inspection
-                    if process_name == "msedge.exe":
-                        app_bar = dlg.child_window(title="App bar", control_type="ToolBar")
-                        url_bar = app_bar.child_window(control_type="Edit")
-                        url = url_bar.get_value()
-
-                    # Common logic for Chrome
-                    elif process_name == "chrome.exe":
-                        wrapper = dlg.child_window(title="Address and search bar", control_type="Edit")
-                        url = wrapper.get_value()
-
-                    if url and url.startswith("http"):
-                        return url
-
-                except (ElementNotFoundError, TimeoutError):
-                    # This is an expected failure if the UI is not as we guess.
-                    # We simply fall back to the window title.
-                    pass
-                except Exception:
-                    # For any other unexpected pywinauto errors.
-                    pass
-
-            # Fallback for non-browsers or if URL fetch fails
+            
             if window_name == "not a fan":
                 return last_window
             return window_name.replace(',', '').lower()
@@ -422,6 +456,7 @@ def get_window_name():
             return "desktop"
         except Exception:
             return "desktop"
+
 
 
 

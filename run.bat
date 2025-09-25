@@ -1,15 +1,15 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-
+title "Track your time"
 REM Check for virtual environment
-if not exist "venv" (
+if not exist "winrecord_env" (
     echo "Creating virtual environment..."
-    python -m venv venv
+    python -m venv winrecord_env
 )
 
 REM Activate virtual environment
-call "venv\Scripts\activate.bat"
+call "winrecord_env\Scripts\activate.bat"
 
 REM Install dependencies if --new is passed
 if "%1"=="--new" (

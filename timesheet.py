@@ -112,8 +112,16 @@ def view_project(short_name):
     """Shows the total time and activity summary for a specific project."""
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
+
+        if not short_name:
+            cursor.execute("SELECT short_name FROM projects WHERE end_time IS NULL")
+            active_project = cursor.fetchone()
+            if active_project:
+                short_name = active_project[0]
+            else:
+                print("No active project to view. Specify a project name.")
+                return
         
-        # Get all sessions for the project
         cursor.execute("SELECT start_time, end_time, description FROM projects WHERE short_name = ? ORDER BY start_time ASC", (short_name,))
         sessions = cursor.fetchall()
         
@@ -121,7 +129,8 @@ def view_project(short_name):
             print(f"Project '{short_name}' not found.")
             return
 
-        total_duration = 0
+        total_session_duration = 0
+        activities = []
         
         print(f"Project: {short_name}")
         print("\nSessions:")
@@ -131,44 +140,53 @@ def view_project(short_name):
 
         for start_time, end_time, description in sessions:
             start_str = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S')
-            if end_time:
-                end_str = datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S')
-                duration = end_time - start_time
-                total_duration += duration
-                mins, secs = divmod(duration, 60)
-                hours, mins = divmod(mins, 60)
-                duration_str = f"{int(hours):02d}h {int(mins):02d}m {int(secs):02d}s"
-            else:
-                end_str = "(active)"
-                duration_str = ""
+            
+            effective_end_time = end_time if end_time else time.time()
+            
+            duration = effective_end_time - start_time
+            total_session_duration += duration
+            
+            mins, secs = divmod(duration, 60)
+            hours, mins = divmod(mins, 60)
+            duration_str = f"{int(hours):02d}h {int(mins):02d}m {int(secs):02d}s"
+            
+            end_str = datetime.fromtimestamp(effective_end_time).strftime('%Y-%m-%d %H:%M:%S') if end_time else "(active)"
 
             print(f"{start_str:<20} {end_str:<20} {duration_str:<12} {description:<40}")
+
+            # Fetch activities for this session
+            cursor.execute(
+                "SELECT category, duration FROM activity WHERE timestamp >= ? AND timestamp < ?",
+                (start_time, effective_end_time)
+            )
+            activities.extend(cursor.fetchall())
         
         print("-" * 80)
-        total_mins, total_secs = divmod(total_duration, 60)
+        
+        # Calculate totals
+        total_productive_duration = 0
+        category_totals = {}
+        non_productive_categories = ['idle', 'sperrbildschirm']
+
+        for category, duration in activities:
+            category_totals[category] = category_totals.get(category, 0) + duration
+            if category not in non_productive_categories:
+                total_productive_duration += duration
+
+        # Display totals
+        total_mins, total_secs = divmod(total_session_duration, 60)
         total_hours, total_mins = divmod(total_mins, 60)
-        print(f"Total time for project '{short_name}': {int(total_hours):02d}h {int(total_mins):02d}m {int(total_secs):02d}s")
+        print(f"Total Session Time: {int(total_hours):02d}h {int(total_mins):02d}m {int(total_secs):02d}s")
+
+        prod_mins, prod_secs = divmod(total_productive_duration, 60)
+        prod_hours, prod_mins = divmod(prod_mins, 60)
+        print(f"Productive Time:    {int(prod_hours):02d}h {int(prod_mins):02d}m {int(prod_secs):02d}s")
 
         print("\nActivity Summary:")
         print("-" * 80)
         
-        # Get all activities within the project's sessions
-        activities = []
-        for start_time, end_time, _ in sessions:
-            if end_time:
-                cursor.execute(
-                    "SELECT category, SUM(duration) FROM activity WHERE timestamp >= ? AND timestamp < ? GROUP BY category",
-                    (start_time, end_time)
-                )
-                activities.extend(cursor.fetchall())
-        
-        if activities:
-            # Sum up durations for each category across all sessions
-            category_totals = {}
-            for category, duration in activities:
-                category_totals[category] = category_totals.get(category, 0) + duration
-            
-            for category, duration in category_totals.items():
+        if category_totals:
+            for category, duration in sorted(category_totals.items(), key=lambda item: item[1], reverse=True):
                 mins, secs = divmod(duration, 60)
                 hours, mins = divmod(mins, 60)
                 duration_str = f"{int(hours):02d}h {int(mins):02d}m {int(secs):02d}s"
@@ -176,7 +194,7 @@ def view_project(short_name):
         else:
             print("No activity recorded for this project yet.")
 
-def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str, new_endtime_str):
+def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str, new_endtime_str, new_starttime_str):
     """Adjusts the properties of a specific project session."""
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
@@ -199,6 +217,24 @@ def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str, n
                 params.append(new_start_dt.timestamp())
             except ValueError:
                 print("Invalid start time format. Please use YYYY-MM-DD HH:MM:SS.")
+                return
+        elif new_starttime_str:
+            try:
+                cursor.execute("SELECT start_time FROM projects WHERE id = ?", (project_id,))
+                result = cursor.fetchone()
+                if not result:
+                    print(f"Project ID {project_id} not found.")
+                    return
+                
+                original_start_time = result[0]
+                original_date = datetime.fromtimestamp(original_start_time).date()
+                new_time = datetime.strptime(new_starttime_str, '%H:%M:%S').time()
+                new_start_dt = datetime.combine(original_date, new_time)
+                
+                updates.append("start_time = ?")
+                params.append(new_start_dt.timestamp())
+            except ValueError:
+                print("Invalid start time format. Please use HH:MM:SS.")
                 return
 
         if new_end_str:
@@ -229,7 +265,7 @@ def adjust_project(project_id, new_name, new_desc, new_start_str, new_end_str, n
                 return
 
         if not updates:
-            print("No adjustments provided. Use --name, --desc, --start, --end, or --endtime.")
+            print("No adjustments provided. Use --name, --desc, --start, --end, --endtime, or --startTime.")
             return
 
         params.append(project_id)
@@ -267,7 +303,7 @@ def main():
 
     # 'view' command
     view_parser = subparsers.add_parser('view', help='View details for a specific project.')
-    view_parser.add_argument('short_name', type=str, help='The short name of the project to view.')
+    view_parser.add_argument('short_name', type=str, nargs='?', default=None, help='The short name of the project to view. If not provided, shows the current project.')
 
     # 'adjust' command
     adjust_parser = subparsers.add_parser('adjust', help='Adjust the properties of a specific project session.')
@@ -275,6 +311,7 @@ def main():
     adjust_parser.add_argument('--name', type=str, help='The new short name for the project.')
     adjust_parser.add_argument('--desc', type=str, help='The new description for the session.')
     adjust_parser.add_argument('--start', type=str, help='The new start time in "YYYY-MM-DD HH:MM:SS" format.')
+    adjust_parser.add_argument('--startTime', type=str, help='The new start time in "HH:MM:SS" format, keeping the original date.')
     adjust_parser.add_argument('--end', type=str, help='The new end time in "YYYY-MM-DD HH:MM:SS" format.')
     adjust_parser.add_argument('--endtime', type=str, help='The new end time in "HH:MM:SS" format, keeping the original date.')
 
@@ -291,7 +328,7 @@ def main():
     elif args.command == 'view':
         view_project(args.short_name)
     elif args.command == 'adjust':
-        adjust_project(args.project_id, args.name, args.desc, args.start, args.end, args.endtime)
+        adjust_project(args.project_id, args.name, args.desc, args.start, args.end, args.endtime, args.startTime)
 
 
 if __name__ == '__main__':
