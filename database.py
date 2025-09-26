@@ -32,8 +32,12 @@ def initialize_database():
             cursor.execute('ALTER TABLE activity ADD COLUMN synced INTEGER DEFAULT 0')
         if 'source' not in columns:
             cursor.execute('ALTER TABLE activity ADD COLUMN source TEXT')
+        if 'window_url' not in columns:
+            cursor.execute('ALTER TABLE activity ADD COLUMN window_url TEXT')
+        if 'window_url_short' not in columns:
+            cursor.execute('ALTER TABLE activity ADD COLUMN window_url_short TEXT')
 
-def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False):
+def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False, window_url=None, window_url_short=None):
     """Inserts a single activity record into the local database, including the local_date."""
     tz = pytz.timezone(TIMEZONE)
     utc_dt = pytz.utc.localize(datetime.datetime.utcfromtimestamp(timestamp))
@@ -45,17 +49,36 @@ def _insert_local_activity(timestamp, category, duration, window_title, source='
         # We need to handle the case where the migration hasn't been run yet
         cursor.execute("PRAGMA table_info(activity)")
         columns = [column[1] for column in cursor.fetchall()]
-        if 'local_date' in columns:
-            cursor.execute('''
-                INSERT INTO activity (timestamp, category, duration, window_title, synced, local_date, source)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (timestamp, category, duration, window_title, 1 if synced else 0, local_date_str, source))
-        else:
-            # Fallback for before the migration is run
-            cursor.execute('''
-                INSERT INTO activity (timestamp, category, duration, window_title, synced, source)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (timestamp, category, duration, window_title, 1 if synced else 0, source))
+        has_local_date = 'local_date' in columns
+        has_window_url = 'window_url' in columns
+        has_window_url_short = 'window_url_short' in columns
+
+        column_names = ['timestamp', 'category', 'duration', 'window_title']
+        values = [timestamp, category, duration, window_title]
+
+        if has_window_url:
+            column_names.append('window_url')
+            values.append(window_url)
+
+        if has_window_url_short:
+            column_names.append('window_url_short')
+            values.append(window_url_short)
+
+        column_names.append('synced')
+        values.append(1 if synced else 0)
+
+        if has_local_date:
+            column_names.append('local_date')
+            values.append(local_date_str)
+
+        column_names.append('source')
+        values.append(source)
+
+        placeholders = ', '.join('?' for _ in column_names)
+        cursor.execute(f"""
+            INSERT INTO activity ({', '.join(column_names)})
+            VALUES ({placeholders})
+        """, values)
 
 # --- API Communication Functions ---
 
@@ -73,13 +96,13 @@ def get_headers():
     # Remote functionality is disabled.
     return {}
 
-def insert_activity(timestamp, category, duration, window_title, source):
+def insert_activity(timestamp, category, duration, window_title, source, window_url=None, window_url_short=None):
     """
     Inserts an activity record. It first tries to send it to the remote API.
     If that fails, it saves the record locally.
     """
     # Remote functionality is disabled, always save locally.
-    _insert_local_activity(timestamp, category, duration, window_title, source, synced=False)
+    _insert_local_activity(timestamp, category, duration, window_title, source, synced=False, window_url=window_url, window_url_short=window_url_short)
     return True # Assuming local save is successful.
 
 def fetch_available_days():
@@ -125,7 +148,20 @@ def fetch_log_for_day(date_str):
     """
     try:
         with sqlite3.connect(DB_FILE) as conn:
-            query = "SELECT timestamp, category, duration, window_title, source FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
+            cursor = conn.cursor()
+            # Determine available columns dynamically
+            cursor.execute("PRAGMA table_info(activity)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            select_columns = ['timestamp', 'category', 'duration', 'window_title']
+            if 'window_url' in columns:
+                select_columns.append('window_url')
+            if 'window_url_short' in columns:
+                select_columns.append('window_url_short')
+            if 'source' in columns:
+                select_columns.append('source')
+
+            query = f"SELECT {', '.join(select_columns)} FROM activity WHERE local_date = ? ORDER BY timestamp ASC"
             df = pd.read_sql_query(query, conn, params=(date_str,))
             return df
     except Exception as e:
@@ -263,12 +299,24 @@ def fetch_recent_activities(limit=20, offset=0):
     try:
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
-            cursor.execute('''
-                SELECT id, timestamp, window_title, duration, category
+            cursor.execute("PRAGMA table_info(activity)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            select_columns = ['id', 'timestamp', 'window_title', 'duration', 'category']
+            if 'window_url_short' in columns:
+                select_columns.append('window_url_short')
+            if 'window_url' in columns:
+                select_columns.append('window_url')
+            if 'source' in columns:
+                select_columns.append('source')
+
+            query = f"""
+                SELECT {', '.join(select_columns)}
                 FROM activity
                 ORDER BY timestamp DESC
                 LIMIT ? OFFSET ?
-            ''', (limit, offset))
+            """
+            cursor.execute(query, (limit, offset))
             return cursor.fetchall()
     except Exception as e:
         print(f"Error fetching recent activities: {e}")

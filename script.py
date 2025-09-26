@@ -51,7 +51,7 @@ if platform.system() == "Windows":
     import msvcrt
     import win32process
     import pythoncom
-    from pywinauto import Application
+    from pywinauto import Application, Desktop
     from pywinauto.findwindows import ElementNotFoundError
 else:
     import Xlib
@@ -63,6 +63,7 @@ last_time_mouse_moved = time.time()
 last_mouse_coords = [0, 0]
 start_of_event = time.time()
 last_window = 'start tracking'
+last_window_url = None
 last_event = ''
 idle_time = 180 # 3 minutes.
 html_update_time = time.time() + 30
@@ -70,6 +71,24 @@ inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
 wasted_time_start = None
 last_warning_minute = 0
+
+CHROMIUM_BROWSER_PROCESSES = {
+    'chrome.exe',
+    'msedge.exe',
+    'brave.exe',
+    'vivaldi.exe',
+    'opera.exe',
+    'opera_gx.exe',
+    'chromium.exe',
+    'arc.exe'
+}
+
+
+def format_url(url):
+    short = shorten_url(url)
+    if short:
+        return f" | URL: {short}"
+    return ''
 
 last_notification_time = 0
 notification_cooldown = 60  # seconds
@@ -137,6 +156,7 @@ def get_current_focus_slot():
 
 def main():
     global last_window
+    global last_window_url
     global last_event
     global start_of_event
     global html_update_time
@@ -196,7 +216,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             # System sleep/off detected. End the event that was active before the jump.
             duration_before_jump = last_loop_time - start_of_event
             if last_event:
-                category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window)
+                category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window, last_window_url)
 
                 bRecord = False
                 if duration_before_jump < 18 and category == 'idle':
@@ -204,14 +224,15 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if duration_before_jump > 2 and category != 'idle':
                     bRecord = True
                 if bRecord:
-                    save_data([last_loop_time, category, int(duration_before_jump), last_window], hostname)
+                    save_data([last_loop_time, category, int(duration_before_jump), last_window], hostname, last_window_url)
                     try:
                         mins = int(np.floor(duration_before_jump/60))
                         secs = int(np.floor(duration_before_jump - mins*60))
                         local_t = time.localtime(start_of_event)
                         print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                               "{} \t".format(category),
-                              "(pre-sleep) ({})".format(last_event[:120]))
+                              "(pre-sleep) ({})".format(last_event[:120]),
+                              format_url(last_window_url))
                     except UnicodeError:
                         print("{0: 5.0f} s\t".format(duration_before_jump), "UNICODE ERROR")
 
@@ -219,6 +240,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             # Crucially, we set the start time to NOW, ignoring the sleep duration.
             start_of_event = current_loop_time
             last_event = 'idle' # Assume idle on wake, will be re-evaluated.
+            last_window_url = None
             last_window = 'Computer Wake'
             last_loop_time = current_loop_time # Reset last_loop_time as well
             continue # Skip the rest of this loop iteration.
@@ -228,26 +250,28 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if last_event and (time.time() - start_of_event) > max_event_duration:
             # End the current event and start a new one (idle or current window)
             duration = max_event_duration
-            category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window)
-            save_data([start_of_event + max_event_duration, category, int(duration), last_window], hostname)
+            category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window, last_window_url)
+            save_data([start_of_event + max_event_duration, category, int(duration), last_window], hostname, last_window_url)
             try:
                 mins = int(np.floor(duration/60))
                 secs = int(np.floor(duration - mins*60))
                 local_t = time.localtime(start_of_event)
                 print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
                       "{} \t".format(category),
-                      "(auto-split) ({})".format(last_event[:120]))
+                      "(auto-split) ({})".format(last_event[:120]),
+                      format_url(last_window_url))
             except UnicodeError:
                 print("{0: 5.0f} s\t".format(duration), "UNICODE ERROR")
             # Start a new event from now
             start_of_event = time.time()
             last_event = 'idle'
             last_window = 'auto-split (idle)'
+            last_window_url = None
 
 
         mouse_idle = is_mouse_idle()
         keyboard_idle = is_keyboard_idle(0.01)
-        current_window = get_window_name()
+        current_window, current_url = get_window_name()
         idle = mouse_idle and keyboard_idle
 
         # --- New: Treat 'start page' as idle if focused > 5 min ---
@@ -255,6 +279,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if current_window.strip().lower() == 'start page' and (time.time() - start_of_event) > start_page_idle_threshold:
             idle = True
             current_window = 'start page (idle)'
+            current_url = None
 
         if idle:
             current_event = 'idle'
@@ -269,7 +294,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if last_event == 'idle':
                     category = 'idle'
                 else:
-                    category = analytic.get_cat(last_window)
+                    category = analytic.get_cat(last_window, last_window_url)
 
                 bRecord = False
                 if duration < 18 and category == 'idle':
@@ -277,28 +302,31 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if duration > 2 and category != 'idle':
                     bRecord = True
                 if bRecord == True:
-                    save_data([time.time(), category, int(duration), last_window], hostname)
+                    save_data([time.time(), category, int(duration), last_window], hostname, last_window_url)
                     try:
                         if sys.version_info.major > 2:
                             mins = int(np.floor(duration/60))
                             secs = int(np.floor(duration - mins*60))
                             local_t = time.localtime(start_of_event)
-                            print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
-                                  "{} \t".format(category),
-                                  "({})".format(last_event[:120]))
+                        print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
+                              "{} \t".format(category),
+                              "({})".format(last_event[:120]),
+                              format_url(last_window_url))
                     except UnicodeError:
                         print("{0: 5.0f} s\t".format(duration), "UNICODE ERROR")
 
             # A new event has just started. Update state and print it for immediate feedback.
             last_window = current_window
+            last_window_url = None if idle else current_url
             start_of_event = time.time()
             last_event = current_event
             try:
-                new_category = 'idle' if idle else analytic.get_cat(current_event)
+                new_category = 'idle' if idle else analytic.get_cat(current_event, current_url)
                 local_t = time.localtime(start_of_event)
                 print("{0:02}:{1:02} - Starting:\t".format(local_t.tm_hour, local_t.tm_min),
                       "{} \t".format(new_category),
-                      "({})".format(current_event[:120]))
+                      "({})".format(current_event[:120]),
+                      format_url(current_url))
             except Exception:
                 # Fail silently if printing the new event causes an issue
                 pass
@@ -315,7 +343,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             result = generate_inspirational_html(image_folder, md_folder)
             inspirational_html_update_time = time.time() + 600 # Reset for another 10 minutes
 
-        current_category = 'idle' if idle else analytic.get_cat(current_window)
+        current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
         if "wasted" in current_category.lower():
             if wasted_time_start is None:
                 wasted_time_start = time.time()
@@ -362,10 +390,11 @@ TRACK YOUR TIME - DON'T WASTE IT!
 
         time.sleep(0.5)
 
-def save_data(data, source):
+def save_data(data, source, window_url=None):
     """Saves a single data record to the database."""
     # data format is [timestamp, category, duration, window_title]
-    database.insert_activity(data[0], data[1], data[2], data[3], source)
+    window_url_short = shorten_url(window_url)
+    database.insert_activity(data[0], data[1], data[2], data[3], source, window_url, window_url_short)
 
 
 
@@ -389,19 +418,39 @@ def is_mouse_idle():
         return True
     return False
 
-def shorten_url(url):
-    """Shortens a URL to make it more human-readable."""
+def shorten_url(url, max_length=80):
+    """Shortens a URL for display without losing the host information."""
+    if not url:
+        return None
+
     try:
         parsed = urlparse(url)
+        if not parsed.netloc and parsed.path:
+            parsed = urlparse(f"http://{url}")
+
+        netloc = parsed.netloc or parsed.path
+        if not netloc:
+            return url if len(url) <= max_length else f"{url[:max_length-3]}..."
+
         path_parts = [part for part in parsed.path.split('/') if part]
-        if len(path_parts) > 3:
-            shortened_path = '/' + '/'.join(path_parts[:3]) + '/...'
-        else:
-            shortened_path = parsed.path
-        
-        return f"{parsed.scheme}://{parsed.netloc}{shortened_path}"
+        short_path = ''
+        if path_parts:
+            displayed_parts = path_parts[:2]
+            short_path = '/' + '/'.join(displayed_parts)
+            if len(path_parts) > 2:
+                short_path += '/...'
+
+        short_url = f"{netloc}{short_path}"
+
+        if parsed.query:
+            short_url += '?...'
+
+        if len(short_url) > max_length:
+            short_url = f"{short_url[:max_length-3]}..."
+
+        return short_url
     except Exception:
-        return url # Return original url if parsing fails
+        return url if url and len(url) <= max_length else (f"{url[:max_length-3]}..." if url else None)
 
 import platform
 import psutil
@@ -421,23 +470,112 @@ else:
     from Xlib import display
     from pynput import keyboard
 
+def _extract_chromium_url(hwnd):
+    """Attempts to retrieve the URL from a Chromium-based browser window."""
+    try:
+        pythoncom.CoInitialize()
+    except pythoncom.com_error:
+        pass
+
+    url_value = None
+    try:
+        app = Desktop(backend="uia").window(handle=hwnd)
+        candidate_queries = [
+            {"control_type": "Edit", "auto_id": "view_1022"},
+            {"control_type": "Edit", "auto_id": "addressEditBox"},
+            {"control_type": "Edit", "auto_id": "urlEditBox"},
+            {"control_type": "Edit", "title_re": ".*address.*"},
+            {"control_type": "Edit", "found_index": 0},
+        ]
+
+        def _extract_from_control(ctrl):
+            value = None
+            try:
+                value = ctrl.get_value()
+            except Exception:
+                pass
+            if not value:
+                try:
+                    value = ctrl.iface_value.CurrentValue
+                except Exception:
+                    pass
+            if not value:
+                try:
+                    value = ctrl.window_text()
+                except Exception:
+                    pass
+            return value
+
+        for query in candidate_queries:
+            try:
+                ctrl = app.child_window(**query).wrapper_object()
+                value = _extract_from_control(ctrl)
+                if value:
+                    cleaned = value.strip()
+                    if cleaned and (cleaned.startswith("http") or "//" in cleaned or "." in cleaned):
+                        url_value = cleaned.lower()
+                        logging.debug("Extracted URL via query %s: %s", query, url_value)
+                        break
+            except (ElementNotFoundError, AttributeError):
+                continue
+
+        if not url_value:
+            try:
+                for ctrl in app.descendants(control_type="Edit"):
+                    value = _extract_from_control(ctrl)
+                    if value:
+                        cleaned = value.strip()
+                        if cleaned and (cleaned.startswith("http") or "//" in cleaned or "." in cleaned):
+                            url_value = cleaned.lower()
+                            logging.debug("Extracted URL via fallback scan: %s", url_value)
+                            break
+            except Exception as e:
+                logging.debug("Fallback URL extraction failed: %s", e)
+    except Exception as exc:
+        logging.debug("URL extraction failed: %s", exc)
+        url_value = None
+    finally:
+        try:
+            pythoncom.CoUninitialize()
+        except pythoncom.com_error:
+            pass
+
+    return url_value
+
+
 def get_window_name():
+    global last_window, last_window_url
+
     if platform.system() == "Windows":
         try:
             parent = win32gui.GetForegroundWindow()
+            if not parent:
+                return "desktop", None
+
             window_name = win32gui.GetWindowText(parent)
-            
+
             if window_name == "not a fan":
-                return last_window
-            return window_name.replace(',', '').lower()
+                return last_window, last_window_url
+
+            normalized_title = window_name.replace(',', '').lower()
+            url_value = None
+
+            try:
+                _, pid = win32process.GetWindowThreadProcessId(parent)
+                process_name = psutil.Process(pid).name().lower()
+                if process_name in CHROMIUM_BROWSER_PROCESSES:
+                    url_value = _extract_chromium_url(parent)
+            except (psutil.Error, ProcessLookupError, PermissionError):
+                pass
+
+            return normalized_title, url_value
 
         except (win32gui.error, psutil.NoSuchProcess, psutil.AccessDenied):
-            return "desktop"
+            return "desktop", None
     else:
-        # ... (existing Linux implementation remains the same)
         try:
             if "DISPLAY" not in os.environ or not os.environ["DISPLAY"]:
-                return "desktop"
+                return "desktop", None
             d = display.Display()
             root = d.screen().root
             window_id = root.get_full_property(d.intern_atom('_NET_ACTIVE_WINDOW'), Xlib.X.AnyPropertyType).value[0]
@@ -445,17 +583,17 @@ def get_window_name():
             window_name_prop = window.get_full_property(d.intern_atom('_NET_WM_NAME'), Xlib.X.AnyPropertyType)
             
             if window_name_prop and window_name_prop.value:
-                return window_name_prop.value.decode('utf-8', 'ignore').lower()
+                return window_name_prop.value.decode('utf-8', 'ignore').lower(), None
             else:
                 window_name_prop = window.get_full_property(d.intern_atom('WM_NAME'), Xlib.X.AnyPropertyType)
                 if window_name_prop and window_name_prop.value:
-                    return window_name_prop.value.decode('utf-8', 'ignore').lower()
+                    return window_name_prop.value.decode('utf-8', 'ignore').lower(), None
                 else:
-                    return "desktop"
+                    return "desktop", None
         except (Xlib.error.XError, IndexError):
-            return "desktop"
+            return "desktop", None
         except Exception:
-            return "desktop"
+            return "desktop", None
 
 
 

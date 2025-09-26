@@ -13,11 +13,34 @@ def display_activities(offset=0, limit=20):
         return False
 
     for activity in recent_activities:
-        activity_id, timestamp, title, duration, category = activity
+        activity_id, timestamp, title, duration, category, *extra = activity
+        window_url_short = None
+        window_url = None
+        source = None
+
+        if extra:
+            window_url_short = extra[0]
+        if len(extra) > 1:
+            window_url = extra[1]
+        if len(extra) > 2:
+            source = extra[2]
+
+        display_url = window_url_short or window_url or ''
+        if display_url:
+            trimmed = display_url[:60]
+            if len(display_url) > 60:
+                trimmed += '…'
+            display_url = f" | {trimmed}"
+
         dt_object = datetime.datetime.fromtimestamp(timestamp)
         time_str = dt_object.strftime('%Y-%m-%d %H:%M:%S')
-        
-        print(f"  ID: {activity_id:<5} | {time_str} | {category:<15} | {duration:<5}s | {title[:80]}")
+
+        source_info = f" | {source}" if source else ''
+
+        print(
+            f"  ID: {activity_id:<5} | {time_str} | {category:<15} | {duration:<5}s | {title[:80]}"
+            f"{display_url}{source_info}"
+        )
 
     print("------------------------------")
     return True

@@ -23,6 +23,8 @@ import database
 from config import TIMEZONE
 import sqlite3
 import requests
+import html
+from urllib.parse import urlparse
 
 def main():
     reanalyze_all()
@@ -38,6 +40,40 @@ def Sec2hms(seconds):
     min = int(np.floor((seconds-hr*3600) / 60))
     sec = int(seconds%60)
     return hr, min, sec
+
+def shorten_url_display(url, max_length=80):
+    """Produce a concise, human-friendly URL label for reports."""
+    if not url:
+        return None
+
+    try:
+        parsed = urlparse(url)
+        if not parsed.netloc and parsed.path:
+            parsed = urlparse(f"http://{url}")
+
+        netloc = parsed.netloc or parsed.path
+        if not netloc:
+            return url if len(url) <= max_length else f"{url[:max_length-3]}..."
+
+        path_parts = [part for part in parsed.path.split('/') if part]
+        short_path = ''
+        if path_parts:
+            displayed_parts = path_parts[:2]
+            short_path = '/' + '/'.join(displayed_parts)
+            if len(path_parts) > 2:
+                short_path += '/...'
+
+        short_url = f"{netloc}{short_path}"
+
+        if parsed.query:
+            short_url += '?...'
+
+        if len(short_url) > max_length:
+            short_url = f"{short_url[:max_length-3]}..."
+
+        return short_url
+    except Exception:
+        return url if len(url) <= max_length else f"{url[:max_length-3]}..."
 
 def resolve_conflicts(df):
     """
@@ -184,6 +220,26 @@ class Analytics():
         self.analysis_cache = self._load_analysis_cache()
         database.initialize_database()
 
+    @staticmethod
+    def _ensure_url_columns(df):
+        if df is None or df.empty:
+            return df
+
+        df = df.copy()
+
+        if 'window_url' not in df.columns:
+            df['window_url'] = None
+
+        if 'window_url_short' not in df.columns:
+            df['window_url_short'] = df['window_url'].apply(shorten_url_display)
+        else:
+            mask = df['window_url_short'].isna() & df['window_url'].notna()
+            if mask.any():
+                df.loc[mask, 'window_url_short'] = df.loc[mask, 'window_url'].apply(shorten_url_display)
+
+        df['url_display'] = df['window_url_short'].fillna(df['window_url']).fillna('')
+        return df
+
     def _get_and_prepare_day_df(self, date_str):
         """
         Fetches the log for a given day and prepares it for analysis.
@@ -198,6 +254,8 @@ class Analytics():
         # Filter out 'start' events, as they are not real activities
         if 'window_title' in df.columns:
             df = df[df['window_title'].str.strip().str.lower() != 'start'].copy()
+
+        df = self._ensure_url_columns(df)
 
         # Correctly interpret the timestamp as UTC, then convert to local time
         df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
@@ -351,6 +409,13 @@ test:
         if df.empty:
             return
 
+        df = self._ensure_url_columns(df)
+        if df.empty:
+            return
+
+        df['URL'] = df['url_display'].replace('', None).fillna('—')
+        df['Duration (min)'] = (df['duration'] / 60).round(1)
+
         # --- Exclude 'idle' category from the timeline ---
         if 'category' in df.columns:
             df = df[df['category'].str.lower() != 'idle']
@@ -369,6 +434,10 @@ test:
             y="category",
             color="category",
             hover_name="window_title",
+            hover_data={
+                "URL": True,
+                "Duration (min)": ':.1f'
+            },
             color_discrete_map=color_map,
             title=f'Activity Timeline for {date_str}'
         )
@@ -594,19 +663,39 @@ test:
         return u_cats
 
 
-    def get_cat(self, window):
+    def get_cat(self, window, url=None):
         # Always treat 'desktop' as idle
         if window.strip().lower() == 'desktop':
             return 'idle'
         if len(window) <=1:
             return 'idle'
+        normalized_targets = []
+        if window:
+            normalized_targets.append(window.lower())
+        if url:
+            normalized_targets.append(url.lower())
+
         for string, category in self.string_cats:
-            try:
-                match = re.search(string, window)
-                if bool(match):
+            if not string:
+                continue
+            string = string.strip()
+            if not string:
+                continue
+
+            if string.lower().startswith('regex:'):
+                pattern = string[6:]
+                for target in normalized_targets:
+                    try:
+                        if re.search(pattern, target, flags=re.IGNORECASE):
+                            return category
+                    except re.error:
+                        continue
+                continue
+
+            needle = string.lower()
+            for target in normalized_targets:
+                if needle in target:
                     return category
-            except TypeError:
-                pass
         return 'not categorized'
 
     def create_html(self, logfile=''):
@@ -626,6 +715,7 @@ test:
         # Limit the number of logs to be displayed
         if len(log_list) > display_limit:
             log_list = log_list[:display_limit]
+            date_list = date_list[:display_limit]
             
         all_u_cats = self.get_unique_categories()
         
@@ -682,6 +772,12 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
+            recent_activity_limit = self.config.getint('SETTINGS', 'recent_activity_limit', fallback=10)
+            recent_activity_html = self._build_recent_activity_section(log_list, date_list, limit=recent_activity_limit)
+            if recent_activity_html:
+                file.write('<hr/>')
+                file.write(recent_activity_html)
+
             file.write('<div class="gallery" style="width: 100%;">')
             img_list = sorted(os.listdir('figs/pie'))
             timeline_html_list = sorted(os.listdir('html/timelines'))
@@ -705,6 +801,91 @@ test:
         
         self._save_analysis_cache()
         print('html updated')
+
+    def _build_recent_activity_section(self, log_list, date_list, limit=12):
+        if not log_list or not date_list:
+            return ''
+
+        latest_date = date_list[0]
+        date_str = latest_date.strftime('%Y-%m-%d')
+        df = self._get_and_prepare_day_df(date_str)
+        if df.empty:
+            return ''
+
+        df = resolve_conflicts(df)
+        if df.empty:
+            return ''
+
+        df = self._ensure_url_columns(df)
+        df['Duration (min)'] = (df['duration'] / 60).round(1)
+        df = df.sort_values('end_time', ascending=False).head(limit)
+
+        if df.empty:
+            return ''
+
+        rows = []
+        for _, row in df.iterrows():
+            start_time = row['start_time'].strftime('%H:%M') if 'start_time' in row else ''
+            category = html.escape(str(row.get('category', '') or ''))
+            if not category:
+                category = '—'
+
+            window_title = html.escape(str(row.get('window_title', '') or ''))
+            if not window_title:
+                window_title = '—'
+
+            full_url = row.get('window_url')
+            display_url = row.get('url_display') or full_url or ''
+            display_url_escaped = html.escape(str(display_url)) if display_url else ''
+
+            if display_url_escaped:
+                if isinstance(full_url, str) and full_url.startswith(('http://', 'https://')):
+                    url_cell = f'<a href="{html.escape(full_url, quote=True)}" target="_blank" rel="noopener">{display_url_escaped}</a>'
+                else:
+                    url_cell = display_url_escaped
+            else:
+                url_cell = '—'
+
+            duration_value = row.get('Duration (min)', 0)
+            try:
+                duration_str = f"{float(duration_value):.1f}"
+            except (TypeError, ValueError):
+                duration_str = '0.0'
+
+            rows.append(
+                '<tr>'
+                f'<td>{start_time}</td>'
+                f'<td>{category}</td>'
+                f'<td>{window_title}</td>'
+                f'<td>{url_cell}</td>'
+                f'<td style="text-align:right">{duration_str}</td>'
+                '</tr>'
+            )
+
+        if not rows:
+            return ''
+
+        header = (
+            f"<h2>Recent Activity – {latest_date.strftime('%B %d, %Y')}</h2>"
+        )
+
+        table = [
+            '<table class="recent-activity" style="width:100%; border-collapse:collapse;">',
+            '<tr>'
+            '<th style="text-align:left; padding:4px;">Start</th>'
+            '<th style="text-align:left; padding:4px;">Category</th>'
+            '<th style="text-align:left; padding:4px;">Window</th>'
+            '<th style="text-align:left; padding:4px;">URL</th>'
+            '<th style="text-align:right; padding:4px;">Duration (min)</th>'
+            '</tr>'
+        ]
+
+        for row_html in rows:
+            table.append(row_html)
+
+        table.append('</table>')
+
+        return header + '\n' + '\n'.join(table)
 
     def check_for_future_data(self):
         """

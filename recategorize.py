@@ -28,10 +28,20 @@ def recategorize_past_week():
             seven_days_ago = time.time() - timedelta(days=7).total_seconds()
 
             # Get all activities from the last 7 days
-            cursor.execute(
-                "SELECT id, window_title, category FROM activity WHERE timestamp >= ?",
-                (seven_days_ago,)
-            )
+            cursor.execute("PRAGMA table_info(activity)")
+            columns = [row[1] for row in cursor.fetchall()]
+            has_window_url = 'window_url' in columns
+
+            if has_window_url:
+                cursor.execute(
+                    "SELECT id, window_title, window_url, category FROM activity WHERE timestamp >= ?",
+                    (seven_days_ago,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, window_title, NULL as window_url, category FROM activity WHERE timestamp >= ?",
+                    (seven_days_ago,)
+                )
             activities = cursor.fetchall()
             
             if not activities:
@@ -43,9 +53,13 @@ def recategorize_past_week():
             update_count = 0
             updates = []
 
-            for activity_id, window_title, old_category in activities:
+            for activity in activities:
+                if has_window_url:
+                    activity_id, window_title, window_url, old_category = activity
+                else:
+                    activity_id, window_title, window_url, old_category = activity
                 # Get the new category based on current rules
-                new_category = analytic.get_cat(window_title)
+                new_category = analytic.get_cat(window_title, window_url)
                 
                 # If the category has changed, stage it for update
                 if new_category != old_category:
