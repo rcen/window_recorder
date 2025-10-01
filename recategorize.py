@@ -2,8 +2,46 @@ import sqlite3
 import time
 from datetime import datetime, timedelta
 from analytics import Analytics
+import argparse
+import sys
 
 DB_FILE = 'data/activity.sqlite'
+
+def list_activities_by_category(category):
+    """
+    Lists activities of a given category for today only, from recent to old.
+    """
+    print(f"Listing today's activities for category: '{category}'")
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            
+            # Calculate timestamp for start of today (midnight)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_timestamp = today.timestamp()
+            
+            cursor.execute(
+                "SELECT window_title, category, timestamp FROM activity WHERE category = ? AND timestamp >= ? ORDER BY timestamp DESC",
+                (category, today_timestamp)
+            )
+            activities = cursor.fetchall()
+
+            if not activities:
+                print(f"No activities found for category '{category}' today.")
+                return
+
+            print(f"Found {len(activities)} activities today:")
+            for title, cat, ts in activities:
+                dt_object = datetime.fromtimestamp(ts)
+                line = f"  - {dt_object.strftime('%Y-%m-%d %H:%M:%S')}: [{cat}] {title}"
+                # Encode to stdout's encoding, replacing characters that can't be handled
+                print(line.encode(sys.stdout.encoding, errors='replace').decode(sys.stdout.encoding))
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
 
 def recategorize_past_week():
     """
@@ -83,4 +121,11 @@ def recategorize_past_week():
         print(f"An unexpected error occurred: {e}")
 
 if __name__ == '__main__':
-    recategorize_past_week()
+    parser = argparse.ArgumentParser(description="Recategorize activities or list them by category.")
+    parser.add_argument('--category', type=str, help='Category of activities to list.')
+    args = parser.parse_args()
+
+    if args.category:
+        list_activities_by_category(args.category)
+    else:
+        recategorize_past_week()
