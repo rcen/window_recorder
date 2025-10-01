@@ -24,6 +24,8 @@ import logging
 from analytics import Analytics
 from broser_start import generate_inspirational_html
 import platform
+import uuid
+from typing import Any, Dict, Optional
 
 # --- Setup Logging ---
 log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'debug.log')
@@ -94,34 +96,116 @@ last_notification_time = 0
 notification_cooldown = 60  # seconds
 alert_queue = None
 alert_process = None
+alert_result_queue = None
+WARNING_RESPONSE_THRESHOLD = 60
 
-def alert_process_func(queue):
-    def update_text():
+def alert_process_func(message_queue: Any, result_queue: Any) -> None:
+    current_alert: Dict[str, Any] = {
+        'id': None,
+        'message': '',
+        'title': 'Warning',
+        'start_time': None,
+        'created_at': None,
+        'active': False,
+    }
+
+    def reset_display() -> None:
+        current_alert.update({
+            'id': None,
+            'message': '',
+            'title': 'Warning',
+            'start_time': None,
+            'created_at': None,
+            'active': False,
+        })
+        message_var.set('')
+        timer_var.set('')
+        root.withdraw()
+
+    def finalize_alert(result: Optional[str] = None) -> None:
+        if not current_alert['active']:
+            return
+
+        elapsed: float = time.time() - current_alert['start_time'] if current_alert['start_time'] else 0.0
+        outcome: str = result or ('win' if elapsed <= WARNING_RESPONSE_THRESHOLD else 'lose')
+        payload: Dict[str, Any] = {
+            'id': current_alert['id'],
+            'result': outcome,
+            'elapsed_seconds': elapsed,
+            'timestamp': time.time(),
+            'started_at': current_alert['start_time'],
+            'created_at': current_alert['created_at'],
+            'message': current_alert['message'],
+            'title': current_alert['title'],
+        }
         try:
-            message, title = queue.get_nowait()
-            label.config(text=message)
-            root.title(title)
-            root.deiconify()  # Show the window
+            result_queue.put(payload)
         except Exception:
-            pass
-        root.after(100, update_text)
+            logging.exception('Failed to push alert result payload')
 
-    def on_closing():
-        root.withdraw()  # Hide the window instead of closing it
+        reset_display()
+
+    def activate_alert(payload: Dict[str, Any]) -> None:
+        if current_alert['active']:
+            finalize_alert(result='lose')
+
+        current_alert['id'] = payload.get('id')
+        current_alert['message'] = payload.get('message', '')
+        current_alert['title'] = payload.get('title', 'Warning')
+        current_alert['start_time'] = time.time()
+        current_alert['created_at'] = payload.get('created_at', current_alert['start_time'])
+        current_alert['active'] = True
+
+        message_var.set(current_alert['message'])
+        root.title(current_alert['title'])
+        root.deiconify()
+        root.attributes('-topmost', True)
+        root.after(250, lambda: root.attributes('-topmost', False))
+
+    def on_ok() -> None:
+        finalize_alert()
+
+    def poll_events() -> None:
+        try:
+            while True:
+                payload = message_queue.get_nowait()
+                if not isinstance(payload, dict):
+                    continue
+                activate_alert(payload)
+        except queue.Empty:
+            pass
+
+        if current_alert['active'] and current_alert['start_time']:
+            elapsed_seconds = max(time.time() - current_alert['start_time'], 0.0)
+            minutes, seconds = divmod(int(elapsed_seconds), 60)
+            timer_var.set(f"Time elapsed: {minutes:02d}:{seconds:02d}")
+        else:
+            timer_var.set('')
+
+        root.after(250, poll_events)
 
     root = tk.Tk()
-    root.title("Warning")
-    label = tk.Label(root, text="", padx=20, pady=20)
+    root.title('Warning')
+    message_var = tk.StringVar(value='')
+    timer_var = tk.StringVar(value='')
+
+    label = tk.Label(root, textvariable=message_var, padx=20, pady=10, wraplength=420, justify='left')
     label.pack()
-    ok_button = tk.Button(root, text="OK", command=on_closing)
+
+    timer_label = tk.Label(root, textvariable=timer_var, padx=20, pady=5, fg='red')
+    timer_label.pack()
+
+    ok_button = tk.Button(root, text='OK', command=on_ok)
     ok_button.pack(pady=5)
-    root.protocol("WM_DELETE_WINDOW", on_closing)
-    root.withdraw()  # Hide the window initially
-    root.after(100, update_text)
+
+    root.protocol('WM_DELETE_WINDOW', on_ok)
+    root.withdraw()
+    root.after(100, poll_events)
     root.mainloop()
 
 def show_non_blocking_alert(message, title):
     global last_notification_time
+    global alert_queue
     if time.time() - last_notification_time < notification_cooldown:
         return
     last_notification_time = time.time()
@@ -129,7 +213,52 @@ def show_non_blocking_alert(message, title):
         os.system(f'notify-send "{title}" "{message}"')
     else:
         if alert_queue:
-            alert_queue.put((message, title))
+            event_payload = {
+                'id': str(uuid.uuid4()),
+                'message': message,
+                'title': title,
+                'created_at': time.time(),
+            }
+            alert_queue.put(event_payload)
+
+
+def process_alert_results() -> None:
+    global alert_result_queue
+    if not alert_result_queue:
+        return
+
+    try:
+        while True:
+            payload = alert_result_queue.get_nowait()
+            if not isinstance(payload, dict):
+                continue
+
+            event_id = payload.get('id')
+            result = payload.get('result')
+            elapsed_seconds = float(payload.get('elapsed_seconds', 0.0))
+            timestamp = float(payload.get('timestamp', time.time()))
+            message = payload.get('message')
+            title = payload.get('title')
+
+            if not event_id or not result:
+                continue
+
+            try:
+                database.record_warning_flag(
+                    event_id=event_id,
+                    timestamp=timestamp,
+                    elapsed_seconds=elapsed_seconds,
+                    result=result,
+                    message=message,
+                    title=title,
+                )
+                logging.info(
+                    "Recorded warning response: %s in %.1fs", result, elapsed_seconds
+                )
+            except Exception:
+                logging.exception("Failed to persist warning flag result")
+    except queue.Empty:
+        return
 
 def check_ram():
     global ram_check_time
@@ -166,6 +295,7 @@ def main():
     global last_warning_minute
     global alert_queue
     global alert_process
+    global alert_result_queue
 
     hostname = socket.gethostname()
     database.initialize_database()
@@ -186,7 +316,9 @@ def main():
             hidden_tk_root = None
 
         alert_queue = Queue()
-        alert_process = Process(target=alert_process_func, args=(alert_queue,))
+        alert_result_queue = Queue()
+        alert_process = Process(target=alert_process_func, args=(alert_queue, alert_result_queue))
+        alert_process.daemon = True
         alert_process.start()
 
     np.seterr(all='ignore')
@@ -375,6 +507,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_warning_minute = 0 # Reset when activity is no longer wasted
 
         check_ram()
+        process_alert_results()
         
         if time.time() - last_sync_time > 300: # 5 minutes
             print("Running periodic sync...")

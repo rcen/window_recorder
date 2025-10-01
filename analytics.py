@@ -772,6 +772,11 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
+            flag_summary_html = self._build_warning_flag_summary()
+            if flag_summary_html:
+                file.write('<hr/>')
+                file.write(flag_summary_html)
+
             recent_activity_limit = self.config.getint('SETTINGS', 'recent_activity_limit', fallback=10)
             recent_activity_html = self._build_recent_activity_section(log_list, date_list, limit=recent_activity_limit)
             if recent_activity_html:
@@ -886,6 +891,34 @@ test:
         table.append('</table>')
 
         return header + '\n' + '\n'.join(table)
+
+    def _build_warning_flag_summary(self):
+        try:
+            counts = database.get_warning_flag_counts()
+        except Exception:
+            counts = {'win': 0, 'lose': 0}
+
+        wins = counts.get('win') or 0
+        losses = counts.get('lose') or 0
+        total = wins + losses
+
+        summary_parts = [
+            '<div class="warning-flag-summary" style="margin:20px 0; padding:12px; border:1px solid #ccc; border-radius:6px; background:#fdf9e6;">',
+            '<h2 style="margin-top:0;">Warning Response Flags</h2>',
+            f'<p style="font-size:1.05em; margin-bottom:8px;"><strong>Winning flags:</strong> {wins} &nbsp;|&nbsp; <strong>Losing flags:</strong> {losses}</p>'
+        ]
+
+        if total == 0:
+            summary_parts.append('<p style="margin:0; color:#555;">No warning responses recorded yet. Click warning dialogs within one minute to earn a win.</p>')
+        else:
+            win_pct = (wins / total) * 100 if total else 0
+            loss_pct = (losses / total) * 100 if total else 0
+            summary_parts.append(
+                f'<p style="margin:0; color:#555;">Respond within one minute to earn a win. Current win rate: {win_pct:.0f}% &nbsp;|&nbsp; Loss rate: {loss_pct:.0f}%.</p>'
+            )
+
+        summary_parts.append('</div>')
+        return ''.join(summary_parts)
 
     def check_for_future_data(self):
         """

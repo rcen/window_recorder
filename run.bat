@@ -1,7 +1,8 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title "Track your time"
+
+title %COMPUTERNAME% "Track your time" 
 REM Check for virtual environment
 if not exist "winrecord_env" (
     echo "Creating virtual environment..."
@@ -17,6 +18,7 @@ if "%1"=="--new" (
 )
 
 REM Run analytics
+python recategorize.py
 python analytics.py
 
 REM Run the main script in a loop

@@ -37,6 +37,18 @@ def initialize_database():
         if 'window_url_short' not in columns:
             cursor.execute('ALTER TABLE activity ADD COLUMN window_url_short TEXT')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS warning_flags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE,
+                timestamp REAL NOT NULL,
+                elapsed_seconds REAL NOT NULL,
+                result TEXT NOT NULL,
+                message TEXT,
+                title TEXT
+            )
+        ''')
+
 def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False, window_url=None, window_url_short=None):
     """Inserts a single activity record into the local database, including the local_date."""
     tz = pytz.timezone(TIMEZONE)
@@ -321,6 +333,49 @@ def fetch_recent_activities(limit=20, offset=0):
     except Exception as e:
         print(f"Error fetching recent activities: {e}")
         return []
+
+
+def record_warning_flag(event_id, timestamp, elapsed_seconds, result, message=None, title=None):
+    """Persists the outcome of a warning dialog interaction."""
+    if not event_id or not result:
+        return
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    INSERT INTO warning_flags (event_id, timestamp, elapsed_seconds, result, message, title)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(event_id) DO UPDATE SET
+                        timestamp=excluded.timestamp,
+                        elapsed_seconds=excluded.elapsed_seconds,
+                        result=excluded.result,
+                        message=excluded.message,
+                        title=excluded.title
+                """,
+                (event_id, timestamp, elapsed_seconds, result, message, title)
+            )
+            conn.commit()
+    except Exception as exc:
+        print(f"Error recording warning flag result: {exc}")
+
+
+def get_warning_flag_counts():
+    """Returns aggregate counts of winning and losing warning flags."""
+    counts = {'win': 0, 'lose': 0}
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT result, COUNT(*) FROM warning_flags GROUP BY result")
+            for result, total in cursor.fetchall():
+                if result in counts:
+                    counts[result] = total
+    except Exception as exc:
+        print(f"Error fetching warning flag counts: {exc}")
+
+    return counts
+
 
 def delete_activity(activity_id):
     """Deletes a single activity from the local database by its ID."""

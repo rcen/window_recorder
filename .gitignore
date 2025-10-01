@@ -4,7 +4,7 @@ figs/
 html/
 
 # config file
-
+*.bak
 
 
 # Byte-compiled / optimized / DLL files
