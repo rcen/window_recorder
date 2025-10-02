@@ -5,13 +5,30 @@ import requests
 import datetime
 import time
 import pytz
-from config import TIMEZONE, API_KEY
+from config import TIMEZONE, API_KEY, DAY_BOUNDARY_HOUR
 
 # --- Configuration ---
 API_BASE_URL = os.environ.get("WINDOW_RECORDER_API_URL", "https://window-recorder-api.onrender.com")
 DB_FILE = 'data/activity.sqlite'
 
 # --- Local Database Functions ---
+
+def calculate_adjusted_local_date(timestamp):
+    """
+    Calculate the local date for activity tracking, adjusting for the configured day boundary.
+    If the activity occurs before the day boundary hour (e.g., 3 AM), it's considered
+    part of the previous day.
+    """
+    tz = pytz.timezone(TIMEZONE)
+    utc_dt = pytz.utc.localize(datetime.datetime.utcfromtimestamp(timestamp))
+    local_dt = utc_dt.astimezone(tz)
+    
+    # If the hour is before the day boundary, consider it part of the previous day
+    if local_dt.hour < DAY_BOUNDARY_HOUR:
+        adjusted_dt = local_dt - datetime.timedelta(days=1)
+        return adjusted_dt.strftime('%Y-%m-%d')
+    else:
+        return local_dt.strftime('%Y-%m-%d')
 
 def initialize_database():
     os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
@@ -51,10 +68,7 @@ def initialize_database():
 
 def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False, window_url=None, window_url_short=None):
     """Inserts a single activity record into the local database, including the local_date."""
-    tz = pytz.timezone(TIMEZONE)
-    utc_dt = pytz.utc.localize(datetime.datetime.utcfromtimestamp(timestamp))
-    local_dt = utc_dt.astimezone(tz)
-    local_date_str = local_dt.strftime('%Y-%m-%d')
+    local_date_str = calculate_adjusted_local_date(timestamp)
 
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
@@ -263,7 +277,6 @@ def sync_remote_to_local():
     
     # 4. Batch insert new records
     batch = []
-    tz = pytz.timezone(TIMEZONE)
     for record in new_records_to_insert:
         # Always treat remote timestamp as UTC
         utc_dt = datetime.datetime.fromisoformat(record['timestamp'].replace('Z', '+00:00'))
@@ -273,9 +286,8 @@ def sync_remote_to_local():
         window_title = record['window_title']
         source = record.get('source') # Keep as None if not present
         
-        # Convert to local time just for calculating the local_date string
-        local_dt = utc_dt.astimezone(tz)
-        local_date_str = local_dt.strftime('%Y-%m-%d')
+        # Calculate adjusted local date using day boundary
+        local_date_str = calculate_adjusted_local_date(timestamp_float)
         
         batch.append((timestamp_float, category, duration, window_title, 1, local_date_str, source))
 

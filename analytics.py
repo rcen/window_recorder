@@ -20,7 +20,7 @@ import json
 import pytz
 import plotly.express as px
 import database
-from config import TIMEZONE
+from config import TIMEZONE, DAY_BOUNDARY_HOUR
 import sqlite3
 import requests
 import html
@@ -379,10 +379,10 @@ test:
             return
         # --- End of Optimization ---
 
-        # --- Fetch data for the local day, which may span two UTC days ---
+        # --- Fetch data for the adjusted day using day boundary configuration ---
         current_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
         
-        # Get data for the target UTC day and the next day to cover the full local day
+        # Get data for the target day and the next day to cover activities that span the boundary
         df1 = self._get_and_prepare_day_df(date_str)
         next_date_str = (current_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
         df2 = self._get_and_prepare_day_df(next_date_str)
@@ -391,18 +391,27 @@ test:
         if df.empty:
             return
 
-        # --- Filter and clamp data to the exact local day range ---
-        start_of_local_day = pd.Timestamp.combine(current_date, datetime.time.min).tz_localize(tz)
-        end_of_local_day = pd.Timestamp.combine(current_date, datetime.time.max).tz_localize(tz)
+        # --- Filter and clamp data to the adjusted day range using day boundary hour ---
+        # Start of adjusted day: day_boundary_hour on the current date
+        start_of_adjusted_day = pd.Timestamp.combine(
+            current_date, 
+            datetime.time(hour=DAY_BOUNDARY_HOUR)
+        ).tz_localize(tz)
+        
+        # End of adjusted day: day_boundary_hour on the next date  
+        end_of_adjusted_day = pd.Timestamp.combine(
+            current_date + datetime.timedelta(days=1),
+            datetime.time(hour=DAY_BOUNDARY_HOUR)
+        ).tz_localize(tz)
 
-        # Filter activities that overlap with the local day
-        df = df[(df['start_time'] < end_of_local_day) & (df['end_time'] > start_of_local_day)].copy()
+        # Filter activities that overlap with the adjusted day
+        df = df[(df['start_time'] < end_of_adjusted_day) & (df['end_time'] > start_of_adjusted_day)].copy()
         if df.empty:
             return
 
-        # Clamp start and end times to the boundaries of the local day
-        df['start_time'] = df['start_time'].clip(lower=start_of_local_day)
-        df['end_time'] = df['end_time'].clip(upper=end_of_local_day)
+        # Clamp start and end times to the boundaries of the adjusted day
+        df['start_time'] = df['start_time'].clip(lower=start_of_adjusted_day)
+        df['end_time'] = df['end_time'].clip(upper=end_of_adjusted_day)
 
         # Resolve conflicts on the filtered and clamped data
         df = resolve_conflicts(df)

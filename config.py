@@ -62,7 +62,26 @@ def get_focus_slots():
         pass
     return slots
 
+def get_day_boundary_hour():
+    """
+    Reads the day boundary hour from the [SETTINGS] section of config.dat.
+    Returns the hour (0-23) when a new day should start for activity tracking.
+    Defaults to 3 AM if not specified.
+    """
+    try:
+        config = get_config_parser()
+        hour = config.getint('SETTINGS', 'day_boundary_hour', fallback=3)
+        # Validate the hour is in valid range
+        if 0 <= hour <= 23:
+            return hour
+        else:
+            print(f"Warning: day_boundary_hour must be between 0-23. Using default of 3.")
+            return 3
+    except Exception:
+        return 3
+
 TIMEZONE = get_app_timezone()
 # API_KEY = get_api_key()
 API_KEY = None
 FOCUS_SLOTS = get_focus_slots()
+DAY_BOUNDARY_HOUR = get_day_boundary_hour()
