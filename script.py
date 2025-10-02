@@ -11,6 +11,16 @@ install win32 gui from:
     Step 2: pip install pywin32....whl
     Step 3: C:/python32/python.exe Scripts/pywin32_postinstall.py -install
     Step 4: python
+
+KNOWN ISSUE: Microsoft Teams tracking
+    Teams runs as a PWA/Electron app inside Microsoft Edge (msedge.exe), not as a standalone
+    process. This causes window title detection to be unreliable - titles may be slow to update
+    or return empty strings. The current workaround uses:
+    - Retry logic (3 attempts with 50ms delays)
+    - Process name detection (msedge.exe with Teams in title)
+    - Title normalization to extract Teams context
+    If Teams tracking remains problematic, consider using UI Automation API or accessibility
+    APIs instead of GetWindowText().
 """
 import os
 import sys
@@ -521,7 +531,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 # The window might have been destroyed, ignore.
                 pass
 
-        time.sleep(0.5)
+        time.sleep(0.3)  # Reduced from 0.5s for more responsive tracking
 
 def save_data(data, source, window_url=None):
     """Saves a single data record to the database."""
@@ -536,7 +546,7 @@ def is_mouse_idle():
     global last_mouse_coords
     global idle_time
 
-    time.sleep(0.1)
+    # Removed sleep to avoid adding latency to window detection
     try:
         x, y = pyautogui.position()
         mouse_coords = [x,y]
@@ -685,7 +695,24 @@ def get_window_name():
             if not parent:
                 return "desktop", None
 
-            window_name = win32gui.GetWindowText(parent)
+            # Try to get window text with retry for slow-responding apps like Teams
+            window_name = None
+            for attempt in range(3):
+                try:
+                    window_name = win32gui.GetWindowText(parent)
+                    if window_name:  # Successfully got a non-empty name
+                        break
+                    if attempt < 2:  # Don't sleep on last attempt
+                        time.sleep(0.05)  # Short sleep before retry
+                except:
+                    if attempt < 2:
+                        time.sleep(0.05)
+                    continue
+            
+            # If we still don't have a window name, use last known window
+            if not window_name:
+                logging.debug(f"Failed to get window name after retries, using last window: {last_window}")
+                return last_window, last_window_url
 
             if window_name == "not a fan":
                 return last_window, last_window_url
@@ -696,14 +723,34 @@ def get_window_name():
             try:
                 _, pid = win32process.GetWindowThreadProcessId(parent)
                 process_name = psutil.Process(pid).name().lower()
+                
+                # Special handling for Teams (which runs as Edge/Chrome)
+                # Teams windows often have slow/empty title responses
+                if 'microsoft teams' in normalized_title or 'teams.microsoft.com' in normalized_title:
+                    logging.debug(f"Teams detected via title - Window: '{window_name}', Process: {process_name}")
+                    # Force Teams title to be consistent
+                    if process_name == 'msedge.exe' or process_name == 'chrome.exe':
+                        # Extract the specific Teams context if available
+                        if '|' in window_name:
+                            # "Microsoft Teams - Chat | Meeting Name | Microsoft Teams"
+                            parts = [p.strip() for p in window_name.split('|')]
+                            normalized_title = f"microsoft teams - {parts[1] if len(parts) > 1 else 'active'}".lower()
+                        else:
+                            normalized_title = "microsoft teams"
+                
                 if process_name in CHROMIUM_BROWSER_PROCESSES:
                     url_value = _extract_chromium_url(parent)
-            except (psutil.Error, ProcessLookupError, PermissionError):
+            except (psutil.Error, ProcessLookupError, PermissionError) as e:
+                logging.debug(f"Error getting process info: {e}")
                 pass
 
             return normalized_title, url_value
 
-        except (win32gui.error, psutil.NoSuchProcess, psutil.AccessDenied):
+        except (win32gui.error, psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            logging.debug(f"Error in get_window_name: {e}")
+            # Return last known window instead of desktop to avoid losing tracking
+            if last_window and last_window != 'start tracking':
+                return last_window, last_window_url
             return "desktop", None
     else:
         try:
