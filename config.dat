@@ -9,6 +9,11 @@ image_folder = figs/pictures
 md_folder = ../crlog_laptop
 
 [CATEGORIES]
+calculator: coding
+learner tien: wasted
+vanguard.com: family
+m365.cloud.microsoft: coding
+vanguard login: family
 .cpp: coding
 workspace1: coding
 windows app: coding
@@ -425,20 +430,30 @@ modular: learning
 shell: coding
 options: coding
 warning: idle
+chinesebibleonline: church
+bible.com: church
+biblegateway.com: church
+the holy bible: church
+athlon sports: wasted
+belichick: wasted
+order page : family
+home depot: family
+mychart: family
 
 [COLORS]
 coding: #4954EA
 learning: #F2F767
 gaming: #F68D15
-idle: #837F7F
+church: #00A000
 docs:#32448B
 wasted: #F64438
-no_cat: #387FF7
 mail: #72ACF1
 think: #83F7F0
 family: #83F7F0
+no_cat: #387FF7
+idle: #837F7F
+not categorized: #2E8B57
 
 [PROJECTS]
 edgetool:
 decode:
-not categorized: #2E8B57
