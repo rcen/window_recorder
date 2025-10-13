@@ -25,6 +25,7 @@ import sqlite3
 import requests
 import html
 from urllib.parse import urlparse
+import stock_prices
 
 def main():
     reanalyze_all()
@@ -738,6 +739,11 @@ test:
 
         with open('html/index.html', 'w', encoding='utf-8') as file:
             file.writelines(head)
+
+            # Add stock prices at the top
+            stock_html = stock_prices.get_stock_html()
+            if stock_html:
+                file.write(stock_html)
 
             table_html = '<table style="width:100%">'
             

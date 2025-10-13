@@ -1,3 +1,6 @@
+[STOCKS]
+tickers = VOO, SOXL, AMZN
+
 [FOCUS_SLOTS]
 morning_focus = 09:00-11:30
 afternoon_focus = 14:00-16:45
@@ -9,6 +12,9 @@ image_folder = figs/pictures
 md_folder = ../crlog_laptop
 
 [CATEGORIES]
+bjarne stroustrup: learning
+weather forecast: family
+vanguard index: gaming
 calculator: coding
 learner tien: wasted
 vanguard.com: family
@@ -439,6 +445,11 @@ belichick: wasted
 order page : family
 home depot: family
 mychart: family
+wirecutter: wasted
+code-39: coding
+walmart.com: family
+maga: wasted
+los angeles times: wasted
 
 [COLORS]
 coding: #4954EA
