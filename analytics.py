@@ -746,11 +746,20 @@ test:
             if stock_html:
                 file.write(stock_html)
 
+            # Add warning flags after stock prices
+            flag_summary_html = self._build_warning_flag_summary()
+            if flag_summary_html:
+                file.write('<hr/>')
+                file.write(flag_summary_html)
+
             habit_section_html, habit_script = self._build_habit_calendar_section()
             if habit_section_html:
                 file.write(habit_section_html)
             if habit_script:
                 file.write(habit_script)
+            
+            # Add auto-scroll to Recent Activity section
+            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("recent-activity"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
 
             table_html = '<table style="width:100%">'
             
@@ -794,11 +803,6 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
-            flag_summary_html = self._build_warning_flag_summary()
-            if flag_summary_html:
-                file.write('<hr/>')
-                file.write(flag_summary_html)
-
             recent_activity_limit = self.config.getint('SETTINGS', 'recent_activity_limit', fallback=10)
             recent_activity_html = self._build_recent_activity_section(log_list, date_list, limit=recent_activity_limit)
             if recent_activity_html:
@@ -812,7 +816,10 @@ test:
             # Create a dictionary for timeline images for quick lookup
             timeline_map = {html.split('.')[0]: html for html in timeline_html_list}
 
-            for img in reversed(img_list):
+            # Show only the most recent 7 days
+            recent_img_list = list(reversed(img_list))[:7]
+
+            for img in recent_img_list:
                 date_str = img.split('.')[0]
                 timeline_html = timeline_map.get(date_str)
 
@@ -976,7 +983,7 @@ test:
                 checked_attr = ' checked' if is_completed else ''
                 streak_value = streak_by_date.get(habit_name, {}).get(iso_date, 0)
                 updated_value = updated_at_map.get(habit_name, {}).get(iso_date)
-                updated_attr = f' data-updated-at="{html.escape(updated_value)}"' if updated_value else ''
+                updated_attr = f' data-updated-at="{html.escape(str(updated_value))}"' if updated_value else ''
                 escaped_habit = html.escape(habit_name)
                 html_parts.append(
                     f'<label class="habit-toggle" data-habit="{escaped_habit}" data-date="{iso_date}"'
@@ -1539,7 +1546,7 @@ test:
             return ''
 
         header = (
-            f"<h2>Recent Activity – {latest_date.strftime('%B %d, %Y')}</h2>"
+            f'<h2 id="recent-activity">Recent Activity – {latest_date.strftime("%B %d, %Y")}</h2>'
         )
 
         table = [
