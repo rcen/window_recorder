@@ -24,7 +24,7 @@ CLIENT_TIMEZONE = TIMEZONE
 # Convert the string timezone to a pytz timezone object
 tz = pytz.timezone(CLIENT_TIMEZONE)
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./activity.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./data/activity.sqlite")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

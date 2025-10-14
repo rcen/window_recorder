@@ -4,7 +4,10 @@ import pandas as pd
 import os
 from config import TIMEZONE
 
-DB_FILE = 'activity.db' # Updated to match the new database name
+import sqlite3
+import sys
+
+DB_FILE = 'data/activity.sqlite'  # Unified database for activities and habits
 
 def show_database_content():
     """

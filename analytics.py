@@ -17,10 +17,11 @@ import re
 import shutil
 import time
 import json
+import textwrap
 import pytz
 import plotly.express as px
 import database
-from config import TIMEZONE, DAY_BOUNDARY_HOUR
+from config import TIMEZONE, DAY_BOUNDARY_HOUR, HABITS
 import sqlite3
 import requests
 import html
@@ -745,6 +746,12 @@ test:
             if stock_html:
                 file.write(stock_html)
 
+            habit_section_html, habit_script = self._build_habit_calendar_section()
+            if habit_section_html:
+                file.write(habit_section_html)
+            if habit_script:
+                file.write(habit_script)
+
             table_html = '<table style="width:100%">'
             
             header_row = '<tr><td></td>'
@@ -821,6 +828,652 @@ test:
         
         self._save_analysis_cache()
         print('html updated')
+
+    def _build_habit_calendar_section(self):
+        if not HABITS:
+            return '', ''
+
+        tz = pytz.timezone(TIMEZONE)
+        today = datetime.datetime.now(tz).date()
+        display_days = 14
+        current_week_start = today - datetime.timedelta(days=today.weekday())
+        display_start = current_week_start - datetime.timedelta(days=7)
+        display_end = display_start + datetime.timedelta(days=display_days - 1)
+        lookback_days = 60
+        fetch_start = display_start - datetime.timedelta(days=lookback_days)
+
+        habit_names = [name for name, _ in HABITS]
+        raw_completions = database.get_habit_completions(
+            habits=habit_names,
+            start_date=fetch_start.isoformat(),
+            end_date=display_end.isoformat()
+        )
+
+        normalized_flags: dict[str, dict[str, bool]] = {}
+        updated_at_map: dict[str, dict[str, str | None]] = {}
+        for habit_name in habit_names:
+            habit_entries = raw_completions.get(habit_name, {})
+            normalized_flags[habit_name] = {}
+            updated_at_map[habit_name] = {}
+            for iso_date, entry in habit_entries.items():
+                if isinstance(entry, dict):
+                    normalized_flags[habit_name][iso_date] = bool(entry.get('completed'))
+                    updated_at_map[habit_name][iso_date] = entry.get('updated_at') or entry.get('updatedAt')
+                else:
+                    normalized_flags[habit_name][iso_date] = bool(entry)
+                    updated_at_map[habit_name][iso_date] = None
+
+        def _carryover_streak(habit_name: str) -> int:
+            habit_map = normalized_flags.get(habit_name, {})
+            streak = 0
+            cursor = display_start - datetime.timedelta(days=1)
+            while cursor >= fetch_start:
+                if not habit_map.get(cursor.isoformat()):
+                    break
+                streak += 1
+                cursor -= datetime.timedelta(days=1)
+            return streak
+
+        streak_base = {habit: _carryover_streak(habit) for habit in habit_names}
+
+        streak_by_date: dict[str, dict[str, int]] = {}
+        for habit in habit_names:
+            streak = streak_base[habit]
+            habit_map = normalized_flags.get(habit, {})
+            date_map: dict[str, int] = {}
+            for offset in range(display_days):
+                day = display_start + datetime.timedelta(days=offset)
+                iso_date = day.isoformat()
+                if habit_map.get(iso_date):
+                    streak += 1
+                else:
+                    streak = 0
+                date_map[iso_date] = streak
+            streak_by_date[habit] = date_map
+
+        weekdays_labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        server_url = 'http://127.0.0.1:8042/habits'
+        if display_start.year == display_end.year:
+            calendar_title = f"{display_start.strftime('%b %d')} – {display_end.strftime('%b %d %Y')}"
+        else:
+            calendar_title = f"{display_start.strftime('%b %d %Y')} – {display_end.strftime('%b %d %Y')}"
+
+        legend_items = [
+            '<span class="habit-legend-item">'
+            f'<span class="habit-dot" style="background:{html.escape(color, quote=True)}"></span>'
+            f'<span class="habit-text">{html.escape(name)}</span>'
+            '</span>'
+            for name, color in HABITS
+        ]
+
+        habits_json = html.escape(json.dumps(habit_names))
+        streak_base_json = html.escape(json.dumps(streak_base))
+
+        def _habits_with_completions() -> dict[str, dict[str, dict[str, str | bool | None]]]:
+            enriched: dict[str, dict[str, dict[str, str | bool | None]]] = {}
+            for habit in habit_names:
+                enriched[habit] = {}
+                for iso_date in normalized_flags.get(habit, {}):
+                    enriched[habit][iso_date] = {
+                        'completed': normalized_flags[habit][iso_date],
+                        'updated_at': updated_at_map[habit].get(iso_date)
+                    }
+            return enriched
+
+        completions_json = html.escape(json.dumps(_habits_with_completions()))
+
+        html_parts = [
+            '<section class="habit-calendar"'
+            f' data-start="{display_start.isoformat()}"'
+            f' data-display-start="{display_start.isoformat()}"'
+            f' data-display-end="{display_end.isoformat()}"'
+            f' data-fetch-start="{fetch_start.isoformat()}"'
+            f' data-end="{display_end.isoformat()}"'
+            f' data-server-url="{server_url}"'
+            f' data-habits="{habits_json}"'
+            f' data-streak-base="{streak_base_json}"'
+            f' data-completions="{completions_json}">',
+            '<div class="habit-calendar-header">'
+            f'<h2>Daily Habits – {calendar_title}</h2>'
+            '<div class="habit-calendar-actions">'
+            '<button type="button" class="habit-refresh">Refresh</button>'
+            '</div>'
+            '</div>'
+        ]
+
+        if legend_items:
+            html_parts.append('<div class="habit-legend">' + ''.join(legend_items) + '</div>')
+
+        html_parts.append('<div class="habit-calendar-message" role="status"></div>')
+
+        html_parts.append('<div class="habit-calendar-weekdays">')
+        for label in weekdays_labels:
+            html_parts.append(f'<div>{label}</div>')
+        html_parts.append('</div>')
+
+        html_parts.append('<div class="habit-calendar-grid">')
+        for offset in range(display_days):
+            day = display_start + datetime.timedelta(days=offset)
+            iso_date = day.isoformat()
+            classes = ['calendar-day']
+            if day == today:
+                classes.append('today')
+            if day > today:
+                classes.append('future')
+            if day < today:
+                classes.append('past')
+            class_attr = ' '.join(classes)
+
+            html_parts.append(f'<div class="{class_attr}" data-date="{iso_date}">')
+            html_parts.append(f'<div class="date-label">{day.day}</div>')
+            html_parts.append('<div class="habit-checkboxes">')
+
+            for habit_name, color in HABITS:
+                slug = re.sub(r'[^a-z0-9]+', '-', habit_name.lower()).strip('-') or 'habit'
+                checkbox_id = f'habit-{slug}-{iso_date}'
+                habit_map = normalized_flags.get(habit_name, {})
+                is_completed = bool(habit_map.get(iso_date))
+                checked_attr = ' checked' if is_completed else ''
+                streak_value = streak_by_date.get(habit_name, {}).get(iso_date, 0)
+                updated_value = updated_at_map.get(habit_name, {}).get(iso_date)
+                updated_attr = f' data-updated-at="{html.escape(updated_value)}"' if updated_value else ''
+                escaped_habit = html.escape(habit_name)
+                html_parts.append(
+                    f'<label class="habit-toggle" data-habit="{escaped_habit}" data-date="{iso_date}"'
+                    f' data-streak="{streak_value}"{updated_attr} for="{checkbox_id}">'
+                    f'<input id="{checkbox_id}" type="checkbox" data-habit="{escaped_habit}" data-date="{iso_date}"{checked_attr}>'
+                    f'<span class="habit-dot" style="background:{html.escape(color, quote=True)}"></span>'
+                    f'<span class="habit-text">{escaped_habit}</span>'
+                    f'<span class="habit-streak">{streak_value}d</span>'
+                    '<span class="habit-updated"></span>'
+                    '</label>'
+                )
+
+            html_parts.append('</div>')
+            html_parts.append('</div>')
+
+        html_parts.append('</div>')
+        html_parts.append('</section>')
+
+        script = textwrap.dedent(
+            """
+            <style>
+            .habit-calendar { margin: 0 0 24px 0; padding: 16px 20px; background: #f9f9fb; border: 1px solid #d3d7e0; border-radius: 12px; box-shadow: 0 1px 2px rgba(18,25,38,0.08); }
+            .habit-calendar h2 { margin: 0; font-size: 1.25rem; }
+            .habit-calendar-actions { display: flex; gap: 8px; }
+            .habit-refresh { border: 1px solid #4c6ef5; background: #4c6ef5; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
+            .habit-refresh:hover { background: #3b5bdb; border-color: #3b5bdb; }
+            .habit-refresh:disabled { background: #a5b4fc; border-color: #a5b4fc; cursor: not-allowed; }
+            .habit-calendar-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+            .habit-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; font-size: 0.9rem; }
+            .habit-legend-item { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: rgba(76,110,245,0.08); border-radius: 999px; }
+            .habit-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+            .habit-text { flex: 1 1 auto; }
+            .habit-streak { margin-left: auto; padding: 2px 6px; background: rgba(54,79,199,0.12); color: #364fc7; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+            .habit-updated { display: none; margin-left: 8px; font-size: 0.72rem; color: #5c7cfa; white-space: nowrap; }
+            .habit-updated.is-visible { display: inline-block; }
+            .habit-calendar-message { min-height: 1em; margin: 8px 0 12px; font-size: 0.9rem; }
+            .habit-calendar-message.success { color: #2f9e44; }
+            .habit-calendar-message.error { color: #d6336c; }
+            .habit-calendar-message.info { color: #364fc7; }
+            .habit-calendar-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; font-weight: 600; margin-bottom: 6px; }
+            .habit-calendar-weekdays div { padding: 6px 0; background: rgba(18,25,38,0.06); border-radius: 6px; }
+            .habit-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; grid-auto-rows: minmax(110px, auto); }
+            .habit-calendar .calendar-day { padding: 10px; background: #fff; border: 1px solid rgba(18,25,38,0.1); border-radius: 10px; display: flex; flex-direction: column; }
+            .habit-calendar .calendar-day.today { border-color: #4c6ef5; box-shadow: 0 0 0 2px rgba(76,110,245,0.25); }
+            .habit-calendar .calendar-day.future { background: #f1f3f5; }
+            .habit-calendar .calendar-day.past { opacity: 0.92; }
+            .habit-calendar .date-label { font-weight: 600; margin-bottom: 6px; }
+            .habit-checkboxes { display: flex; flex-direction: column; gap: 4px; margin-top: auto; }
+            .habit-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; cursor: pointer; }
+            .habit-toggle input[type="checkbox"] { margin: 0; }
+            @media (max-width: 860px) {
+                .habit-calendar { padding: 12px 14px; }
+                .habit-calendar-grid { gap: 4px; }
+            }
+            </style>
+            <script>
+            (function() {
+                var HABIT_REFRESH_DELAY_MS = 250;
+
+                function parseJSON(value, fallback) {
+                    if (!value) {
+                        return fallback || {};
+                    }
+                    try {
+                        return JSON.parse(value);
+                    } catch (error) {
+                        console.warn('Failed to parse habit calendar data', error);
+                        return fallback || {};
+                    }
+                }
+
+                function toDate(iso) {
+                    var parts = iso.split('-');
+                    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                }
+
+                function formatISO(date) {
+                    var year = date.getFullYear();
+                    var month = String(date.getMonth() + 1).padStart(2, '0');
+                    var day = String(date.getDate()).padStart(2, '0');
+                    return year + '-' + month + '-' + day;
+                }
+
+                function addDays(date, amount) {
+                    var copy = new Date(date.getTime());
+                    copy.setDate(copy.getDate() + amount);
+                    return copy;
+                }
+
+                function buildDateRange(startISO, endISO) {
+                    var dates = [];
+                    if (!startISO || !endISO) {
+                        return dates;
+                    }
+                    var cursor = toDate(startISO);
+                    var limit = toDate(endISO);
+                    while (cursor <= limit) {
+                        dates.push(formatISO(cursor));
+                        cursor = addDays(cursor, 1);
+                    }
+                    return dates;
+                }
+
+                function isEntryCompleted(entry) {
+                    if (!entry) {
+                        return false;
+                    }
+                    if (typeof entry === 'object') {
+                        return Boolean(entry.completed);
+                    }
+                    return Boolean(entry);
+                }
+
+                function getEntryUpdatedAt(entry) {
+                    if (!entry || typeof entry !== 'object') {
+                        return null;
+                    }
+                    var raw = entry.updated_at;
+                    if (typeof raw === 'undefined') {
+                        raw = entry.updatedAt;
+                    }
+                    if (raw === null || typeof raw === 'undefined') {
+                        return null;
+                    }
+                    if (typeof raw === 'number') {
+                        return new Date(raw * 1000).toISOString();
+                    }
+                    if (typeof raw === 'string') {
+                        return raw;
+                    }
+                    return null;
+                }
+
+                function toMillis(isoTimestamp) {
+                    if (!isoTimestamp) {
+                        return 0;
+                    }
+                    var dt = new Date(isoTimestamp);
+                    var value = dt.getTime();
+                    return isNaN(value) ? 0 : value;
+                }
+
+                function shouldApplyServerState(label, entryUpdatedISO) {
+                    if (!label) {
+                        return true;
+                    }
+                    if (label.dataset.pending === 'true') {
+                        return false;
+                    }
+                    var labelMs = toMillis(label.dataset.updatedAt || null);
+                    var entryMs = toMillis(entryUpdatedISO);
+                    if (!entryUpdatedISO) {
+                        return labelMs === 0;
+                    }
+                    if (labelMs === 0) {
+                        return true;
+                    }
+                    return entryMs >= labelMs - 500;
+                }
+
+                function formatUpdatedLabel(isoTimestamp) {
+                    if (!isoTimestamp) {
+                        return '';
+                    }
+                    var date = new Date(isoTimestamp);
+                    if (isNaN(date.getTime())) {
+                        return '';
+                    }
+                    var now = new Date();
+                    var sameDay = date.toDateString() === now.toDateString();
+                    var options = sameDay
+                        ? { hour: '2-digit', minute: '2-digit' }
+                        : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                    return 'Updated ' + date.toLocaleString(undefined, options);
+                }
+
+                function setUpdatedText(label, isoTimestamp) {
+                    if (!label) {
+                        return;
+                    }
+                    if (isoTimestamp) {
+                        label.dataset.updatedAt = isoTimestamp;
+                    } else {
+                        delete label.dataset.updatedAt;
+                    }
+                    var stamp = label.querySelector('.habit-updated');
+                    if (!stamp) {
+                        return;
+                    }
+                    var text = formatUpdatedLabel(isoTimestamp);
+                    if (text) {
+                        stamp.textContent = text;
+                        stamp.classList.add('is-visible');
+                    } else {
+                        stamp.textContent = '';
+                        stamp.classList.remove('is-visible');
+                    }
+                }
+
+                function updateStreakLabel(label, value) {
+                    label.dataset.streak = String(value);
+                    var badge = label.querySelector('.habit-streak');
+                    if (badge) {
+                        badge.textContent = value + 'd';
+                    }
+                }
+
+                function computeStreaksFromCompletions(options) {
+                    var completions = options.completions || {};
+                    var fetchStart = options.fetchStart;
+                    var displayStart = options.displayStart;
+                    var displayEnd = options.displayEnd;
+                    var habits = options.habits || [];
+                    var dates = buildDateRange(fetchStart || displayStart, displayEnd);
+                    var streaks = {};
+                    var carryover = {};
+
+                    habits.forEach(function(habit) {
+                        var habitMap = completions[habit] || {};
+                        var streak = 0;
+                        streaks[habit] = {};
+                        dates.forEach(function(isoDate) {
+                            if (isoDate === displayStart) {
+                                carryover[habit] = streak;
+                            }
+                            if (isEntryCompleted(habitMap[isoDate])) {
+                                streak += 1;
+                            } else {
+                                streak = 0;
+                            }
+                            if (isoDate >= displayStart) {
+                                streaks[habit][isoDate] = streak;
+                            }
+                        });
+                        if (typeof carryover[habit] === 'undefined') {
+                            carryover[habit] = 0;
+                        }
+                    });
+
+                    return { streaks: streaks, carryover: carryover };
+                }
+
+                function groupLabelsByHabit(labels) {
+                    var grouped = {};
+                    labels.forEach(function(label) {
+                        var habit = label.dataset.habit;
+                        if (!grouped[habit]) {
+                            grouped[habit] = [];
+                        }
+                        grouped[habit].push(label);
+                    });
+                    Object.keys(grouped).forEach(function(habit) {
+                        grouped[habit].sort(function(a, b) {
+                            return a.dataset.date.localeCompare(b.dataset.date);
+                        });
+                    });
+                    return grouped;
+                }
+
+                function initHabitCalendar() {
+                    var container = document.querySelector('.habit-calendar');
+                    if (!container) {
+                        return;
+                    }
+
+                    var serverUrl = container.dataset.serverUrl || '';
+                    var displayStart = container.dataset.displayStart || container.dataset.start || '';
+                    var displayEnd = container.dataset.displayEnd || container.dataset.end || '';
+                    var fetchStart = container.dataset.fetchStart || displayStart;
+                    var messageEl = container.querySelector('.habit-calendar-message');
+                    var refreshBtn = container.querySelector('.habit-refresh');
+                    var checkboxes = Array.prototype.slice.call(
+                        container.querySelectorAll('input[type="checkbox"][data-habit][data-date]')
+                    );
+                    var labels = Array.prototype.slice.call(
+                        container.querySelectorAll('.habit-toggle[data-habit][data-date]')
+                    );
+                    var labelLookup = {};
+                    labels.forEach(function(label) {
+                        labelLookup[label.dataset.habit + '||' + label.dataset.date] = label;
+                        setUpdatedText(label, label.dataset.updatedAt || null);
+                    });
+
+                    var habits = parseJSON(container.dataset.habits, []);
+                    if (!Array.isArray(habits) || !habits.length) {
+                        habits = labels.map(function(label) {
+                            return label.dataset.habit;
+                        }).filter(function(value, index, array) {
+                            return array.indexOf(value) === index;
+                        });
+                    }
+
+                    var groupedLabels = groupLabelsByHabit(labels);
+                    var canSync = Boolean(serverUrl && fetchStart && displayEnd);
+
+                    function showMessage(text, type) {
+                        if (!messageEl) {
+                            return;
+                        }
+                        messageEl.textContent = text || '';
+                        messageEl.className = 'habit-calendar-message ' + (type || 'info');
+                    }
+
+                    function setRefreshEnabled(enabled) {
+                        if (!refreshBtn) {
+                            return;
+                        }
+                        refreshBtn.disabled = !enabled;
+                    }
+
+                    function applyStreakBundle(bundle) {
+                        if (!bundle) {
+                            return;
+                        }
+                        var streaks = bundle.streaks || {};
+                        Object.keys(streaks).forEach(function(habit) {
+                            var habitMap = streaks[habit] || {};
+                            Object.keys(habitMap).forEach(function(date) {
+                                var label = labelLookup[habit + '||' + date];
+                                if (label && label.dataset.pending === 'true') {
+                                    return;
+                                }
+                                if (label) {
+                                    updateStreakLabel(label, habitMap[date] || 0);
+                                }
+                            });
+                        });
+                        if (bundle.carryover) {
+                            container.dataset.streakBase = JSON.stringify(bundle.carryover);
+                        }
+                    }
+
+                    function recomputeStreaksFromDom() {
+                        var base = parseJSON(container.dataset.streakBase, {});
+                        Object.keys(groupedLabels).forEach(function(habit) {
+                            var streak = base[habit] || 0;
+                            groupedLabels[habit].forEach(function(label) {
+                                var checkbox = label.querySelector('input[type="checkbox"]');
+                                if (checkbox && checkbox.checked) {
+                                    streak += 1;
+                                } else {
+                                    streak = 0;
+                                }
+                                updateStreakLabel(label, streak);
+                            });
+                        });
+                    }
+
+                    function syncFromServer() {
+                        if (!canSync) {
+                            return;
+                        }
+                        setRefreshEnabled(false);
+                        fetch(serverUrl + '?start=' + encodeURIComponent(fetchStart) + '&end=' + encodeURIComponent(displayEnd))
+                            .then(function(response) {
+                                if (!response.ok) {
+                                    throw new Error('Request failed: ' + response.status);
+                                }
+                                return response.json();
+                            })
+                            .then(function(data) {
+                                if (!data || !data.completions) {
+                                    throw new Error('Missing completion data');
+                                }
+                                checkboxes.forEach(function(cb) {
+                                    var habit = cb.dataset.habit;
+                                    var date = cb.dataset.date;
+                                    var habitMap = data.completions[habit] || {};
+                                    var entry = habitMap[date];
+                                    var label = labelLookup[habit + '||' + date];
+                                    var entryUpdatedISO = getEntryUpdatedAt(entry);
+                                    if (!shouldApplyServerState(label, entryUpdatedISO)) {
+                                        return;
+                                    }
+                                    cb.checked = isEntryCompleted(entry);
+                                    if (label) {
+                                        setUpdatedText(label, entryUpdatedISO);
+                                    }
+                                });
+                                var bundle = computeStreaksFromCompletions({
+                                    completions: data.completions,
+                                    fetchStart: fetchStart,
+                                    displayStart: displayStart,
+                                    displayEnd: displayEnd,
+                                    habits: habits
+                                });
+                                applyStreakBundle(bundle);
+                                showMessage('Habits synced.', 'success');
+                                setRefreshEnabled(true);
+                                recomputeStreaksFromDom();
+                            })
+                            .catch(function(error) {
+                                console.error('Habit sync failed', error);
+                                showMessage('Could not reach habit server; showing cached data.', 'error');
+                                setRefreshEnabled(true);
+                            });
+                    }
+
+                    checkboxes.forEach(function(cb) {
+                        cb.addEventListener('change', function(event) {
+                            var checkbox = event.target;
+                            var key = checkbox.dataset.habit + '||' + checkbox.dataset.date;
+                            var label = labelLookup[key];
+                            var previousUpdated = label ? (label.dataset.updatedAt || null) : null;
+                            var desiredState = checkbox.checked;
+
+                            if (!serverUrl) {
+                                showMessage('Habit server not configured.', 'error');
+                                checkbox.checked = !checkbox.checked;
+                                recomputeStreaksFromDom();
+                                return;
+                            }
+
+                            if (label) {
+                                label.dataset.pending = 'true';
+                                label.dataset.pendingDesired = desiredState ? '1' : '0';
+                            }
+
+                            recomputeStreaksFromDom();
+
+                            var payload = {
+                                habit: checkbox.dataset.habit,
+                                date: checkbox.dataset.date,
+                                completed: checkbox.checked
+                            };
+
+                            fetch(serverUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            })
+                                .then(function(response) {
+                                    if (!response.ok) {
+                                        throw new Error('Request failed: ' + response.status);
+                                    }
+                                    return response.json();
+                                })
+                                .then(function(body) {
+                                    var updatedISO = body && body.updated_at ? body.updated_at : null;
+                                    var completedFromServer = body && typeof body.completed === 'boolean' ? body.completed : desiredState;
+                                    checkbox.checked = completedFromServer;
+                                    if (label) {
+                                        setUpdatedText(label, updatedISO || previousUpdated);
+                                        delete label.dataset.pending;
+                                        delete label.dataset.pendingDesired;
+                                    }
+                                    showMessage('Saved ' + payload.habit + ' for ' + payload.date + '.', 'success');
+                                    recomputeStreaksFromDom();
+                                    window.setTimeout(syncFromServer, HABIT_REFRESH_DELAY_MS);
+                                })
+                                .catch(function(error) {
+                                    console.error('Habit update failed', error);
+                                    checkbox.checked = !checkbox.checked;
+                                    if (label) {
+                                        setUpdatedText(label, previousUpdated);
+                                        delete label.dataset.pending;
+                                        delete label.dataset.pendingDesired;
+                                    }
+                                    recomputeStreaksFromDom();
+                                    showMessage('Failed to save habit. Please try again.', 'error');
+                                });
+                        });
+                    });
+
+                    if (refreshBtn) {
+                        refreshBtn.addEventListener('click', function() {
+                            if (!canSync) {
+                                showMessage('Habit server not configured.', 'error');
+                                return;
+                            }
+                            syncFromServer();
+                        });
+                        setRefreshEnabled(canSync);
+                    }
+
+                    if (canSync) {
+                        window.setTimeout(syncFromServer, HABIT_REFRESH_DELAY_MS);
+                    } else if (messageEl) {
+                        showMessage('Habits shown from last export.', 'info');
+                    }
+
+                    recomputeStreaksFromDom();
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', initHabitCalendar);
+                } else {
+                    initHabitCalendar();
+                }
+            })();
+            </script>
+            """
+        ).strip() + '\n'
+
+        return ''.join(html_parts), script
 
     def _build_recent_activity_section(self, log_list, date_list, limit=12):
         if not log_list or not date_list:

@@ -17,6 +17,18 @@ if "%1"=="--new" (
     pip install -r requirements.txt
 )
 
+REM Start habit tracking server in background (if not already running)
+echo Checking habit server...
+netstat -an | findstr "8042" >nul 2>&1
+if errorlevel 1 (
+    echo Starting habit tracking server...
+    start /min pythonw.exe habit_server.py
+    timeout /t 2 /nobreak >nul
+    echo Habit server started on http://127.0.0.1:8042/habits
+) else (
+    echo Habit server already running
+)
+
 REM Run analytics
 python recategorize.py
 python analytics.py

@@ -66,6 +66,27 @@ def initialize_database():
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS habit_completions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit TEXT NOT NULL,
+                local_date TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 1,
+                updated_at REAL,
+                UNIQUE(habit, local_date)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS habit_completion_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit TEXT NOT NULL,
+                local_date TEXT NOT NULL,
+                completed INTEGER NOT NULL,
+                happened_at REAL NOT NULL
+            )
+        ''')
+
 def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False, window_url=None, window_url_short=None):
     """Inserts a single activity record into the local database, including the local_date."""
     local_date_str = calculate_adjusted_local_date(timestamp)
@@ -387,6 +408,82 @@ def get_warning_flag_counts():
         print(f"Error fetching warning flag counts: {exc}")
 
     return counts
+
+
+def record_habit_completion(habit, local_date, completed=True):
+    """Creates or updates a habit completion record for the given local date."""
+    if not habit or not local_date:
+        return None
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            now_ts = time.time()
+            completed_flag = 1 if completed else 0
+            cursor.execute(
+                """
+                    INSERT INTO habit_completions (habit, local_date, completed, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(habit, local_date) DO UPDATE SET
+                        completed=excluded.completed,
+                        updated_at=excluded.updated_at
+                """,
+                (habit, local_date, completed_flag, now_ts)
+            )
+            cursor.execute(
+                """
+                    INSERT INTO habit_completion_events (habit, local_date, completed, happened_at)
+                    VALUES (?, ?, ?, ?)
+                """,
+                (habit, local_date, completed_flag, now_ts)
+            )
+            conn.commit()
+            return {'habit': habit, 'local_date': local_date, 'completed': bool(completed_flag), 'updated_at': now_ts}
+    except Exception as exc:
+        print(f"Error recording habit completion: {exc}")
+    return None
+
+
+def get_habit_completions(habits=None, start_date=None, end_date=None):
+    """Returns a mapping of habit -> {local_date: {completed: bool, updated_at: float | None}}."""
+    results = {}
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            query = "SELECT habit, local_date, completed, updated_at FROM habit_completions WHERE 1=1"
+            params = []
+
+            if habits:
+                placeholders = ','.join('?' for _ in habits)
+                query += f" AND habit IN ({placeholders})"
+                params.extend(habits)
+
+            if start_date:
+                query += " AND local_date >= ?"
+                params.append(start_date)
+
+            if end_date:
+                query += " AND local_date <= ?"
+                params.append(end_date)
+
+            query += " ORDER BY local_date ASC"
+
+            cursor.execute(query, params)
+            for habit, local_date, completed, updated_at in cursor.fetchall():
+                habit_map = results.setdefault(habit, {})
+                habit_map[local_date] = {
+                    'completed': bool(completed),
+                    'updated_at': updated_at
+                }
+    except Exception as exc:
+        print(f"Error fetching habit completions: {exc}")
+
+    # Ensure requested habits exist in map even if empty
+    if habits:
+        for habit in habits:
+            results.setdefault(habit, {})
+
+    return results
 
 
 def delete_activity(activity_id):

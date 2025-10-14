@@ -62,6 +62,25 @@ def get_focus_slots():
         pass
     return slots
 
+def get_habits():
+    """Reads habit definitions from [HABITS] section, returning list of (name, color)."""
+    habits = []
+    default_palette = [
+        '#4caf50', '#ff6b6b', '#4d96ff', '#f6c344', '#9b59b6', '#00a8cc'
+    ]
+    try:
+        config = get_config_parser()
+        if config.has_section('HABITS'):
+            for idx, (name, color) in enumerate(config.items('HABITS')):
+                name = name.strip()
+                color = (color or '').strip()
+                if not color:
+                    color = default_palette[idx % len(default_palette)]
+                habits.append((name, color))
+    except Exception:
+        pass
+    return habits
+
 def get_day_boundary_hour():
     """
     Reads the day boundary hour from the [SETTINGS] section of config.dat.
@@ -85,3 +104,4 @@ TIMEZONE = get_app_timezone()
 API_KEY = None
 FOCUS_SLOTS = get_focus_slots()
 DAY_BOUNDARY_HOUR = get_day_boundary_hour()
+HABITS = get_habits()

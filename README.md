@@ -64,6 +64,42 @@ open html/index.html and see the beauty of your recorded data
 every 60 seconds, the script will automaticall refresh the source code for the html page
 ![html preview](/images/html_preview.PNG)
 
+## Habit Tracking Calendar
+The HTML report includes an interactive 2-week habit calendar with streak counters.
+
+**Important:** To use the habit calendar checkboxes, you must start the habit server first:
+
+### Windows:
+```bash
+start_habit_server.bat
+```
+
+Or manually:
+```bash
+winrecord_env\Scripts\python.exe habit_server.py
+```
+
+### Linux/Mac:
+```bash
+./start_habit_server.sh
+```
+
+Or manually:
+```bash
+./winrecord_env/Scripts/python.exe habit_server.py
+```
+
+The server runs on `http://127.0.0.1:8042/habits` and must be running for checkboxes to persist.
+
+**Configure your habits** in `config.py`:
+```python
+HABITS = [
+    ("Exercise", "#4ade80"),
+    ("Read", "#60a5fa"),
+    ("Meditate", "#a78bfa"),
+]
+```
+
 # todo
 - adding "projects" as a separate measure next to categories
 - read the parent process and not only the window title
