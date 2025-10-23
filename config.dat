@@ -15,8 +15,10 @@ timezone = America/New_York
 day_boundary_hour = 3
 image_folder = figs/pictures
 md_folder = ../crlog_laptop
+recent_activity_minutes = 10
 
 [CATEGORIES]
+hugging face: learning
 optum financial: family
 boost/: coding
 code browser: coding
@@ -462,6 +464,14 @@ code-39: coding
 walmart.com: family
 maga: wasted
 los angeles times: wasted
+mathjax: coding
+file finder: learning
+alldup: learning
+rcr-pf3lv9tf: coding
+budget laptops: family
+paddleocr: learning
+ghostscript: coding
+fiscal.ai: gaming
 
 [COLORS]
 coding: #4954EA

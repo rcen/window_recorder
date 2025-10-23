@@ -803,8 +803,8 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
-            recent_activity_limit = self.config.getint('SETTINGS', 'recent_activity_limit', fallback=10)
-            recent_activity_html = self._build_recent_activity_section(log_list, date_list, limit=recent_activity_limit)
+            recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
+            recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
             if recent_activity_html:
                 file.write('<hr/>')
                 file.write(recent_activity_html)
@@ -1482,10 +1482,16 @@ test:
 
         return ''.join(html_parts), script
 
-    def _build_recent_activity_section(self, log_list, date_list, limit=12):
+    def _build_recent_activity_section(self, log_list, date_list, minutes=12):
         if not log_list or not date_list:
             return ''
 
+        # Find the most recent activities within the last N minutes
+        import pytz
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.datetime.now(tz)
+
+        # Use the latest log file
         latest_date = date_list[0]
         date_str = latest_date.strftime('%Y-%m-%d')
         df = self._get_and_prepare_day_df(date_str)
@@ -1498,7 +1504,12 @@ test:
 
         df = self._ensure_url_columns(df)
         df['Duration (min)'] = (df['duration'] / 60).round(1)
-        df = df.sort_values('end_time', ascending=False).head(limit)
+
+        # Filter by end_time within the last N minutes
+        if 'end_time' in df:
+            cutoff = now - datetime.timedelta(minutes=minutes)
+            df = df[df['end_time'] >= cutoff]
+        df = df.sort_values('end_time', ascending=False)
 
         if df.empty:
             return ''
@@ -1545,9 +1556,7 @@ test:
         if not rows:
             return ''
 
-        header = (
-            f'<h2 id="recent-activity">Recent Activity – {latest_date.strftime("%B %d, %Y")}</h2>'
-        )
+        header = f'<h2 id="recent-activity">Recent Activity (last {minutes} min) – {latest_date.strftime("%B %d, %Y")}</h2>'
 
         table = [
             '<table class="recent-activity" style="width:100%; border-collapse:collapse;">',
