@@ -21,6 +21,23 @@ Details from [satackoverflow](https://stackoverflow.com/questions/20113456/insta
 
 more details under [Module win32gui](http://timgolden.me.uk/pywin32-docs/win32gui.html)
 
+## Local Configuration (.env file)
+For local development, a `.env` file is required to manage environment variables. This file should be placed in the root of the project directory. It is used to store sensitive information like database connection strings and API keys, and it is ignored by version control (see `.gitignore`).
+
+Create a file named `.env` in the project root and add the following variables:
+
+```
+# .env
+
+# Example connection URI for a remote PostgreSQL database (e.g., from Neon)
+DATABASE_URI="postgresql://user:password@host:port/dbname"
+
+# Secret key for securing the local API server
+SERVER_API_KEY="your_secret_api_key"
+```
+
+This ensures that your local application can connect to the remote database and that the API server is properly configured without hardcoding credentials into the source code.
+
 
 ## categories
 the program will log the window title that you have in focus every time you change the focussed window.
