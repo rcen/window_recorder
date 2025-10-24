@@ -310,7 +310,7 @@ test:
             os.mkdir('figs/pictures')
         
         config = configparser.ConfigParser()
-        config.read(path_config)
+        config.read(path_config, encoding='utf-8')
         
         # Add settings section if it doesn't exist
         if not config.has_section('SETTINGS'):

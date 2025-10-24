@@ -5,11 +5,23 @@ import requests
 import datetime
 import time
 import pytz
-from config import TIMEZONE, API_KEY, DAY_BOUNDARY_HOUR
+from sqlalchemy import create_engine, text
+from config import TIMEZONE, API_KEY, DAY_BOUNDARY_HOUR, get_database_uri
 
 # --- Configuration ---
 API_BASE_URL = os.environ.get("WINDOW_RECORDER_API_URL", "https://window-recorder-api.onrender.com")
 DB_FILE = 'data/activity.sqlite'
+
+# --- Remote Database Connection ---
+REMOTE_DB_URI = get_database_uri()
+remote_engine = None
+if REMOTE_DB_URI:
+    try:
+        remote_engine = create_engine(REMOTE_DB_URI)
+        print("Successfully connected to the remote database.")
+    except Exception as e:
+        print(f"Could not connect to the remote database: {e}")
+        remote_engine = None
 
 # --- Local Database Functions ---
 
@@ -31,6 +43,7 @@ def calculate_adjusted_local_date(timestamp):
         return local_dt.strftime('%Y-%m-%d')
 
 def initialize_database():
+    # Initialize local SQLite database
     os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
@@ -40,20 +53,15 @@ def initialize_database():
                 timestamp REAL NOT NULL,
                 category TEXT NOT NULL,
                 duration INTEGER NOT NULL,
-                window_title TEXT NOT NULL
+                window_title TEXT NOT NULL,
+                synced INTEGER DEFAULT 0,
+                source TEXT,
+                window_url TEXT,
+                window_url_short TEXT,
+                local_date TEXT
             )
         ''')
-        cursor.execute("PRAGMA table_info(activity)")
-        columns = [column[1] for column in cursor.fetchall()]
-        if 'synced' not in columns:
-            cursor.execute('ALTER TABLE activity ADD COLUMN synced INTEGER DEFAULT 0')
-        if 'source' not in columns:
-            cursor.execute('ALTER TABLE activity ADD COLUMN source TEXT')
-        if 'window_url' not in columns:
-            cursor.execute('ALTER TABLE activity ADD COLUMN window_url TEXT')
-        if 'window_url_short' not in columns:
-            cursor.execute('ALTER TABLE activity ADD COLUMN window_url_short TEXT')
-
+        # Add other local tables if needed
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS warning_flags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +73,6 @@ def initialize_database():
                 title TEXT
             )
         ''')
-
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS habit_completions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +83,6 @@ def initialize_database():
                 UNIQUE(habit, local_date)
             )
         ''')
-
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS habit_completion_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +92,63 @@ def initialize_database():
                 happened_at REAL NOT NULL
             )
         ''')
+
+    # Initialize remote PostgreSQL database
+    if remote_engine:
+        try:
+            with remote_engine.connect() as connection:
+                # Create activity table
+                connection.execute(text('''
+                    CREATE TABLE IF NOT EXISTS activity (
+                        id SERIAL PRIMARY KEY,
+                        timestamp DOUBLE PRECISION NOT NULL,
+                        category VARCHAR(255) NOT NULL,
+                        duration INTEGER NOT NULL,
+                        window_title TEXT NOT NULL,
+                        synced BOOLEAN DEFAULT FALSE,
+                        source VARCHAR(255),
+                        window_url TEXT,
+                        window_url_short TEXT,
+                        local_date DATE
+                    )
+                '''))
+                # Create warning_flags table
+                connection.execute(text('''
+                    CREATE TABLE IF NOT EXISTS warning_flags (
+                        id SERIAL PRIMARY KEY,
+                        event_id VARCHAR(255) UNIQUE,
+                        timestamp DOUBLE PRECISION NOT NULL,
+                        elapsed_seconds DOUBLE PRECISION NOT NULL,
+                        result VARCHAR(255) NOT NULL,
+                        message TEXT,
+                        title TEXT
+                    )
+                '''))
+                # Create habit_completions table
+                connection.execute(text('''
+                    CREATE TABLE IF NOT EXISTS habit_completions (
+                        id SERIAL PRIMARY KEY,
+                        habit VARCHAR(255) NOT NULL,
+                        local_date DATE NOT NULL,
+                        completed BOOLEAN NOT NULL DEFAULT TRUE,
+                        updated_at DOUBLE PRECISION,
+                        UNIQUE(habit, local_date)
+                    )
+                '''))
+                # Create habit_completion_events table
+                connection.execute(text('''
+                    CREATE TABLE IF NOT EXISTS habit_completion_events (
+                        id SERIAL PRIMARY KEY,
+                        habit VARCHAR(255) NOT NULL,
+                        local_date DATE NOT NULL,
+                        completed BOOLEAN NOT NULL,
+                        happened_at DOUBLE PRECISION NOT NULL
+                    )
+                '''))
+                connection.commit()
+                print("Remote database initialized successfully.")
+        except Exception as e:
+            print(f"Error initializing remote database: {e}")
 
 def _insert_local_activity(timestamp, category, duration, window_title, source='unknown', synced=False, window_url=None, window_url_short=None):
     """Inserts a single activity record into the local database, including the local_date."""

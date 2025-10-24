@@ -16,3 +16,4 @@ fastapi
 alembic
 browser-history
 pywinauto
+SQLAlchemy 

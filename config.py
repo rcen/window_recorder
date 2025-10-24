@@ -18,6 +18,14 @@ def get_config_parser():
         config.read(config_path)
     return config
 
+def get_database_uri():
+    """
+    Reads the database URI from environment variables.
+    It prioritizes a system-level 'DATABASE_URI' variable, falling back to the
+    one defined in the .env file if it's not set in the system.
+    """
+    return os.environ.get("DATABASE_URI")
+
 def get_app_timezone():
     """
     Reads the timezone from the [SETTINGS] section of config.dat.

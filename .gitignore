@@ -120,3 +120,4 @@ activity.db
 inspirational_image.html
 .vscode/
 .gemini.yaml 
+".env" 
