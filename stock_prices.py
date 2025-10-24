@@ -11,7 +11,7 @@ from datetime import datetime
 def get_stock_tickers() -> List[str]:
     """Read stock tickers from config.dat [STOCKS] section"""
     config = configparser.ConfigParser()
-    config.read('config.dat')
+    config.read('config.dat', encoding='utf-8')
     
     try:
         tickers_str = config.get('STOCKS', 'tickers')

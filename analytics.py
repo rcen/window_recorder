@@ -317,7 +317,7 @@ test:
             config.add_section('SETTINGS')
             config.set('SETTINGS', 'image_folder', 'figs/pictures')
             config.set('SETTINGS', 'md_folder', 'C:/Users/YourUser/Documents/Notes')
-            with open(path_config, 'w') as configfile:
+            with open(path_config, 'w', encoding='utf-8') as configfile:
                 config.write(configfile)
 
         # custom logic to handle duplicates in CATEGORIES
@@ -348,7 +348,7 @@ test:
     def _load_analysis_cache(self):
         if os.path.exists(self.cache_path):
             try:
-                with open(self.cache_path, 'r') as f:
+                with open(self.cache_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 return {}
@@ -356,7 +356,7 @@ test:
 
     def _save_analysis_cache(self):
         try:
-            with open(self.cache_path, 'w') as f:
+            with open(self.cache_path, 'w', encoding='utf-8') as f:
                 json.dump(self.analysis_cache, f, indent=4)
         except IOError:
             print("Error: Could not save analysis cache.")
@@ -1645,7 +1645,7 @@ test:
         # Check cache
         if os.path.exists(self.cache_path):
             try:
-                with open(self.cache_path, 'r') as f:
+                with open(self.cache_path, 'r', encoding='utf-8') as f:
                     cache = json.load(f)
                 future_cache = []
                 for key, value in cache.items():
