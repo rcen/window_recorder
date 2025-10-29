@@ -18,6 +18,10 @@ md_folder = ../crlog_laptop
 recent_activity_minutes = 10
 
 [CATEGORIES]
+cpc-cenra-i5l9l: coding
+codabar: coding
+image subfolder: coding
+fobj: coding
 hugging face: learning
 optum financial: family
 boost/: coding

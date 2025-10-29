@@ -445,17 +445,6 @@ TRACK YOUR TIME - DON'T WASTE IT!
                     bRecord = True
                 if bRecord == True:
                     save_data([time.time(), category, int(duration), last_window], hostname, last_window_url)
-                    try:
-                        if sys.version_info.major > 2:
-                            mins = int(np.floor(duration/60))
-                            secs = int(np.floor(duration - mins*60))
-                            local_t = time.localtime(start_of_event)
-                        print("{0:02}:{1:02} -{2: 3}:{3:02} min\t".format(local_t.tm_hour, local_t.tm_min, mins, secs),
-                              "{} \t".format(category),
-                              "({})".format(last_event[:120]),
-                              format_url(last_window_url))
-                    except UnicodeError:
-                        print("{0: 5.0f} s\t".format(duration), "UNICODE ERROR")
 
             # A new event has just started. Update state and print it for immediate feedback.
             last_window = current_window
