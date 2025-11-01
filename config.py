@@ -14,8 +14,13 @@ def get_config_parser():
     config = configparser.ConfigParser()
     # Assuming config.dat is in the same directory as this script
     config_path = os.path.join(os.path.dirname(__file__), 'config.dat')
+    print(f"[DEBUG] config.py: Using config path: {config_path}")
     if os.path.exists(config_path):
-        config.read(config_path)
+        with open(config_path, encoding="utf-8") as f:
+            config.read_file(f)
+        print(f"[DEBUG] config.py: config.dat exists: True (read as utf-8)")
+    else:
+        print(f"[DEBUG] config.py: config.dat exists: False")
     return config
 
 def get_database_uri():
@@ -79,14 +84,17 @@ def get_habits():
     try:
         config = get_config_parser()
         if config.has_section('HABITS'):
+            print("[DEBUG] config.py: [HABITS] section found.")
             for idx, (name, color) in enumerate(config.items('HABITS')):
                 name = name.strip()
                 color = (color or '').strip()
                 if not color:
                     color = default_palette[idx % len(default_palette)]
                 habits.append((name, color))
-    except Exception:
-        pass
+        else:
+            print("[DEBUG] config.py: [HABITS] section NOT found.")
+    except Exception as e:
+        print(f"[DEBUG] config.py: Exception in get_habits: {e}")
     return habits
 
 def get_day_boundary_hour():

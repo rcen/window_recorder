@@ -694,10 +694,10 @@ test:
                 continue
 
             if string.lower().startswith('regex:'):
-                pattern = string[6:]
+                pattern = string[6:].strip()
                 for target in normalized_targets:
                     try:
-                        if re.search(pattern, target, flags=re.IGNORECASE):
+                        if re.search(pattern, target.strip(), flags=re.IGNORECASE):
                             return category
                     except re.error:
                         continue
@@ -752,6 +752,7 @@ test:
                 file.write('<hr/>')
                 file.write(flag_summary_html)
 
+            print(f"[DEBUG] HABITS loaded: {HABITS}")
             habit_section_html, habit_script = self._build_habit_calendar_section()
             if habit_section_html:
                 file.write(habit_section_html)
@@ -1514,6 +1515,9 @@ test:
         if df.empty:
             return ''
 
+        productive_cats = ["coding", "programming", "learning", "church", "documents", "mail"]
+        distracted_cats = ["wasted", "wasted time", "gaming", "no_cat", "not categorized"]
+
         rows = []
         for _, row in df.iterrows():
             start_time = row['start_time'].strftime('%H:%M') if 'start_time' in row else ''
@@ -1543,8 +1547,14 @@ test:
             except (TypeError, ValueError):
                 duration_str = '0.0'
 
+            row_style = ""
+            if category in productive_cats:
+                row_style = 'style="background-color: #D9F7D9;"'
+            elif category in distracted_cats:
+                row_style = 'style="background-color: pink;"'
+
             rows.append(
-                '<tr>'
+                f'<tr {row_style}>'
                 f'<td>{start_time}</td>'
                 f'<td>{category}</td>'
                 f'<td>{window_title}</td>'
