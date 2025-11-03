@@ -1,499 +1,515 @@
-[STOCKS]
-tickers = VOO, SOXL, AMZN
-
+[STOCKS]                                                                                                  
+tickers = VOO, SOXL, AMZN                                                                                 
+                                                                                                          
 [HABITS]
 read bible = #4caf50
 exercises = #ff6b6b
 productive day = #4d96ff
-
-[FOCUS_SLOTS]
-morning_focus = 09:00-11:30
-afternoon_focus = 14:00-16:45
-
-[SETTINGS]
-timezone = America/New_York
-day_boundary_hour = 3
-image_folder = figs/pictures
-md_folder = ../crlog_laptop
-recent_activity_minutes = 10
-
+[FOCUS_SLOTS]                                                                                             
+morning_focus = 09:00-11:30                                                                               
+afternoon_focus = 14:00-16:45                                                                             
+                                                                                                          
+[SETTINGS]                                                                                                
+timezone = America/New_York                                                                               
+day_boundary_hour = 3                                                                                     
+image_folder = figs/pictures                                                                              
+md_folder = ../crlog_laptop                                                                               
+recent_activity_minutes = 10                                                                              
+                                                                                                          
 [CATEGORIES]
-cpc-cenra-i5l9l: coding
-codabar: coding
-image subfolder: coding
-fobj: coding
-hugging face: learning
-optum financial: family
-boost/: coding
-code browser: coding
-wikipedia.org: learning
-best deals: wasted
-pfna: family
-teachustuesday.mp4: family
-bjarne stroustrup: learning
-weather forecast: family
-vanguard index: gaming
-calculator: coding
-learner tien: wasted
-vanguard.com: family
-m365.cloud.microsoft: coding
-vanguard login: family
-.cpp: coding
-workspace1: coding
-windows app: coding
-open image: coding
-% copying: coding
-teracopy: coding
-newyorker.com: wasted
-save images: coding
-barcode reader: coding
-recognizing: coding
-microsoft 365 copilot: coding
-clink: coding
-notepad 2e: coding
-m365 copilot: coding
-newtown pa patch: wasted
-amazon resale: wasted
-allocator: coding
-mail.google.com: mail
-myaccess.microsoft: coding
-instagram.com: wasted
-x.com: wasted
-recipe: family
-chinese bible: family
-沈从文: learning
-track package: family
-google sheets: family
-wasted time warning: idle
-deepl: coding
-patch.com: wasted
-sesameplace.com: family
-thetennisgazette.com: wasted
-0x0000: coding
-quickwatch: coding
-transunion.com: family
-equifax.com: family
-hsabank.com: family
-devbox: coding
-lincoln financial field: wasted
-cisco secure client: coding
-inoreader: learning
-wyze: family
-bleeding green nation: wasted
-apexsystemsinc.com: coding
-my apps: learning
-windows security: coding
-remote desktop: coding
-select folder: coding
-dev box: coding
-microsoft loop: coding
-apple card: family
-Computer Wake: idle
-crlog_laptop: learning
-engadget.com: wasted
-hindustantimes.com: wasted
-sfgate.com: wasted
-abbyy: coding
-domain-vm: coding
-seeking alpha: gaming
-business insider: wasted
-my access: coding
-crao: coding
-amazon.com: wasted
-family dentistry: family
-heinefamilydental: family
-payerexpress.com: family
-linkedin.com: learning
-news.google: wasted
-www.cnbc.com: wasted
-(idle): idle
-zillow: wasted
-the eagles: wasted
-watch dolphins: wasted
-google news: wasted
-laver cup: wasted
-finereader: coding
-OCRT: coding
-windows default lock screen: idle
-gnome screen shield: idle
-gmail: mail
-wechat: wasted
-facebook: wasted
-mfc-l2700dw: family
-brother utilities: family
-controlcenter4: family
-google photos: family
-rust-lang: learning
-rust: learning
-gemini: learning
-chatgpt: learning
-deepseek: learning
-tennis: family
-stock: gaming
-pixtest: coding
-perplexity: coding
-coursework: family
-grades: family
-chez: family
-lennox: family
-myidcare: family
-compass hhs: family
-zebra gem: learning
-penndot: family
-usta: family
-zcode: coding
-swarthmore: family
-ccicnv: family
-sunday service: family
-chinese church: family
-evite: family
-76ers: wasted
-pandemic: wasted
-redick: wasted
-climate: wasted
-conservatives: wasted
-confluence: coding
-imaging internal: coding
-chiproc: coding
-green hills: coding
-tera term: coding
-multi launcher: coding
-program files (x88): coding
-sourcetrail: coding
-microsoft learn: coding
-ibm rational: coding
-clearcase: coding
-inappropriate: wasted
-regrets: wasted
-dicaprio: wasted
-netflix: wasted
-springsteen: wasted
-hedgehog: wasted
-sneakers: wasted
-microsoft rewards: wasted
-call option: wasted
-lithium: wasted
-tucker carlson: wasted
-elon musk: wasted
-affairs: wasted
-talc: wasted
-clarkson: wasted
-jalen hurts: wasted
-twitter: wasted
-toyota: wasted
-budweiser: wasted
-yuengling: wasted
-reggie: wasted
-sports world: wasted
-beer: wasted
-tesla: wasted
-brooke shields: wasted
-agassi: wasted
-microsoft start: wasted
-girlfriend: wasted
-celebrity: wasted
-rivers says: wasted
-shohei ohtani: wasted
-postgame: wasted
-clippers: wasted
-jackpot: wasted
-lakers: wasted
-new tab and: idle
-basketball: wasted
-caitlin: wasted
-draymond: wasted
-npp: coding
-planisware: coding
-Ameritrade: gaming
-DCS_: coding
-DCH-: coding
-AVP-: coding
-vcpkg: coding
-powershell: coding
-win-unpacked-: coding
-winscp: coding
-microsoft docs: coding
-rand(): coding
-virtualbox: coding
-stack overflow: coding
-milconfig: coding
-interop: coding
-certmgr: coding
-cr3881: coding
-power nap: coding
-nsdr: coding
-std: coding
-__optimize__: coding
-dll: coding
-msdn: coding
-attach to process: coding
-protobuf: coding
-cl.exe: coding
-pdb: coding
-zbook: coding
-hp support: coding
-etc: coding
-dnf: coding
-repositories: coding
-crao@: coding
-output directory: coding
-start emulation: coding
-perf: coding
-bing ai: coding
-ubuntu: coding
-imgkit: coding
-power bi: coding
-anyconnect: coding
-dacustomstep2: coding
-matrox: coding
-pixalg.net: coding
-platform connection: coding
-logseq: coding
-trump: wasted
-schooldoc: family
-s&p 500: gaming
-ohio state: wasted
-nba: wasted
-nfl: wasted
-goodell: wasted
-intuit: family
-sol feinstone: family
-consumer cellular: family
-cathay pacific: family
-program docs: coding
-edit and continue: coding
-td bank: family
-portfolio summary: gaming
-mychop: family
-lawrenceville school: family
-docnetwork: family
-youtube: wasted
-debug: coding
-CS2022: coding
-vs2022: coding
-vs 2022: coding
-transformer: learning
-.pdf: learning
-yejin choi: learning
-lecture: learning
-secure tooling: learning
-secure code training: learning
-upskill: learning
-sonarqube: coding
-servicenow: coding
-service portal: coding
-system properties: coding
-chat.openai: coding
-zebra tools portal: coding
-express scripts: family
-launch - google chrome: learning
-visio: coding
-cen.rao@zebra.com: mail
-peddie: family
-labcorp: family
-machine learning: learning
-deep learning: learning
-Kindle: learning
-mathworks: learning
-9to5mac: wasted
-DEV20: coding
-BIN20: coding
-users: coding
-aurora: coding
-bmp: coding
-snipping tool: coding
-putty: coding
-pageant: coding
-dashboard: coding
-git: coding
-ssh: coding
-gdbserver: coding
-repository: coding
-tutorial: learning
-wordle: gaming
-msn money: gaming
-meeting: mail
-property pages: coding
-linux: coding
-matlab: coding
-octave: coding
-editor: coding
-gaussian: coding
-filter: coding
-winmerge: coding
-watchtime: think
-tensorflow: learning
-pytorch: learning
-environment variable: coding
-settings: coding
-firebase: learning
-dictionary: learning
-my backpack: mail
-microsoft outlook: mail
-student health tracker: mail
-google developers: learning
-google cloud: learning
-how to : learning
-immersive labs: learning
-email: mail
-calendar: mail
-zoom: mail
-qaz: no_cat
-meditation: think
-jira: think
-linkedin: learning
-avl: coding
-chidecode: coding
-camera calibration: coding
-opencv: coding
-halcon: coding
-espn: wasted
-google search: learning
-pattern match: coding
-multiple repeat: coding
-regex*search: coding
-APM*_*_*: coding
-spm*_*_*: coding
-manage extensions: coding
-open folder: coding
-figure ?: coding
-cmd: coding
-start tracking: coding
-c++ : coding
-zconnect home: coding
-scrum: learning
-agile: learning
-nicolajbky: learning
-template_*: coding
-open directory: coding
-onedrive: coding
-zebratechnologies: coding
-session buddy: coding
-cmake: coding
-Track your time: learning
-jfrog: coding
-administrator: coding
-file explorer: coding
-172.16: coding
-chicore: coding
-vm_share: coding
-window_recorder: coding
-network graph: coding
-virgin pulse: coding
-program manager: coding
-pingid: coding
-onenote: think
-NY21: docs
-docx: docs
-spyder: coding
-stackoverflow: learning
-stackexchange: learning
-github: coding
-eingabeaufforderung: coding
-python: coding
-python35: coding
-high focus: coding
-binaural beats: coding
-texstudio: docs
-documentation: docs
-xls : docs
-word: docs
-adobe acrobat reader: docs
-thunderbird: mail
-mingw64: coding
-vs2017: coding
-Notepad++: coding
-projects: coding
-sperrbildschirm: idle
-stayfocusd: idle
-microsoft visual studio: coding
-command prompt: coding
-windowssystem32: coding
-microsoft teams: mail
-inbox: mail
-outlook: mail
-message: mail
-message (html): mail
-run_win_record: coding
-visual studio: coding
-tortoisegit: coding
-.py: coding
-shortcut: coding
-this pc: coding
-Chimera: coding
-task manager: coding
-npm: coding
-voice -: mail
-virginpulse: mail
-powerpoint: docs
-fidelity: gaming
-portfolio: gaming
-airbnb: gaming
-mozilla: wasted
-chrome: wasted
-whatsapp: wasted
-news: wasted
-zebra: coding
-imageglass: coding
-paint: coding
-paint.net: coding
-GIMP: coding
-netnanny: family
-coronavirus: family
-flu: family
-vaccine: family
-new chat: coding
-mint.com: family
-feds: gaming
-widow: wasted
-philadelphia eagles: wasted
-desi: wasted
-lydic: wasted
-tldr: learning
-modular: learning
-shell: coding
-options: coding
-warning: idle
-chinesebibleonline: church
-bible.com: church
-biblegateway.com: church
-the holy bible: church
-athlon sports: wasted
-belichick: wasted
-order page : family
-home depot: family
-mychart: family
-wirecutter: wasted
-code-39: coding
-walmart.com: family
-maga: wasted
-los angeles times: wasted
-mathjax: coding
-file finder: learning
-alldup: learning
-rcr-pf3lv9tf: coding
-budget laptops: family
-paddleocr: learning
-ghostscript: coding
-fiscal.ai: gaming
+translate.google.com: coding
+merriam-webster.com: learning
+changelog.txt: coding
+inputking online ime: family
+buckslib.org: learning
+wise.oclc.org: learning
+digital.fidelity.com: gaming
+teriyaki: family
+wd.bible: church
+義大利麵: family
+燉牛肉: family
+add existing project: coding
+symbologies: coding
+www.youtube.com/shorts: wasted
+www.cvs.com/photo: family                                        
+app.utrsports.net: family                                                                                
+ANSI: coding                                                                                             
+cpc-cenra-i5l9l: coding                                                                                   
+codabar: coding                                                                                           
+image subfolder: coding                                                                                   
+fobj: coding                                                                                              
+hugging face: learning                                                                                    
+optum financial: family                                                                                   
+boost/: coding                                                                                            
+code browser: coding                                                                                      
+wikipedia.org: learning                                                                                   
+best deals: wasted                                                                                        
+pfna: family                                                                                              
+teachustuesday.mp4: family                                                                                
+bjarne stroustrup: learning                                                                               
+weather forecast: family                                                                                  
+vanguard index: gaming                                                                                    
+calculator: coding                                                                                        
+learner tien: wasted                                                                                      
+vanguard.com: family                                                                                      
+m365.cloud.microsoft: coding                                                                              
+vanguard login: family                                                                                    
+.cpp: coding                                                                                              
+workspace1: coding                                                                                        
+windows app: coding                                                                                       
+open image: coding                                                                                        
+% copying: coding                                                                                         
+teracopy: coding                                                                                          
+newyorker.com: wasted                                                                                     
+save images: coding                                                                                       
+barcode reader: coding                                                                                    
+recognizing: coding                                                                                       
+microsoft 365 copilot: coding                                                                             
+clink: coding                                                                                             
+notepad 2e: coding                                                                                        
+m365 copilot: coding                                                                                      
+newtown pa patch: wasted                                                                                  
+amazon resale: wasted                                                                                     
+allocator: coding                                                                                         
+mail.google.com: mail                                                                                     
+myaccess.microsoft: coding                                                                                
+instagram.com: wasted                                                                                     
+x.com: wasted                                                                                             
+recipe: family                                                                                            
+chinese bible: family                                                                                     
+æ²ˆä»Žæ–‡: learning                                                                                       
+track package: family                                                                                     
+google sheets: family                                                                                     
+wasted time warning: idle                                                                                 
+deepl: coding                                                                                             
+patch.com: wasted                                                                                         
+sesameplace.com: family                                                                                   
+thetennisgazette.com: wasted                                                                              
+0x0000: coding                                                                                            
+quickwatch: coding                                                                                        
+transunion.com: family                                                                                    
+equifax.com: family                                                                                       
+hsabank.com: family                                                                                       
+devbox: coding                                                                                            
+lincoln financial field: wasted                                                                           
+cisco secure client: coding                                                                               
+inoreader: learning                                                                                       
+wyze: family                                                                                              
+bleeding green nation: wasted                                                                             
+apexsystemsinc.com: coding                                                                                
+my apps: learning                                                                                         
+windows security: coding                                                                                  
+remote desktop: coding                                                                                    
+select folder: coding                                                                                     
+dev box: coding                                                                                           
+microsoft loop: coding                                                                                    
+apple card: family                                                                                        
+Computer Wake: idle                                                                                       
+crlog_laptop: learning                                                                                    
+engadget.com: wasted                                                                                      
+hindustantimes.com: wasted                                                                                
+sfgate.com: wasted                                                                                        
+abbyy: coding                                                                                             
+domain-vm: coding                                                                                         
+seeking alpha: gaming                                                                                     
+business insider: wasted                                                                                  
+my access: coding                                                                                         
+crao: coding                                                                                              
+amazon.com: wasted                                                                                        
+family dentistry: family                                                                                  
+heinefamilydental: family                                                                                 
+payerexpress.com: family                                                                                  
+linkedin.com: learning                                                                                    
+news.google: wasted                                                                                       
+www.cnbc.com: wasted                                                                                      
+(idle): idle                                                                                              
+zillow: wasted                                                                                            
+the eagles: wasted                                                                                        
+watch dolphins: wasted                                                                                    
+google news: wasted                                                                                       
+laver cup: wasted                                                                                         
+finereader: coding                                                                                        
+OCRT: coding                                                                                              
+windows default lock screen: idle                                                                         
+gnome screen shield: idle                                                                                 
+gmail: mail                                                                                               
+wechat: wasted                                                                                            
+facebook: wasted                                                                                          
+mfc-l2700dw: family                                                                                       
+brother utilities: family                                                                                 
+controlcenter4: family                                                                                    
+google photos: family                                                                                     
+rust-lang: learning                                                                                       
+rust: learning                                                                                            
+gemini: learning                                                                                          
+chatgpt: learning                                                                                         
+deepseek: learning                                                                                        
+tennis: family                                                                                            
+stock: gaming                                                                                             
+pixtest: coding                                                                                           
+perplexity: coding                                                                                        
+coursework: family                                                                                        
+grades: family                                                                                            
+chez: family                                                                                              
+lennox: family                                                                                            
+myidcare: family                                                                                          
+compass hhs: family                                                                                       
+zebra gem: learning                                                                                       
+penndot: family                                                                                           
+usta: family                                                                                              
+zcode: coding                                                                                             
+swarthmore: family                                                                                        
+ccicnv: family                                                                                            
+sunday service: family                                                                                    
+chinese church: family                                                                                    
+evite: family                                                                                             
+76ers: wasted                                                                                             
+pandemic: wasted                                                                                          
+redick: wasted                                                                                            
+climate: wasted                                                                                           
+conservatives: wasted                                                                                     
+confluence: coding                                                                                        
+imaging internal: coding                                                                                  
+chiproc: coding                                                                                           
+green hills: coding                                                                                       
+tera term: coding                                                                                         
+multi launcher: coding                                                                                    
+program files (x88): coding                                                                               
+sourcetrail: coding                                                                                       
+microsoft learn: coding                                                                                   
+ibm rational: coding                                                                                      
+clearcase: coding                                                                                         
+inappropriate: wasted                                                                                     
+regrets: wasted                                                                                           
+dicaprio: wasted                                                                                          
+netflix: wasted                                                                                           
+springsteen: wasted                                                                                       
+hedgehog: wasted                                                                                          
+sneakers: wasted                                                                                          
+microsoft rewards: wasted                                                                                 
+call option: wasted                                                                                       
+lithium: wasted                                                                                           
+tucker carlson: wasted                                                                                    
+elon musk: wasted                                                                                         
+affairs: wasted                                                                                           
+talc: wasted                                                                                              
+clarkson: wasted                                                                                          
+jalen hurts: wasted                                                                                       
+twitter: wasted                                                                                           
+toyota: wasted                                                                                            
+budweiser: wasted                                                                                         
+yuengling: wasted                                                                                         
+reggie: wasted                                                                                            
+sports world: wasted                                                                                      
+beer: wasted                                                                                              
+tesla: wasted                                                                                             
+brooke shields: wasted                                                                                    
+agassi: wasted                                                                                            
+microsoft start: wasted                                                                                   
+girlfriend: wasted                                                                                        
+celebrity: wasted                                                                                         
+rivers says: wasted                                                                                       
+shohei ohtani: wasted                                                                                     
+postgame: wasted                                                                                          
+clippers: wasted                                                                                          
+jackpot: wasted                                                                                           
+lakers: wasted                                                                                            
+new tab and: idle                                                                                         
+basketball: wasted                                                                                        
+caitlin: wasted                                                                                           
+draymond: wasted                                                                                          
+npp: coding                                                                                               
+planisware: coding                                                                                        
+Ameritrade: gaming                                                                                        
+DCS_: coding                                                                                              
+DCH-: coding                                                                                              
+AVP-: coding                                                                                              
+vcpkg: coding                                                                                             
+powershell: coding                                                                                        
+win-unpacked-: coding                                                                                     
+winscp: coding                                                                                            
+microsoft docs: coding                                                                                    
+rand(): coding                                                                                            
+virtualbox: coding                                                                                        
+stack overflow: coding                                                                                    
+milconfig: coding                                                                                         
+interop: coding                                                                                           
+certmgr: coding                                                                                           
+cr3881: coding                                                                                            
+power nap: coding                                                                                         
+nsdr: coding                                                                                              
+std: coding                                                                                               
+__optimize__: coding                                                                                      
+dll: coding                                                                                               
+msdn: coding                                                                                              
+attach to process: coding                                                                                 
+protobuf: coding                                                                                          
+cl.exe: coding                                                                                            
+pdb: coding                                                                                               
+zbook: coding                                                                                             
+hp support: coding                                                                                        
+etc: coding                                                                                               
+dnf: coding                                                                                               
+repositories: coding                                                                                      
+crao@: coding                                                                                             
+output directory: coding                                                                                  
+start emulation: coding                                                                                   
+perf: coding                                                                                              
+bing ai: coding                                                                                           
+ubuntu: coding                                                                                            
+imgkit: coding                                                                                            
+power bi: coding                                                                                          
+anyconnect: coding                                                                                        
+dacustomstep2: coding                                                                                     
+matrox: coding                                                                                            
+pixalg.net: coding                                                                                        
+platform connection: coding                                                                               
+logseq: coding                                                                                            
+trump: wasted                                                                                             
+schooldoc: family                                                                                         
+s&p 500: gaming                                                                                           
+ohio state: wasted                                                                                        
+nba: wasted                                                                                               
+nfl: wasted                                                                                               
+goodell: wasted                                                                                           
+intuit: family                                                                                            
+sol feinstone: family                                                                                     
+consumer cellular: family                                                                                 
+cathay pacific: family                                                                                    
+program docs: coding                                                                                      
+edit and continue: coding                                                                                 
+td bank: family                                                                                           
+portfolio summary: gaming                                                                                 
+mychop: family                                                                                            
+lawrenceville school: family                                                                              
+docnetwork: family                                                                                        
+youtube: wasted                                                                                           
+debug: coding                                                                                             
+CS2022: coding                                                                                            
+vs2022: coding                                                                                            
+vs 2022: coding                                                                                           
+transformer: learning                                                                                     
+.pdf: learning                                                                                            
+yejin choi: learning                                                                                      
+lecture: learning                                                                                         
+secure tooling: learning                                                                                  
+secure code training: learning                                                                            
+upskill: learning                                                                                         
+sonarqube: coding                                                                                         
+servicenow: coding                                                                                        
+service portal: coding                                                                                    
+system properties: coding                                                                                 
+chat.openai: coding                                                                                       
+zebra tools portal: coding                                                                                
+express scripts: family                                                                                   
+launch - google chrome: learning                                                                          
+visio: coding                                                                                             
+cen.rao@zebra.com: mail                                                                                   
+peddie: family                                                                                            
+labcorp: family                                                                                           
+machine learning: learning                                                                                
+deep learning: learning                                                                                   
+Kindle: learning                                                                                          
+mathworks: learning                                                                                       
+9to5mac: wasted                                                                                           
+DEV20: coding                                                                                             
+BIN20: coding                                                                                             
+users: coding                                                                                             
+aurora: coding                                                                                            
+bmp: coding                                                                                               
+snipping tool: coding                                                                                     
+putty: coding                                                                                             
+pageant: coding                                                                                           
+dashboard: coding                                                                                         
+git: coding                                                                                               
+ssh: coding                                                                                               
+gdbserver: coding                                                                                         
+repository: coding                                                                                        
+tutorial: learning                                                                                        
+wordle: gaming                                                                                            
+msn money: gaming                                                                                         
+meeting: mail                                                                                             
+property pages: coding                                                                                    
+linux: coding                                                                                             
+matlab: coding                                                                                            
+octave: coding                                                                                            
+editor: coding                                                                                            
+gaussian: coding                                                                                          
+filter: coding                                                                                            
+winmerge: coding                                                                                          
+watchtime: think                                                                                          
+tensorflow: learning                                                                                      
+pytorch: learning                                                                                         
+environment variable: coding                                                                              
+settings: coding                                                                                          
+firebase: learning                                                                                        
+dictionary: learning                                                                                      
+my backpack: mail                                                                                         
+microsoft outlook: mail                                                                                   
+student health tracker: mail                                                                              
+google developers: learning                                                                               
+google cloud: learning                                                                                    
+how to : learning                                                                                         
+immersive labs: learning                                                                                  
+email: mail                                                                                               
+calendar: mail                                                                                            
+zoom: mail                                                                                                
+qaz: no_cat                                                                                               
+meditation: think                                                                                         
+jira: think                                                                                               
+linkedin: learning                                                                                        
+avl: coding                                                                                               
+chidecode: coding                                                                                         
+camera calibration: coding                                                                                
+opencv: coding                                                                                            
+halcon: coding                                                                                            
+espn: wasted                                                                                              
+google search: learning                                                                                   
+pattern match: coding                                                                                     
+multiple repeat: coding                                                                                   
+regex*search: coding                                                                                      
+APM*_*_*: coding                                                                                          
+spm*_*_*: coding                                                                                          
+manage extensions: coding                                                                                 
+open folder: coding                                                                                       
+figure ?: coding                                                                                          
+cmd: coding                                                                                               
+start tracking: coding                                                                                    
+c++ : coding                                                                                              
+zconnect home: coding                                                                                     
+scrum: learning                                                                                           
+agile: learning                                                                                           
+nicolajbky: learning                                                                                      
+template_*: coding                                                                                        
+open directory: coding                                                                                    
+onedrive: coding                                                                                          
+zebratechnologies: coding                                                                                 
+session buddy: coding                                                                                     
+cmake: coding                                                                                             
+Track your time: learning                                                                                 
+jfrog: coding                                                                                             
+administrator: coding                                                                                     
+file explorer: coding                                                                                     
+172.16: coding                                                                                            
+chicore: coding                                                                                           
+vm_share: coding                                                                                          
+window_recorder: coding                                                                                   
+network graph: coding                                                                                     
+virgin pulse: coding                                                                                      
+program manager: coding                                                                                   
+pingid: coding                                                                                            
+onenote: think                                                                                            
+NY21: docs                                                                                                
+docx: docs                                                                                                
+spyder: coding                                                                                            
+stackoverflow: learning                                                                                   
+stackexchange: learning                                                                                   
+github: coding                                                                                            
+eingabeaufforderung: coding                                                                               
+python: coding                                                                                            
+python35: coding                                                                                          
+high focus: coding                                                                                        
+binaural beats: coding                                                                                    
+texstudio: docs                                                                                           
+documentation: docs                                                                                       
+xls : docs                                                                                                
+word: docs                                                                                                
+adobe acrobat reader: docs                                                                                
+thunderbird: mail                                                                                         
+mingw64: coding                                                                                           
+vs2017: coding                                                                                            
+Notepad++: coding                                                                                         
+projects: coding                                                                                          
+sperrbildschirm: idle                                                                                     
+stayfocusd: idle                                                                                          
+microsoft visual studio: coding                                                                           
+command prompt: coding                                                                                    
+windowssystem32: coding                                                                                   
+microsoft teams: mail                                                                                     
+inbox: mail                                                                                               
+outlook: mail                                                                                             
+message: mail                                                                                             
+message (html): mail                                                                                      
+run_win_record: coding                                                                                    
+visual studio: coding                                                                                     
+tortoisegit: coding                                                                                       
+.py: coding                                                                                               
+shortcut: coding                                                                                          
+this pc: coding                                                                                           
+Chimera: coding                                                                                           
+task manager: coding                                                                                      
+npm: coding                                                                                               
+voice -: mail                                                                                             
+virginpulse: mail                                                                                         
+powerpoint: docs                                                                                          
+fidelity: gaming                                                                                          
+portfolio: gaming                                                                                         
+airbnb: gaming                                                                                            
+mozilla: wasted                                                                                           
+chrome: wasted                                                                                            
+whatsapp: wasted                                                                                          
+news: wasted                                                                                              
+zebra: coding                                                                                             
+imageglass: coding                                                                                        
+paint: coding                                                                                             
+paint.net: coding                                                                                         
+GIMP: coding                                                                                              
+netnanny: family                                                                                          
+coronavirus: family                                                                                       
+flu: family                                                                                               
+vaccine: family                                                                                           
+new chat: coding                                                                                          
+mint.com: family                                                                                          
+feds: gaming                                                                                              
+widow: wasted                                                                                             
+philadelphia eagles: wasted                                                                               
+desi: wasted                                                                                              
+lydic: wasted                                                                                             
+tldr: learning                                                                                            
+modular: learning                                                                                         
+shell: coding                                                                                             
+options: coding                                                                                           
+warning: idle                                                                                             
+chinesebibleonline: church                                                                                
+bible.com: church                                                                                         
+biblegateway.com: church                                                                                  
+the holy bible: church                                                                                    
+athlon sports: wasted                                                                                     
+belichick: wasted                                                                                         
+order page : family                                                                                       
+home depot: family                                                                                        
+mychart: family                                                                                           
+wirecutter: wasted                                                                                        
+code-39: coding                                                                                           
+walmart.com: family                                                                                       
+maga: wasted                                                                                              
+los angeles times: wasted                                                                                 
+mathjax: coding                                                                                           
+file finder: learning                                                                                     
+alldup: learning                                                                                          
+rcr-pf3lv9tf: coding                                                                                      
+budget laptops: family                                                                                    
+paddleocr: learning                                                                                       
+ghostscript: coding                                                                                       
+fiscal.ai: gaming                                                                                         
 家常菜: family
-www.google.com/maps: family
-google maps: family
-
-[COLORS]
-coding: #4954EA
-learning: #F2F767
-gaming: #F68D15
-church: #00A000
-docs:#32448B
-wasted: #F64438
-mail: #72ACF1
-think: #83F7F0
-family: #83F7F0
-no_cat: #387FF7
-idle: #837F7F
-not categorized: #2E8B57
-
-[PROJECTS]
-edgetool:
+www.google.com/maps: family                                                                               
+google maps: family                                                                                       
+                                                                                                          
+[COLORS]                                                                                                  
+coding: #4954EA                                                                                           
+learning: #F2F767                                                                                         
+gaming: #F68D15                                                                                           
+church: #00A000                                                                                           
+docs:#32448B                                                                                              
+wasted: #F64438                                                                                           
+mail: #72ACF1                                                                                             
+think: #83F7F0                                                                                            
+family: #83F7F0                                                                                           
+no_cat: #387FF7                                                                                           
+idle: #837F7F                                                                                             
+not categorized: #2E8B57                                                                                  
+                                                                                                          
+[PROJECTS]                                                                                                
+edgetool:                                                                                                 
 decode:

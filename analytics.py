@@ -752,7 +752,6 @@ test:
                 file.write('<hr/>')
                 file.write(flag_summary_html)
 
-            print(f"[DEBUG] HABITS loaded: {HABITS}")
             habit_section_html, habit_script = self._build_habit_calendar_section()
             if habit_section_html:
                 file.write(habit_section_html)
@@ -1511,6 +1510,25 @@ test:
             cutoff = now - datetime.timedelta(minutes=minutes)
             df = df[df['end_time'] >= cutoff]
         df = df.sort_values('end_time', ascending=False)
+
+        # Collapse repeated entries within the window by grouping on window metadata
+        for col in ['category', 'window_title', 'window_url', 'url_display']:
+            if col not in df.columns:
+                df[col] = ''
+            else:
+                df[col] = df[col].fillna('')
+
+        grouped = (
+            df.groupby(['category', 'window_title', 'window_url', 'url_display'], dropna=False)
+              .agg({
+                  'start_time': 'max',
+                  'end_time': 'max',
+                  'Duration (min)': 'sum'
+              })
+              .reset_index()
+        )
+
+        df = grouped.sort_values('end_time', ascending=False)
 
         if df.empty:
             return ''
