@@ -758,8 +758,8 @@ test:
             if habit_script:
                 file.write(habit_script)
             
-            # Add auto-scroll to Recent Activity section
-            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("recent-activity"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
+            # Add auto-scroll to Productivity Streak section
+            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("productivity-streak"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
 
             table_html = '<table style="width:100%">'
             
@@ -806,11 +806,25 @@ test:
             # Add productivity streak section
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
             if streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
+                # Get threshold from config
+                streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
+                
+                # Determine message based on threshold
+                if streak_minutes >= streak_threshold:
+                    message = "Keep going! You're doing great! 🚀"
+                    border_color = "#4caf50"
+                    gradient = "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)"
+                else:
+                    remaining = streak_threshold - int(streak_minutes)
+                    message = f"Go back to work, till {streak_threshold} minutes! ({remaining} min remaining)"
+                    border_color = "#ff9800"
+                    gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
+                
                 file.write('<hr/>')
-                file.write('<div class="productivity-streak" style="margin:20px 0; padding:20px; border:2px solid #4caf50; border-radius:8px; background:linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); text-align:center;">')
+                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:20px; border:2px solid {border_color}; border-radius:8px; background:{gradient}; text-align:center;">')
                 file.write('<h2 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Current Productivity Streak</h2>')
                 file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#1b5e20;">{streak_display}</p>')
-                file.write('<p style="margin:5px 0; color:#33691e; font-size:1.1em;">Keep going! You\'re doing great! 🚀</p>')
+                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:1.1em;">{message}</p>')
                 file.write('</div>')
 
             recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)

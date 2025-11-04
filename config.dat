@@ -14,9 +14,15 @@ timezone = America/New_York
 day_boundary_hour = 3                                                                                     
 image_folder = figs/pictures                                                                              
 md_folder = ../crlog_laptop                                                                               
-recent_activity_minutes = 10                                                                              
+recent_activity_minutes = 10
+productivity_streak_threshold = 25                                                                              
                                                                                                           
 [CATEGORIES]
+iso 15438: coding
+hsa bank: family
+quadrilateral: learning
+webster: learning
+pdf417: coding
 translate.google.com: coding
 merriam-webster.com: learning
 changelog.txt: coding
