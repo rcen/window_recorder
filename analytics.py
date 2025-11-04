@@ -805,11 +805,17 @@ test:
 
             # Add productivity streak section
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
+            
+            # Calculate longest streaks
+            today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
+            longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
+            longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
+            
             if streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
                 # Get threshold from config
                 streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
                 
-                # Determine message based on threshold
+                # Determine message based on threshold for current streak
                 if streak_minutes >= streak_threshold:
                     message = "Keep going! You're doing great! 🚀"
                     border_color = "#4caf50"
@@ -821,10 +827,35 @@ test:
                     gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
                 
                 file.write('<hr/>')
-                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:20px; border:2px solid {border_color}; border-radius:8px; background:{gradient}; text-align:center;">')
-                file.write('<h2 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Current Productivity Streak</h2>')
-                file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#1b5e20;">{streak_display}</p>')
-                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:1.1em;">{message}</p>')
+                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid {border_color}; border-radius:8px; background:{gradient};">')
+                
+                # Three streaks in one row
+                file.write('<div style="display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap;">')
+                
+                # Current Streak
+                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center;">')
+                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Current Streak</h3>')
+                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
+                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
+                file.write('</div>')
+                
+                # Longest Today
+                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest Today</h3>')
+                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
+                longest_today_info = f"Started at {longest_today_time}" if longest_today_time else "Best focus session"
+                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
+                file.write('</div>')
+                
+                # Longest 7 Days
+                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest 7 Days</h3>')
+                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
+                longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
+                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')
+                file.write('</div>')
+                
+                file.write('</div>')
                 file.write('</div>')
 
             recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
@@ -1597,6 +1628,101 @@ test:
             hours = int(total_productive_minutes // 60)
             minutes = int(total_productive_minutes % 60)
             return total_productive_minutes, f"{hours}h {minutes}min"
+
+    def _calculate_longest_streak_for_day(self, date_str):
+        """
+        Calculate the longest productivity streak for a specific day.
+        Returns (duration in minutes, formatted string, start time string).
+        """
+        df = self._get_and_prepare_day_df(date_str)
+        if df.empty:
+            return 0, "0 min", ""
+        
+        df = resolve_conflicts(df)
+        if df.empty:
+            return 0, "0 min", ""
+        
+        # Sort by start time
+        df = df.sort_values('start_time').reset_index(drop=True)
+        
+        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
+        non_productive_cats = {"wasted", "wasted time", "gaming"}
+        
+        max_streak_minutes = 0
+        current_streak_minutes = 0
+        max_streak_start_time = None
+        current_streak_start_time = None
+        
+        for idx, activity in df.iterrows():
+            category = str(activity.get('category', '')).lower()
+            
+            # Skip idle and mail
+            if category in {"idle", "mail"}:
+                continue
+            
+            # If productive, add to current streak
+            if category in productive_cats:
+                # Track start time of current streak
+                if current_streak_minutes == 0 and 'start_time' in activity:
+                    current_streak_start_time = activity['start_time']
+                
+                duration_seconds = activity.get('duration', 0)
+                current_streak_minutes += duration_seconds / 60.0
+                
+                # Update max if current is longer
+                if current_streak_minutes > max_streak_minutes:
+                    max_streak_minutes = current_streak_minutes
+                    max_streak_start_time = current_streak_start_time
+            
+            # If non-productive, reset streak
+            elif category in non_productive_cats:
+                current_streak_minutes = 0
+                current_streak_start_time = None
+        
+        # Format the time string
+        time_str = ""
+        if max_streak_start_time:
+            time_str = max_streak_start_time.strftime('%H:%M')
+        
+        # Format the duration output
+        if max_streak_minutes < 1:
+            return max_streak_minutes, "< 1 min", time_str
+        elif max_streak_minutes < 60:
+            return max_streak_minutes, f"{int(max_streak_minutes)} min", time_str
+        else:
+            hours = int(max_streak_minutes // 60)
+            minutes = int(max_streak_minutes % 60)
+            return max_streak_minutes, f"{hours}h {minutes}min", time_str
+
+    def _calculate_longest_streak_recent_days(self, date_list, num_days=7):
+        """
+        Calculate the longest productivity streak across recent days.
+        Returns (duration in minutes, formatted string, date string).
+        """
+        max_streak_minutes = 0
+        max_streak_date = None
+        
+        for date in date_list[:num_days]:
+            date_str = date.strftime('%Y-%m-%d')
+            streak_min, _, _ = self._calculate_longest_streak_for_day(date_str)
+            if streak_min > max_streak_minutes:
+                max_streak_minutes = streak_min
+                max_streak_date = date
+        
+        # Format the date string
+        date_str = ""
+        if max_streak_date:
+            date_str = max_streak_date.strftime('%a, %b %d')  # e.g., "Mon, Nov 04"
+        
+        # Format the duration output
+        if max_streak_minutes < 1:
+            return max_streak_minutes, "< 1 min", date_str
+        elif max_streak_minutes < 60:
+            return max_streak_minutes, f"{int(max_streak_minutes)} min", date_str
+        else:
+            hours = int(max_streak_minutes // 60)
+            minutes = int(max_streak_minutes % 60)
+            return max_streak_minutes, f"{hours}h {minutes}min", date_str
 
     def _build_recent_activity_section(self, log_list, date_list, minutes=12):
         if not log_list or not date_list:
