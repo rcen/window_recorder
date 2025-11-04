@@ -803,6 +803,16 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
+            # Add productivity streak section
+            streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
+            if streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
+                file.write('<hr/>')
+                file.write('<div class="productivity-streak" style="margin:20px 0; padding:20px; border:2px solid #4caf50; border-radius:8px; background:linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); text-align:center;">')
+                file.write('<h2 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Current Productivity Streak</h2>')
+                file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#1b5e20;">{streak_display}</p>')
+                file.write('<p style="margin:5px 0; color:#33691e; font-size:1.1em;">Keep going! You\'re doing great! 🚀</p>')
+                file.write('</div>')
+
             recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
             recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
             if recent_activity_html:
@@ -1481,6 +1491,98 @@ test:
         ).strip() + '\n'
 
         return ''.join(html_parts), script
+
+    def _calculate_productivity_streak(self, log_list, date_list):
+        """
+        Calculate how long the user has been productive by tracing back from the current activity
+        until hitting a non-productive activity. Returns duration in minutes and formatted string.
+        """
+        if not log_list or not date_list:
+            return 0, "0 min"
+
+        import pytz
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.datetime.now(tz)
+
+        # Define productive and non-productive categories
+        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
+        non_productive_cats = {"wasted", "wasted time", "gaming"}
+        # Idle and mail are neutral - we skip them when looking for current activity
+
+        # Get recent activities from the most recent day(s)
+        all_activities = []
+        for date in date_list[:3]:  # Look at last 3 days max
+            date_str = date.strftime('%Y-%m-%d')
+            df = self._get_and_prepare_day_df(date_str)
+            if not df.empty:
+                df = resolve_conflicts(df)
+                if not df.empty:
+                    all_activities.append(df)
+
+        if not all_activities:
+            return 0, "0 min"
+
+        combined_df = pd.concat(all_activities, ignore_index=True)
+        combined_df = combined_df.sort_values('end_time', ascending=False).reset_index(drop=True)
+
+        # Find the current or most recent activity
+        if combined_df.empty:
+            return 0, "0 min"
+
+        # Start from the most recent non-idle, non-mail activity
+        current_idx = -1
+        for idx in range(len(combined_df)):
+            category = str(combined_df.iloc[idx].get('category', '')).lower()
+            if category not in {"idle", "mail"}:
+                current_idx = idx
+                break
+        
+        if current_idx == -1:
+            return 0, "0 min"
+
+        current_activity = combined_df.iloc[current_idx]
+        current_category = str(current_activity.get('category', '')).lower()
+
+        # Check if current meaningful activity is productive
+        if current_category not in productive_cats:
+            return 0, "0 min"
+
+        # Backtrace through activities accumulating productive time
+        total_productive_minutes = 0
+        streak_start_time = None
+
+        for idx in range(current_idx, len(combined_df)):
+            activity = combined_df.iloc[idx]
+            category = str(activity.get('category', '')).lower()
+            
+            # Skip idle and mail - they don't break the streak
+            if category in {"idle", "mail"}:
+                continue
+            
+            # If we hit a non-productive activity, stop
+            if category in non_productive_cats:
+                break
+            
+            # If productive, accumulate the duration
+            if category in productive_cats:
+                duration_seconds = activity.get('duration', 0)
+                total_productive_minutes += duration_seconds / 60.0
+                
+                # Track the earliest start time of the streak
+                if 'start_time' in activity:
+                    activity_start = activity['start_time']
+                    if streak_start_time is None or activity_start < streak_start_time:
+                        streak_start_time = activity_start
+
+        # Format the output
+        if total_productive_minutes < 1:
+            return total_productive_minutes, "< 1 min"
+        elif total_productive_minutes < 60:
+            return total_productive_minutes, f"{int(total_productive_minutes)} min"
+        else:
+            hours = int(total_productive_minutes // 60)
+            minutes = int(total_productive_minutes % 60)
+            return total_productive_minutes, f"{hours}h {minutes}min"
 
     def _build_recent_activity_section(self, log_list, date_list, minutes=12):
         if not log_list or not date_list:
