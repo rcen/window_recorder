@@ -803,15 +803,44 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
-            # Add productivity streak section
+            # Add productivity streak section or waste ratio section
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
+            current_category = self._get_current_activity_category(log_list, date_list)
             
-            # Calculate longest streaks
-            today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
-            longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
-            longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
+            # Define productive and non-productive categories
+            productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
+            non_productive_cats = {"wasted", "wasted time", "gaming"}
             
-            if streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
+            # Check if current activity is non-productive
+            is_currently_wasting = current_category and current_category in non_productive_cats
+            
+            if is_currently_wasting:
+                # Show waste ratio instead of productivity streak
+                waste_percentage, waste_display, total_hours, wasted_hours = self._calculate_waste_ratio(log_list, date_list)
+                
+                file.write('<hr/>')
+                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid #f44336; border-radius:8px; background:linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">')
+                
+                file.write('<div style="text-align: center;">')
+                file.write('<h3 style="margin:0 0 10px 0; color:#c62828;">⚠️ Time Waste Alert</h3>')
+                file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#d32f2f;">{waste_display}</p>')
+                file.write('<p style="margin:5px 0; color:#c62828; font-size:1.1em;">of today\'s time has been wasted</p>')
+                
+                # Additional details
+                if total_hours > 0:
+                    file.write(f'<div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 5px;">')
+                    file.write(f'<p style="margin: 0; color:#666; font-size:0.95em;">Wasted: {wasted_hours:.1f}h | Active time: {total_hours:.1f}h</p>')
+                    file.write(f'<p style="margin: 5px 0 0 0; color:#d32f2f; font-weight:bold;">Get back to productive work! 💪</p>')
+                    file.write('</div>')
+                
+                file.write('</div>')
+                file.write('</div>')
+                
+            elif streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
+                # Calculate longest streaks
+                today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
+                longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
+                longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
                 # Get threshold from config
                 streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
                 
@@ -1723,6 +1752,86 @@ test:
             hours = int(max_streak_minutes // 60)
             minutes = int(max_streak_minutes % 60)
             return max_streak_minutes, f"{hours}h {minutes}min", date_str
+
+    def _calculate_waste_ratio(self, log_list, date_list):
+        """
+        Calculate the ratio of wasted time vs total active time for today (excluding idle).
+        Returns (waste_percentage, waste_display, total_active_hours, wasted_hours)
+        """
+        if not log_list or not date_list:
+            return 0, "0%", 0, 0
+
+        # Use existing analyze method to get category totals
+        today_date = date_list[0]
+        logfile = f"{today_date.strftime('%Y-%m-%d')}.csv"
+        u_cats, u_dur, date, _ = self.analyze(logfile)
+        
+        if not u_cats or not u_dur:
+            return 0, "0%", 0, 0
+
+        # Define wasted categories
+        wasted_cats = {"wasted", "wasted time", "gaming"}
+        
+        # Calculate totals using existing category analysis (durations are in seconds)
+        total_active_seconds = 0
+        wasted_seconds = 0
+        
+        for category, duration in zip(u_cats, u_dur):
+            if category.lower() != 'idle':  # Exclude idle time
+                total_active_seconds += duration
+                if category.lower() in wasted_cats:
+                    wasted_seconds += duration
+        
+        if total_active_seconds == 0:
+            return 0, "0%", 0, 0
+            
+        waste_percentage = (wasted_seconds / total_active_seconds) * 100
+        
+        # Format display
+        if waste_percentage < 0.1:
+            percentage_display = "< 0.1%"
+        else:
+            percentage_display = f"{waste_percentage:.1f}%"
+            
+        total_active_hours = total_active_seconds / 3600
+        wasted_hours = wasted_seconds / 3600
+        
+        return waste_percentage, percentage_display, total_active_hours, wasted_hours
+
+    def _get_current_activity_category(self, log_list, date_list):
+        """
+        Get the category of the current/most recent meaningful activity.
+        Returns the category string or None if no meaningful activity found.
+        """
+        if not log_list or not date_list:
+            return None
+
+        import pytz
+        tz = pytz.timezone(TIMEZONE)
+
+        # Get recent activities from the most recent day(s)
+        all_activities = []
+        for date in date_list[:3]:  # Look at last 3 days max
+            date_str = date.strftime('%Y-%m-%d')
+            df = self._get_and_prepare_day_df(date_str)
+            if not df.empty:
+                df = resolve_conflicts(df)
+                if not df.empty:
+                    all_activities.append(df)
+
+        if not all_activities:
+            return None
+
+        combined_df = pd.concat(all_activities, ignore_index=True)
+        combined_df = combined_df.sort_values('end_time', ascending=False).reset_index(drop=True)
+
+        # Find the current or most recent meaningful activity (not idle/mail)
+        for idx in range(len(combined_df)):
+            category = str(combined_df.iloc[idx].get('category', '')).lower()
+            if category not in {"idle", "mail"}:
+                return category
+        
+        return None
 
     def _build_recent_activity_section(self, log_list, date_list, minutes=12):
         if not log_list or not date_list:
