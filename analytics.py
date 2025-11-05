@@ -693,8 +693,8 @@ test:
             if not string:
                 continue
 
-            if string.lower().startswith('regex:'):
-                pattern = string[6:].strip()
+            if string.lower().startswith('regex__'):
+                pattern = string[7:].strip()
                 for target in normalized_targets:
                     try:
                         if re.search(pattern, target.strip(), flags=re.IGNORECASE):
@@ -721,7 +721,7 @@ test:
         try:
             display_limit = self.config.getint('SETTINGS', 'display_limit', fallback=20)
         except (configparser.NoSectionError, configparser.NoOptionError):
-            display_limit = 20
+            display_limit = 14
         
         # Limit the number of logs to be displayed
         if len(log_list) > display_limit:
@@ -849,7 +849,7 @@ test:
                 
                 # Longest 7 Days
                 file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest 7 Days</h3>')
+                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest in 7 Days</h3>')
                 file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
                 longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
                 file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')

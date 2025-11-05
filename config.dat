@@ -18,6 +18,12 @@ recent_activity_minutes = 10
 productivity_streak_threshold = 25                                                                              
                                                                                                           
 [CATEGORIES]
+regex__\bline\b: church
+regex__\bsave file as\b: coding
+regex__\bconfirm save as\b: coding
+regex__\bencoding\b: coding
+regex__\bopen file\b: coding
+typedown: coding
 iso 15438: coding
 hsa bank: family
 quadrilateral: learning
