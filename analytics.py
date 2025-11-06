@@ -816,7 +816,7 @@ test:
             
             if is_currently_wasting:
                 # Show waste ratio instead of productivity streak
-                waste_percentage, waste_display, total_hours, wasted_hours = self._calculate_waste_ratio(log_list, date_list)
+                waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
                 
                 file.write('<hr/>')
                 file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid #f44336; border-radius:8px; background:linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">')
@@ -824,12 +824,12 @@ test:
                 file.write('<div style="text-align: center;">')
                 file.write('<h3 style="margin:0 0 10px 0; color:#c62828;">⚠️ Time Waste Alert</h3>')
                 file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#d32f2f;">{waste_display}</p>')
-                file.write('<p style="margin:5px 0; color:#c62828; font-size:1.1em;">of today\'s time has been wasted</p>')
+                file.write('<p style="margin:5px 0; color:#c62828; font-size:1.1em;">of today\'s active time has been wasted</p>')
                 
                 # Additional details
-                if total_hours > 0:
+                if total_active_hours > 0:
                     file.write(f'<div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 5px;">')
-                    file.write(f'<p style="margin: 0; color:#666; font-size:0.95em;">Wasted: {wasted_hours:.1f}h | Active time: {total_hours:.1f}h</p>')
+                    file.write(f'<p style="margin: 0; color:#666; font-size:0.95em;">Wasted: {wasted_hours:.1f}h | Active: {total_active_hours:.1f}h</p>')
                     file.write(f'<p style="margin: 5px 0 0 0; color:#d32f2f; font-weight:bold;">Get back to productive work! 💪</p>')
                     file.write('</div>')
                 
@@ -1570,6 +1570,7 @@ test:
         """
         Calculate how long the user has been productive by tracing back from the current activity
         until hitting a non-productive activity. Returns duration in minutes and formatted string.
+        Resets at the start of the day (defined by DAY_BOUNDARY_HOUR).
         """
         if not log_list or not date_list:
             return 0, "0 min"
@@ -1577,6 +1578,20 @@ test:
         import pytz
         tz = pytz.timezone(TIMEZONE)
         now = datetime.datetime.now(tz)
+
+        # Calculate the start of the current day based on DAY_BOUNDARY_HOUR
+        current_date = now.date()
+        day_start_time = pd.Timestamp.combine(
+            current_date,
+            datetime.time(hour=DAY_BOUNDARY_HOUR)
+        ).tz_localize(tz)
+        
+        # If current time is before the boundary hour, the day actually started yesterday
+        if now < day_start_time:
+            day_start_time = pd.Timestamp.combine(
+                current_date - datetime.timedelta(days=1),
+                datetime.time(hour=DAY_BOUNDARY_HOUR)
+            ).tz_localize(tz)
 
         # Define productive and non-productive categories
         productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
@@ -1628,6 +1643,12 @@ test:
         for idx in range(current_idx, len(combined_df)):
             activity = combined_df.iloc[idx]
             category = str(activity.get('category', '')).lower()
+            
+            # Check if this activity started before the day boundary - if so, stop
+            if 'start_time' in activity:
+                activity_start = activity['start_time']
+                if activity_start < day_start_time:
+                    break
             
             # Skip idle and mail - they don't break the streak
             if category in {"idle", "mail"}:
@@ -1756,10 +1777,10 @@ test:
     def _calculate_waste_ratio(self, log_list, date_list):
         """
         Calculate the ratio of wasted time vs total active time for today (excluding idle).
-        Returns (waste_percentage, waste_display, total_active_hours, wasted_hours)
+        Returns (waste_percentage, waste_display, total_active_hours, wasted_hours, total_hours)
         """
         if not log_list or not date_list:
-            return 0, "0%", 0, 0
+            return 0, "0%", 0, 0, 0
 
         # Use existing analyze method to get category totals
         today_date = date_list[0]
@@ -1767,23 +1788,25 @@ test:
         u_cats, u_dur, date, _ = self.analyze(logfile)
         
         if not u_cats or not u_dur:
-            return 0, "0%", 0, 0
+            return 0, "0%", 0, 0, 0
 
         # Define wasted categories
         wasted_cats = {"wasted", "wasted time", "gaming"}
         
         # Calculate totals using existing category analysis (durations are in seconds)
+        total_seconds = 0
         total_active_seconds = 0
         wasted_seconds = 0
         
         for category, duration in zip(u_cats, u_dur):
-            if category.lower() != 'idle':  # Exclude idle time
+            total_seconds += duration  # Include all time
+            if category.lower() != 'idle':  # Exclude idle time for active calculation
                 total_active_seconds += duration
                 if category.lower() in wasted_cats:
                     wasted_seconds += duration
         
         if total_active_seconds == 0:
-            return 0, "0%", 0, 0
+            return 0, "0%", 0, 0, 0
             
         waste_percentage = (wasted_seconds / total_active_seconds) * 100
         
@@ -1793,10 +1816,11 @@ test:
         else:
             percentage_display = f"{waste_percentage:.1f}%"
             
+        total_hours = total_seconds / 3600
         total_active_hours = total_active_seconds / 3600
         wasted_hours = wasted_seconds / 3600
         
-        return waste_percentage, percentage_display, total_active_hours, wasted_hours
+        return waste_percentage, percentage_display, total_active_hours, wasted_hours, total_hours
 
     def _get_current_activity_category(self, log_list, date_list):
         """

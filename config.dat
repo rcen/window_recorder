@@ -18,6 +18,14 @@ recent_activity_minutes = 10
 productivity_streak_threshold = 25                                                                              
                                                                                                           
 [CATEGORIES]
+read.amazon.com: learning
+www.msn.com/en-us/money: gaming
+projects-build: coding
+regex__\bsearch\b: coding
+regex__\bsave as\b: coding
+regex__\bsave configuration\b: coding
+regex__\bprint\b: coding
+regex__\bopen project/solution\b: coding
 regex__\bline\b: church
 regex__\bsave file as\b: coding
 regex__\bconfirm save as\b: coding
@@ -398,7 +406,7 @@ onedrive: coding
 zebratechnologies: coding                                                                                 
 session buddy: coding                                                                                     
 cmake: coding                                                                                             
-Track your time: learning                                                                                 
+Track your time: idle                                                                                 
 jfrog: coding                                                                                             
 administrator: coding                                                                                     
 file explorer: coding                                                                                     
