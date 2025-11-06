@@ -1639,6 +1639,9 @@ test:
         # Backtrace through activities accumulating productive time
         total_productive_minutes = 0
         streak_start_time = None
+        
+        # Get max idle break threshold from config (default 30 minutes)
+        max_idle_break_minutes = self.config.getint('SETTINGS', 'max_idle_break_minutes', fallback=30)
 
         for idx in range(current_idx, len(combined_df)):
             activity = combined_df.iloc[idx]
@@ -1650,8 +1653,18 @@ test:
                 if activity_start < day_start_time:
                     break
             
-            # Skip idle and mail - they don't break the streak
-            if category in {"idle", "mail"}:
+            # Check idle duration - long idles break the streak
+            if category == "idle":
+                idle_duration_minutes = activity.get('duration', 0) / 60.0
+                if idle_duration_minutes > max_idle_break_minutes:
+                    # Long idle breaks the streak
+                    break
+                else:
+                    # Short idle - skip it, streak continues
+                    continue
+            
+            # Skip mail - it doesn't break the streak
+            if category == "mail":
                 continue
             
             # If we hit a non-productive activity, stop
@@ -1698,6 +1711,9 @@ test:
         productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
         non_productive_cats = {"wasted", "wasted time", "gaming"}
         
+        # Get max idle break threshold from config (default 30 minutes)
+        max_idle_break_minutes = self.config.getint('SETTINGS', 'max_idle_break_minutes', fallback=30)
+        
         max_streak_minutes = 0
         current_streak_minutes = 0
         max_streak_start_time = None
@@ -1706,8 +1722,18 @@ test:
         for idx, activity in df.iterrows():
             category = str(activity.get('category', '')).lower()
             
-            # Skip idle and mail
-            if category in {"idle", "mail"}:
+            # Check idle duration - long idles break the streak
+            if category == "idle":
+                idle_duration_minutes = activity.get('duration', 0) / 60.0
+                if idle_duration_minutes > max_idle_break_minutes:
+                    # Long idle breaks the streak
+                    current_streak_minutes = 0
+                    current_streak_start_time = None
+                # Short idle - skip it, streak continues
+                continue
+            
+            # Skip mail
+            if category == "mail":
                 continue
             
             # If productive, add to current streak

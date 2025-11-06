@@ -15,12 +15,14 @@ day_boundary_hour = 3
 image_folder = figs/pictures                                                                              
 md_folder = ../crlog_laptop                                                                               
 recent_activity_minutes = 10
-productivity_streak_threshold = 25                                                                              
+productivity_streak_threshold = 25
+max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
 read.amazon.com: learning
 www.msn.com/en-us/money: gaming
 projects-build: coding
+regex__^online barcode decoder: coding
 regex__\bsearch\b: coding
 regex__\bsave as\b: coding
 regex__\bsave configuration\b: coding
