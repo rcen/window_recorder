@@ -61,5 +61,3 @@
 <body>
 <h1>Track your time - don't waste it! pm CLOCK</h1>
 
-<meta http-equiv="refresh" content="100">
-

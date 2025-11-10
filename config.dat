@@ -19,9 +19,17 @@ productivity_streak_threshold = 25
 max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
+中华人民共和国: family
+china-consulate.gov.cn: family
+price forecast: gaming
+move to the recycle bin: coding
+100 best gadgets: wasted
+www.tomsguide.com: wasted
 read.amazon.com: learning
 www.msn.com/en-us/money: gaming
 projects-build: coding
+regex__\bwarning\b: learning
+regex__\b7-zip\b: coding
 regex__^online barcode decoder: coding
 regex__\bsearch\b: coding
 regex__\bsave as\b: coding
@@ -517,7 +525,7 @@ fiscal.ai: gaming
 家常菜: family
 www.google.com/maps: family                                                                               
 google maps: family                                                                                       
-                                                                                                          
+jogging: family
 [COLORS]                                                                                                  
 coding: #4954EA                                                                                           
 learning: #F2F767                                                                                         
@@ -530,7 +538,8 @@ think: #83F7F0
 family: #83F7F0                                                                                           
 no_cat: #387FF7                                                                                           
 idle: #837F7F                                                                                             
-not categorized: #2E8B57                                                                                  
+not categorized: #2E8B57  
+                                                                               
                                                                                                           
 [PROJECTS]                                                                                                
 edgetool:                                                                                                 
