@@ -83,6 +83,8 @@ inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
 wasted_time_start = None
 last_warning_minute = 0
+previous_category_state = None  # Track if previous state was 'wasting' or 'productive'
+activity_page_reminder_time = time.time() + 1800  # 30 minutes = 1800 seconds
 
 CHROMIUM_BROWSER_PROCESSES = {
     'chrome.exe',
@@ -293,6 +295,27 @@ def get_current_focus_slot():
     return None
 
 
+def is_browser_window(window_title):
+    """Check if the current window is a web browser."""
+    browser_keywords = ['chrome', 'firefox', 'edge', 'brave', 'opera', 'safari', 'vivaldi', 'chromium']
+    window_lower = window_title.lower()
+    return any(keyword in window_lower for keyword in browser_keywords)
+
+
+def open_activity_page_in_background():
+    """Open the activity page in the default browser without bringing it to foreground."""
+    import webbrowser
+    import os
+    activity_page_path = os.path.abspath('html/index.html')
+    activity_page_url = f'file:///{activity_page_path.replace(os.sep, "/")}'
+    
+    try:
+        # Open in background - just create a new tab, don't focus it
+        webbrowser.open(activity_page_url, new=2, autoraise=False)
+    except Exception as e:
+        print(f"Failed to open activity page: {e}")
+
+
 def main():
     global last_window
     global last_window_url
@@ -306,6 +329,8 @@ def main():
     global alert_queue
     global alert_process
     global alert_result_queue
+    global previous_category_state
+    global activity_page_reminder_time
 
     hostname = socket.gethostname()
     database.initialize_database()
@@ -465,7 +490,32 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if time.time() > html_update_time:
             # This updates the main analysis report (index.html)
             analytic.create_html()
-            html_update_time = time.time() + 240
+            
+            # Dynamic HTML update interval based on current activity
+            # Fast updates (15s) when wasting time for immediate feedback
+            # Medium updates (30s) when productive to see streak increment
+            # Quick update (15s) when switching between productive/wasted for instant feedback
+            current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
+            non_productive_cats = {"wasted", "wasted time", "gaming"}
+            is_currently_wasting = "wasted" in current_category.lower() or "gaming" in current_category.lower()
+            
+            # Determine current state
+            current_state = 'wasting' if is_currently_wasting else 'productive'
+            
+            # Check if category switched
+            category_switched = (previous_category_state is not None and 
+                                previous_category_state != current_state)
+            
+            # Set interval: 15s if switched or wasting, 30s if productive (no switch)
+            if category_switched:
+                html_update_interval = 15  # Quick update on state change
+            else:
+                html_update_interval = 15 if is_currently_wasting else 30
+            
+            # Update the previous state for next iteration
+            previous_category_state = current_state
+            
+            html_update_time = time.time() + html_update_interval
 
         if time.time() > inspirational_html_update_time:
             # This updates the inspirational image page
@@ -473,6 +523,31 @@ TRACK YOUR TIME - DON'T WASTE IT!
             md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
             result = generate_inspirational_html(image_folder, md_folder)
             inspirational_html_update_time = time.time() + 600 # Reset for another 10 minutes
+
+        # Activity page reminder every 30 minutes
+        if time.time() > activity_page_reminder_time:
+            current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
+            non_productive_cats = {"wasted", "wasted time", "gaming"}
+            is_currently_wasting = "wasted" in current_category.lower() or "gaming" in current_category.lower()
+            
+            # Rule 1: If not on web browser, open activity page in background
+            if not is_browser_window(current_window):
+                print("30-min reminder: Opening activity page in background...")
+                open_activity_page_in_background()
+            
+            # Rule 2: If on browser and wasting time, show dialog
+            elif is_browser_window(current_window) and is_currently_wasting:
+                print("30-min reminder: You're wasting time on browser, check your activity page!")
+                show_non_blocking_alert(
+                    "You've been wasting time! Please check your productivity dashboard.",
+                    "Activity Page Reminder"
+                )
+            
+            # Rule 3: If productive, no interruption (just silently reset timer)
+            # No action needed for productive work
+            
+            # Reset for next 30 minutes
+            activity_page_reminder_time = time.time() + 1800
 
         current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
         if "wasted" in current_category.lower():

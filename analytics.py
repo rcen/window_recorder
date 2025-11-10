@@ -740,27 +740,23 @@ test:
 
         with open('html/index.html', 'w', encoding='utf-8') as file:
             file.writelines(head)
+            
+            # Determine current activity and set refresh rate accordingly
+            current_category = self._get_current_activity_category(log_list, date_list)
+            non_productive_cats = {"wasted", "wasted time", "gaming"}
+            is_currently_wasting = current_category and current_category in non_productive_cats
+            
+            # Fast refresh (15s) when wasting for immediate feedback, medium refresh (30s) when productive
+            refresh_interval = 15 if is_currently_wasting else 30
+            file.write(f'<meta http-equiv="refresh" content="{refresh_interval}">\n')
 
             # Add stock prices at the top
             stock_html = stock_prices.get_stock_html()
             if stock_html:
                 file.write(stock_html)
 
-            # Add warning flags after stock prices
-            flag_summary_html = self._build_warning_flag_summary()
-            if flag_summary_html:
-                file.write('<hr/>')
-                file.write(flag_summary_html)
-
-            habit_section_html, habit_script = self._build_habit_calendar_section()
-            if habit_section_html:
-                file.write(habit_section_html)
-            if habit_script:
-                file.write(habit_script)
-            
-            # Add auto-scroll to Productivity Streak section
-            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("productivity-streak"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
-
+            # Add Activity Summary section
+            file.write('<h2>Activity Summary</h2>\n')
             table_html = '<table style="width:100%">'
             
             header_row = '<tr><td></td>'
@@ -782,15 +778,28 @@ test:
                 row = '<tr>'
                 row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
                 
+                # Categories to show ratio for
+                ratio_cats = {'family', 'gaming', 'coding', 'wasted', 'learning', 'church', 'mail'}
+                
                 total_time = 0
                 for cat in all_u_cats:
                     dur = dur_map.get(cat, 0)
                     if cat.lower() != 'idle':
                         total_time += dur
+                
+                # Now render cells with ratios for specified categories
+                for cat in all_u_cats:
+                    dur = dur_map.get(cat, 0)
                     dur_hr, dur_min, dur_sec = Sec2hms(dur)
                     color = color_map.get(cat, default_color)
                     row += f'<td style="background-color:{color}">'
                     row += '{0:02}:{1:02}:{2:02}'.format(dur_hr, dur_min, dur_sec)
+                    
+                    # Add percentage for specified categories
+                    if cat in ratio_cats and total_time > 0:
+                        ratio = (dur / total_time) * 100
+                        row += f'<br/><span style="font-size:0.85em;">({ratio:.1f}%)</span>'
+                    
                     row += '</td>'
                 
                 tot_hr, tot_min, tot_sec = Sec2hms(total_time)
@@ -803,6 +812,21 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
+            # Add warning flags after activity summary
+            flag_summary_html = self._build_warning_flag_summary()
+            if flag_summary_html:
+                file.write('<hr/>')
+                file.write(flag_summary_html)
+
+            habit_section_html, habit_script = self._build_habit_calendar_section()
+            if habit_section_html:
+                file.write(habit_section_html)
+            if habit_script:
+                file.write(habit_script)
+            
+            # Add auto-scroll to Productivity Streak section
+            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("productivity-streak"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
+
             # Add productivity streak section or waste ratio section
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
             current_category = self._get_current_activity_category(log_list, date_list)
@@ -814,78 +838,79 @@ test:
             # Check if current activity is non-productive
             is_currently_wasting = current_category and current_category in non_productive_cats
             
+            # Always calculate waste ratio for display
+            waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
+            
+            # Always show combined dashboard with streaks and waste ratio
+            # Calculate longest streaks
+            today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
+            longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
+            longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
+            
+            # Get threshold from config
+            streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
+            
+            # Determine border color based on current activity
             if is_currently_wasting:
-                # Show waste ratio instead of productivity streak
-                waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
-                
-                file.write('<hr/>')
-                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid #f44336; border-radius:8px; background:linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);">')
-                
-                file.write('<div style="text-align: center;">')
-                file.write('<h3 style="margin:0 0 10px 0; color:#c62828;">⚠️ Time Waste Alert</h3>')
-                file.write(f'<p style="font-size:2.5em; font-weight:bold; margin:10px 0; color:#d32f2f;">{waste_display}</p>')
-                file.write('<p style="margin:5px 0; color:#c62828; font-size:1.1em;">of today\'s active time has been wasted</p>')
-                
-                # Additional details
-                if total_active_hours > 0:
-                    file.write(f'<div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 5px;">')
-                    file.write(f'<p style="margin: 0; color:#666; font-size:0.95em;">Wasted: {wasted_hours:.1f}h | Active: {total_active_hours:.1f}h</p>')
-                    file.write(f'<p style="margin: 5px 0 0 0; color:#d32f2f; font-weight:bold;">Get back to productive work! 💪</p>')
-                    file.write('</div>')
-                
-                file.write('</div>')
-                file.write('</div>')
-                
-            elif streak_minutes >= 0.5:  # Show streak if at least 30 seconds of productive work
-                # Calculate longest streaks
-                today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
-                longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
-                longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
-                # Get threshold from config
-                streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
-                
-                # Determine message based on threshold for current streak
-                if streak_minutes >= streak_threshold:
-                    message = "Keep going! You're doing great! 🚀"
-                    border_color = "#4caf50"
-                    gradient = "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)"
-                else:
-                    remaining = streak_threshold - int(streak_minutes)
-                    message = f"Go back to work, till {streak_threshold} minutes! ({remaining} min remaining)"
-                    border_color = "#ff9800"
-                    gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
-                
-                file.write('<hr/>')
-                file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid {border_color}; border-radius:8px; background:{gradient};">')
-                
-                # Three streaks in one row
-                file.write('<div style="display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap;">')
-                
-                # Current Streak
-                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center;">')
-                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Current Streak</h3>')
-                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
-                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
-                file.write('</div>')
-                
-                # Longest Today
-                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest Today</h3>')
-                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
-                longest_today_info = f"Started at {longest_today_time}" if longest_today_time else "Best focus session"
-                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
-                file.write('</div>')
-                
-                # Longest 7 Days
-                file.write('<div style="flex: 1; min-width: 250px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-                file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest in 7 Days</h3>')
-                file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
-                longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
-                file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')
-                file.write('</div>')
-                
-                file.write('</div>')
-                file.write('</div>')
+                border_color = "#f44336"
+                gradient = "linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)"
+            elif streak_minutes >= streak_threshold:
+                border_color = "#4caf50"
+                gradient = "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)"
+            else:
+                border_color = "#ff9800"
+                gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
+            
+            # Determine message based on current state
+            if is_currently_wasting:
+                message = "⚠️ Get back to productive work! 💪"
+            elif streak_minutes >= streak_threshold:
+                message = "Keep going! You're doing great! 🚀"
+            else:
+                remaining = streak_threshold - int(streak_minutes)
+                message = f"Go back to work, till {streak_threshold} minutes! ({remaining} min remaining)"
+            
+            file.write('<hr/>')
+            file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid {border_color}; border-radius:8px; background:{gradient};">')
+            
+            # Four columns: Productive Streak, Longest Today, Longest 7 Days, Waste Ratio
+            file.write('<div style="display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap;">')
+            
+            # Productive Streak
+            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center;">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Productive Streak</h3>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
+            file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
+            file.write('</div>')
+            
+            # Longest Today
+            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest Today</h3>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
+            longest_today_info = f"Started at {longest_today_time}" if longest_today_time else "Best focus session"
+            file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
+            file.write('</div>')
+            
+            # Longest 7 Days
+            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest in 7 Days</h3>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
+            longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
+            file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')
+            file.write('</div>')
+            
+            # Waste Ratio
+            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#c62828;">📊 Waste Ratio</h3>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#d32f2f;">{waste_display}</p>')
+            if total_active_hours > 0:
+                file.write(f'<p style="margin:5px 0; color:#c62828; font-size:0.95em;">Wasted: {wasted_hours:.1f}h / {total_active_hours:.1f}h</p>')
+            else:
+                file.write(f'<p style="margin:5px 0; color:#666; font-size:0.95em;">No active time yet</p>')
+            file.write('</div>')
+            
+            file.write('</div>')
+            file.write('</div>')
 
             recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
             recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
@@ -1594,7 +1619,7 @@ test:
             ).tz_localize(tz)
 
         # Define productive and non-productive categories
-        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
+        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think", "not categorized"}
         non_productive_cats = {"wasted", "wasted time", "gaming"}
         # Idle and mail are neutral - we skip them when looking for current activity
 
@@ -1681,6 +1706,9 @@ test:
                     activity_start = activity['start_time']
                     if streak_start_time is None or activity_start < streak_start_time:
                         streak_start_time = activity_start
+            else:
+                # Any other category (not categorized, family, self, etc.) breaks the streak
+                break
 
         # Format the output
         if total_productive_minutes < 1:
@@ -1708,7 +1736,7 @@ test:
         # Sort by start time
         df = df.sort_values('start_time').reset_index(drop=True)
         
-        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think"}
+        productive_cats = {"coding", "programming", "learning", "church", "documents", "docs", "think", "not categorized"}
         non_productive_cats = {"wasted", "wasted time", "gaming"}
         
         # Get max idle break threshold from config (default 30 minutes)
@@ -1752,6 +1780,11 @@ test:
             
             # If non-productive, reset streak
             elif category in non_productive_cats:
+                current_streak_minutes = 0
+                current_streak_start_time = None
+            
+            # Any other category (not categorized, family, self, etc.) also resets the streak
+            else:
                 current_streak_minutes = 0
                 current_streak_start_time = None
         
