@@ -146,22 +146,32 @@ def sync_habits_to_remote(remote_engine, dry_run=False):
     
     try:
         with remote_engine.connect() as connection:
-            for habit, local_date, completed, updated_at in local_habits:
-                connection.execute(text("""
-                    INSERT INTO habit_completions 
-                    (habit, local_date, completed, updated_at)
-                    VALUES 
-                    (:habit, :local_date, :completed, :updated_at)
-                    ON CONFLICT (habit, local_date) 
-                    DO UPDATE SET completed = :completed, updated_at = :updated_at
-                """), {
-                    'habit': habit,
-                    'local_date': local_date,
-                    'completed': bool(completed),
-                    'updated_at': updated_at
-                })
-            
-            connection.commit()
+            # Sync in batches
+            batch_size = 100
+            for i in range(0, len(local_habits), batch_size):
+                batch = local_habits[i:i+batch_size]
+                
+                for habit, local_date, completed, updated_at in batch:
+                    connection.execute(text("""
+                        INSERT INTO habit_completions 
+                        (habit, local_date, completed, updated_at)
+                        VALUES 
+                        (:habit, :local_date, :completed, :updated_at)
+                        ON CONFLICT (habit, local_date) 
+                        DO UPDATE SET 
+                            completed = EXCLUDED.completed, 
+                            updated_at = EXCLUDED.updated_at
+                    """), {
+                        'habit': habit,
+                        'local_date': local_date,
+                        'completed': bool(completed),
+                        'updated_at': updated_at
+                    })
+                
+                connection.commit()
+                
+                if len(local_habits) > batch_size:
+                    print(f"  Synced {min(i+batch_size, len(local_habits))}/{len(local_habits)} habit records...")
         
         print(f"✅ Successfully synced {len(local_habits)} habit records!")
         
@@ -209,6 +219,7 @@ def sync_must_done_to_remote(remote_engine, dry_run=False):
                     UNIQUE(task_id, week_id)
                 )
             """))
+            connection.commit()
             
             for task_id, week_id, completed, completed_at in local_must_done:
                 connection.execute(text("""
@@ -217,7 +228,9 @@ def sync_must_done_to_remote(remote_engine, dry_run=False):
                     VALUES 
                     (:task_id, :week_id, :completed, :completed_at)
                     ON CONFLICT (task_id, week_id) 
-                    DO UPDATE SET completed = :completed, completed_at = :completed_at
+                    DO UPDATE SET 
+                        completed = EXCLUDED.completed, 
+                        completed_at = EXCLUDED.completed_at
                 """), {
                     'task_id': task_id,
                     'week_id': week_id,
