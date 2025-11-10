@@ -19,6 +19,7 @@ if REMOTE_DB_URI:
     try:
         remote_engine = create_engine(REMOTE_DB_URI)
         print("Successfully connected to the remote database.")
+        print("WARNING: Remote sync is DISABLED. Database connection is active but not used for data storage.")
     except Exception as e:
         print(f"Could not connect to the remote database: {e}")
         remote_engine = None
@@ -157,6 +158,7 @@ def initialize_database():
                 '''))
                 connection.commit()
                 print("Remote database initialized successfully.")
+                print("WARNING: Remote database tables created but sync is DISABLED. All data saves to local SQLite only.")
         except Exception as e:
             print(f"Error initializing remote database: {e}")
 
