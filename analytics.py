@@ -827,6 +827,11 @@ test:
             # Add auto-scroll to Productivity Streak section
             file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("productivity-streak"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
 
+            # Add Must Done section before Productive Streak
+            must_done_html = self._build_must_done_section()
+            if must_done_html:
+                file.write(must_done_html)
+
             # Add productivity streak section or waste ratio section
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
             current_category = self._get_current_activity_category(log_list, date_list)
@@ -2037,6 +2042,223 @@ test:
         table.append('</table>')
 
         return header + '\n' + '\n'.join(table)
+
+    def _get_week_id(self, dt=None):
+        """Get week identifier (year-week format) for a given datetime."""
+        if dt is None:
+            dt = datetime.datetime.now(pytz.timezone(TIMEZONE))
+        return dt.strftime('%Y-W%U')  # e.g., "2025-W45"
+    
+    def _parse_must_done_config(self):
+        """Parse MUST_DONE section from config.dat."""
+        tasks = []
+        if not self.config.has_section('MUST_DONE'):
+            return tasks
+        
+        for task_id in self.config.options('MUST_DONE'):
+            task_def = self.config.get('MUST_DONE', task_id)
+            parts = [p.strip() for p in task_def.split(',', 2)]
+            if len(parts) == 3:
+                day_name, time_str, description = parts
+                tasks.append({
+                    'id': task_id,
+                    'day': day_name,  # e.g., "Saturday"
+                    'time': time_str,  # e.g., "23:59"
+                    'description': description
+                })
+        return tasks
+    
+    def _get_must_done_deadline(self, task, week_start=None):
+        """Calculate the deadline datetime for a task in the current week."""
+        if week_start is None:
+            tz = pytz.timezone(TIMEZONE)
+            now = datetime.datetime.now(tz)
+            # Find the start of the current week (Sunday)
+            week_start = now - datetime.timedelta(days=now.weekday() + 1)
+            week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Map day names to weekday numbers (Sunday=0)
+        day_map = {
+            'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+            'thursday': 4, 'friday': 5, 'saturday': 6
+        }
+        
+        day_num = day_map.get(task['day'].lower())
+        if day_num is None:
+            return None
+        
+        # Calculate the target day
+        target_day = week_start + datetime.timedelta(days=day_num)
+        
+        # Parse time
+        try:
+            hour, minute = map(int, task['time'].split(':'))
+            deadline = target_day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            return deadline
+        except:
+            return None
+    
+    def _get_must_done_status(self, task_id, week_id):
+        """Check if a task is completed for the given week."""
+        try:
+            conn = sqlite3.connect(database.DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT completed, completed_at FROM must_done_items WHERE task_id = ? AND week_id = ?",
+                (task_id, week_id)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                return {'completed': bool(row[0]), 'completed_at': row[1]}
+            return {'completed': False, 'completed_at': None}
+        except:
+            return {'completed': False, 'completed_at': None}
+    
+    def _build_must_done_section(self):
+        """Build the Must Done section HTML."""
+        tasks = self._parse_must_done_config()
+        if not tasks:
+            return ''
+        
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.datetime.now(tz)
+        week_id = self._get_week_id(now)
+        
+        # Calculate week start and end for display
+        week_start = now - datetime.timedelta(days=now.weekday() + 1)
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + datetime.timedelta(days=6, hours=23, minutes=59, seconds=59)
+        next_week_start = week_start + datetime.timedelta(days=7)
+        
+        html_parts = [
+            '<div class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
+            f'<h2 style="margin-top:0; color:#333;">📋 Must Done This Week</h2>',
+            f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week {week_id} ({week_start.strftime("%b %d")} - {week_end.strftime("%b %d")}). Tasks reset on {next_week_start.strftime("%a, %b %d at 12:00 AM")}.</div>',
+            '<div style="display:flex; flex-direction:column; gap:10px;">'
+        ]
+        
+        for task in tasks:
+            deadline = self._get_must_done_deadline(task)
+            status = self._get_must_done_status(task['id'], week_id)
+            
+            if deadline is None:
+                continue
+            
+            # Calculate time until deadline
+            time_until = deadline - now
+            hours_until = time_until.total_seconds() / 3600
+            
+            # Determine status color and urgency
+            if status['completed']:
+                bg_color = '#d4edda'  # Green
+                border_color = '#28a745'
+                status_icon = '✅'
+                completed_time = datetime.datetime.fromtimestamp(status['completed_at'], tz)
+                # Calculate how long ago it was completed
+                time_since = now - completed_time
+                if time_since.days > 0:
+                    time_ago = f"{time_since.days}d ago"
+                elif time_since.seconds > 3600:
+                    time_ago = f"{time_since.seconds // 3600}h ago"
+                else:
+                    time_ago = f"{time_since.seconds // 60}m ago"
+                status_text = f"✓ Completed {completed_time.strftime('%a %I:%M %p')} ({time_ago})"
+                font_size = '1em'
+            elif hours_until < 0:
+                bg_color = '#f8d7da'  # Red
+                border_color = '#dc3545'
+                status_icon = '🔴'
+                status_text = f'OVERDUE by {abs(int(hours_until))}h'
+                font_size = '1.2em'
+            elif hours_until < 24:
+                bg_color = '#fff3cd'  # Yellow
+                border_color = '#ffc107'
+                status_icon = '🟡'
+                status_text = f'Due in {int(hours_until)}h'
+                font_size = '1.1em'
+            else:
+                bg_color = '#e7f3ff'  # Blue
+                border_color = '#0066cc'
+                status_icon = '⏰'
+                status_text = f'Due {deadline.strftime("%a %I:%M %p")}'
+                font_size = '1em'
+            
+            # Build task HTML
+            checked = 'checked' if status['completed'] else ''
+            checkbox_html = f'<input type="checkbox" class="must-done-checkbox" data-task-id="{task["id"]}" data-week-id="{week_id}" {checked} style="width:20px; height:20px; margin-right:10px; cursor:pointer;">'
+            
+            html_parts.append(f'''
+                <div class="must-done-item" style="display:flex; align-items:center; padding:12px; background:{bg_color}; border:2px solid {border_color}; border-radius:6px; font-size:{font_size};">
+                    {checkbox_html}
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; font-size:1.1em;">{status_icon} {task['description']}</div>
+                        <div style="color:#666; font-size:0.9em; margin-top:4px;">{status_text}</div>
+                    </div>
+                </div>
+            ''')
+        
+        html_parts.append('</div>')
+        
+        # Add JavaScript for checkbox handling
+        html_parts.append('''
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.must-done-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function(e) {
+            const taskId = this.getAttribute('data-task-id');
+            const weekId = this.getAttribute('data-week-id');
+            const completed = this.checked;
+            
+            console.log('Checkbox changed:', taskId, 'completed:', completed);
+            
+            // Disable checkbox while updating
+            this.disabled = true;
+            
+            // Send update to server
+            fetch('http://127.0.0.1:8042/must_done/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    task_id: taskId,
+                    week_id: weekId,
+                    completed: completed
+                })
+            })
+            .then(response => {
+                console.log('Server response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Server response data:', data);
+                if (data.status === 'success') {
+                    // Reload page to show updated status
+                    console.log('Reloading page...');
+                    setTimeout(() => location.reload(), 100);
+                } else {
+                    console.error('Server returned error:', data);
+                    this.checked = !completed;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error updating must-done item:', error);
+                alert('Failed to update task. Check console for details.');
+                // Revert checkbox on error
+                this.checked = !completed;
+                this.disabled = false;
+            });
+        });
+    });
+});
+</script>
+        ''')
+        
+        html_parts.append('</div>')
+        return '\n'.join(html_parts)
 
     def _build_warning_flag_summary(self):
         try:

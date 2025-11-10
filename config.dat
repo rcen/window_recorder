@@ -539,6 +539,11 @@ family: #83F7F0
 no_cat: #387FF7                                                                                           
 idle: #837F7F                                                                                             
 not categorized: #2E8B57  
+
+[MUST_DONE]
+timesheet: Saturday, 23:59, Submit timesheet
+noah_homework: Saturday, 20:00, Submit Noah's Chinese school homework
+approved_timesheet: Tuesday, 17:00, Submit approved timesheet to Saxon
                                                                                
                                                                                                           
 [PROJECTS]                                                                                                

@@ -87,6 +87,57 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        
+        # Handle must_done updates
+        if parsed.path == '/must_done/update':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+            
+            task_id = payload.get('task_id')
+            week_id = payload.get('week_id')
+            completed = payload.get('completed')
+            
+            if not task_id or not week_id or completed is None:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing required fields'}).encode('utf-8'))
+                return
+            
+            # Update the database
+            import sqlite3
+            import time
+            try:
+                conn = sqlite3.connect('data/activity.sqlite')
+                cursor = conn.cursor()
+                
+                if completed:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO must_done_items (task_id, week_id, completed, completed_at)
+                        VALUES (?, ?, 1, ?)
+                    ''', (task_id, week_id, time.time()))
+                else:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO must_done_items (task_id, week_id, completed, completed_at)
+                        VALUES (?, ?, 0, NULL)
+                    ''', (task_id, week_id))
+                
+                conn.commit()
+                conn.close()
+                
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'task_id': task_id, 'completed': completed}).encode('utf-8'))
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+        
+        # Handle habit completions
         if parsed.path != '/habits':
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))

@@ -92,6 +92,16 @@ def initialize_database():
                 happened_at REAL NOT NULL
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS must_done_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL,
+                week_id TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                completed_at REAL,
+                UNIQUE(task_id, week_id)
+            )
+        ''')
 
     # Initialize remote PostgreSQL database
     if remote_engine:
