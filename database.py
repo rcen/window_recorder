@@ -242,6 +242,21 @@ def fetch_available_days():
         print(f"Error fetching available days from local DB: {e}")
         return []
 
+def get_activity_count():
+    """
+    Returns the total number of activities in the database.
+    Used to detect if new activities have been added.
+    """
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM activity")
+            count = cursor.fetchone()[0]
+            return count
+    except Exception as e:
+        print(f"Error getting activity count: {e}")
+        return 0
+
 def fetch_summary_for_day(date_str):
     """
     Fetches a summary for a specific day directly from the local_date column.

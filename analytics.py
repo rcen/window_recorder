@@ -220,6 +220,8 @@ class Analytics():
         self.proj_list = self.config.items('PROJECTS')
         self.cache_path = 'data/analysis_cache.json'
         self.analysis_cache = self._load_analysis_cache()
+        self.last_activity_count = 0  # Track activity count to detect changes
+        self.last_update_timestamp = 0  # Track when we last updated
         database.initialize_database()
 
     @staticmethod
@@ -466,7 +468,8 @@ test:
         )
 
         fig.write_html(path, full_html=False, include_plotlyjs='cdn')
-        print(f'Interactive timeline chart saved as {path}')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f'[{timestamp}] Interactive timeline chart saved as {path}')
 
 
     def analyze(self, logfile=''):
@@ -585,7 +588,8 @@ test:
         plt.savefig(path)
         plt.close()
 
-        print('Pie chart saved as {}'.format(path))
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print('[{}] Pie chart saved as {}'.format(timestamp, path))
 
 
     def get_colors(self, logfile):
@@ -712,6 +716,22 @@ test:
     def create_html(self, logfile=''):
         if "mod.log" in logfile:
             return
+
+        # Check if there are any new activities since last update
+        current_activity_count = database.get_activity_count()
+        time_since_last_update = time.time() - self.last_update_timestamp
+        
+        # Skip update if:
+        # 1. No new activities AND
+        # 2. We updated recently (within last 60 seconds)
+        if (current_activity_count == self.last_activity_count and 
+            time_since_last_update < 60):
+            # print(f"[SKIP] No new activities, last update was {time_since_last_update:.0f}s ago")
+            return
+        
+        # Update tracking variables
+        self.last_activity_count = current_activity_count
+        self.last_update_timestamp = time.time()
 
         week_days=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         
@@ -948,7 +968,8 @@ test:
             file.writelines(tail)
         
         self._save_analysis_cache()
-        print('html updated')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f'[{timestamp}] html updated')
 
     def _build_habit_calendar_section(self):
         if not HABITS:
@@ -1271,7 +1292,7 @@ test:
                     var options = sameDay
                         ? { hour: '2-digit', minute: '2-digit' }
                         : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-                    return 'Updated ' + date.toLocaleString(undefined, options);
+                    return date.toLocaleString(undefined, options);
                 }
 
                 function setUpdatedText(label, isoTimestamp) {

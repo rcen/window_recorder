@@ -302,16 +302,52 @@ def is_browser_window(window_title):
     return any(keyword in window_lower for keyword in browser_keywords)
 
 
+def is_activity_page_already_open():
+    """Check if the activity page (index.html) is already open in any browser window."""
+    if platform.system() != "Windows":
+        return False
+    
+    try:
+        activity_indicators = ['html/index.html', 'window_recorder', 'track your time']
+        open_windows = []
+        
+        def enum_windows_callback(hwnd, results):
+            if win32gui.IsWindowVisible(hwnd):
+                window_title = win32gui.GetWindowText(hwnd)
+                if window_title:
+                    results.append(window_title.lower())
+        
+        win32gui.EnumWindows(enum_windows_callback, open_windows)
+        
+        # Check if any window title contains activity page indicators
+        for window_title in open_windows:
+            # Check for the actual file path or common browser titles with our page
+            if any(indicator.lower() in window_title for indicator in activity_indicators):
+                return True
+        
+        return False
+    except Exception as e:
+        logging.debug(f"Error checking for open activity page: {e}")
+        return False
+
+
 def open_activity_page_in_background():
     """Open the activity page in the default browser without bringing it to foreground."""
     import webbrowser
     import os
+    
+    # Check if activity page is already open
+    if is_activity_page_already_open():
+        print("Activity page already open, skipping...")
+        return
+    
     activity_page_path = os.path.abspath('html/index.html')
     activity_page_url = f'file:///{activity_page_path.replace(os.sep, "/")}'
     
     try:
         # Open in background - just create a new tab, don't focus it
         webbrowser.open(activity_page_url, new=2, autoraise=False)
+        print("Opened activity page in background")
     except Exception as e:
         print(f"Failed to open activity page: {e}")
 
