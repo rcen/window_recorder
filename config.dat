@@ -19,15 +19,24 @@ productivity_streak_threshold = 25
 max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
+statics.teams.cdn.office.net: coding
+www.minervaaction.com: family
 中华人民共和国: family
 china-consulate.gov.cn: family
+flex lng: gaming
 price forecast: gaming
 move to the recycle bin: coding
 100 best gadgets: wasted
 www.tomsguide.com: wasted
 read.amazon.com: learning
 www.msn.com/en-us/money: gaming
+ultracopier: coding
+fastcopy: coding
 projects-build: coding
+regex__\bpaste window\b: coding
+regex__\bselect an account\b: coding
+regex__\bfolder in use\b: coding
+regex__\bfind\b: learning
 regex__\bwarning\b: learning
 regex__\b7-zip\b: coding
 regex__^online barcode decoder: coding
