@@ -844,8 +844,24 @@ test:
             if habit_script:
                 file.write(habit_script)
             
-            # Add auto-scroll to Productivity Streak section
-            file.write('<script>window.addEventListener("load", function() { var section = document.getElementById("productivity-streak"); if (section) { section.scrollIntoView({ behavior: "smooth", block: "start" }); } });</script>\n')
+            # Add auto-scroll: Must Done on Sat/Sun, Productivity Streak on other days
+            file.write('''<script>
+window.addEventListener("load", function() {
+    var today = new Date().getDay(); // 0=Sunday, 6=Saturday
+    var targetSection;
+    if (today === 0 || today === 6) {
+        // Saturday or Sunday - scroll to Must Done
+        targetSection = document.getElementById("must-done-section");
+    } else {
+        // Weekday - scroll to Productivity Streak
+        targetSection = document.getElementById("productivity-streak");
+    }
+    if (targetSection) {
+        targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+});
+</script>
+''')
 
             # Add Must Done section before Productive Streak
             must_done_html = self._build_must_done_section()
@@ -2153,7 +2169,7 @@ test:
         next_week_start = week_start + datetime.timedelta(days=7)
         
         html_parts = [
-            '<div class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
+            '<div id="must-done-section" class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
             f'<h2 style="margin-top:0; color:#333;">📋 Must Done This Week</h2>',
             f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week {week_id} ({week_start.strftime("%b %d")} - {week_end.strftime("%b %d")}). Tasks reset on {next_week_start.strftime("%a, %b %d at 12:00 AM")}.</div>',
             '<div style="display:flex; flex-direction:column; gap:10px;">'
@@ -2232,12 +2248,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const weekId = this.getAttribute('data-week-id');
             const completed = this.checked;
             
-            console.log('Checkbox changed:', taskId, 'completed:', completed);
+            console.log('Checkbox toggled:', taskId, 'completed:', completed);
             
-            // Disable checkbox while updating
-            this.disabled = true;
+            // Immediate visual feedback - add a "saving" indicator
+            const item = this.closest('.must-done-item');
+            const originalOpacity = item ? item.style.opacity : '1';
+            if (item) {
+                item.style.opacity = '0.6';
+                item.style.border = '2px dashed #999';
+            }
             
-            // Send update to server
+            // Send update to server immediately
             fetch('http://127.0.0.1:8042/must_done/update', {
                 method: 'POST',
                 headers: {
@@ -2250,27 +2271,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             })
             .then(response => {
-                console.log('Server response status:', response.status);
+                console.log('Server response:', response.status);
                 return response.json();
             })
             .then(data => {
-                console.log('Server response data:', data);
+                console.log('Update saved:', data);
                 if (data.status === 'success') {
-                    // Reload page to show updated status
-                    console.log('Reloading page...');
-                    setTimeout(() => location.reload(), 100);
+                    // Success - restore opacity, keep checkbox state
+                    if (item) {
+                        item.style.opacity = '1';
+                        item.style.border = '';
+                    }
+                    console.log('✓ Checkbox state saved to database');
+                    // No page reload - state is already correct!
                 } else {
-                    console.error('Server returned error:', data);
+                    console.error('Server error:', data);
+                    // Revert on error
                     this.checked = !completed;
-                    this.disabled = false;
+                    if (item) {
+                        item.style.opacity = '1';
+                        item.style.border = '';
+                    }
+                    alert('Failed to save. Please try again.');
                 }
             })
             .catch(error => {
-                console.error('Error updating must-done item:', error);
-                alert('Failed to update task. Check console for details.');
-                // Revert checkbox on error
+                console.error('Network error:', error);
+                // Revert on error
                 this.checked = !completed;
-                this.disabled = false;
+                if (item) {
+                    item.style.opacity = '1';
+                    item.style.border = '';
+                }
+                alert('Connection failed. Please check if the server is running.');
             });
         });
     });

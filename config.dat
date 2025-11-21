@@ -19,6 +19,12 @@ productivity_streak_threshold = 25
 max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
+la2405: coding
+hp® support: coding
+usb device: coding
+c++: coding
+github copilot: coding
+device manager: coding
 statics.teams.cdn.office.net: coding
 www.minervaaction.com: family
 中华人民共和国: family
@@ -414,7 +420,6 @@ open folder: coding
 figure ?: coding                                                                                          
 cmd: coding                                                                                               
 start tracking: coding                                                                                    
-c++ : coding                                                                                              
 zconnect home: coding                                                                                     
 scrum: learning                                                                                           
 agile: learning                                                                                           
