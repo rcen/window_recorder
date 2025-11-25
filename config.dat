@@ -4,10 +4,11 @@ tickers = VOO, SOXL, AMZN
 [HABITS]
 read bible = #4caf50
 exercises = #ff6b6b
-productive day = #4d96ff
+eat_the_frog = #4d96ff
+
 [FOCUS_SLOTS]                                                                                             
-morning_focus = 09:00-11:30                                                                               
-afternoon_focus = 14:00-16:45                                                                             
+morning_focus = 09:00-12:30                                                                               
+afternoon_focus = 13:25-16:45                                                                             
                                                                                                           
 [SETTINGS]                                                                                                
 timezone = America/New_York                                                                               
@@ -19,6 +20,10 @@ productivity_streak_threshold = 25
 max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
+scitools: coding
+doxygen: coding
+claude: coding
+antigravity: coding
 la2405: coding
 hp® support: coding
 usb device: coding

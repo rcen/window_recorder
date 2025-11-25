@@ -119,6 +119,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         'start_time': None,
         'created_at': None,
         'active': False,
+        'buttons': [],
     }
 
     def reset_display() -> None:
@@ -129,9 +130,13 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
             'start_time': None,
             'created_at': None,
             'active': False,
+            'buttons': [],
         })
         message_var.set('')
         timer_var.set('')
+        # Remove old buttons
+        for widget in button_frame.winfo_children():
+            widget.destroy()
         root.withdraw()
 
     def finalize_alert(result: Optional[str] = None) -> None:
@@ -167,9 +172,27 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         current_alert['start_time'] = time.time()
         current_alert['created_at'] = payload.get('created_at', current_alert['start_time'])
         current_alert['active'] = True
+        current_alert['buttons'] = payload.get('buttons', [])
 
         message_var.set(current_alert['message'])
         root.title(current_alert['title'])
+        
+        # Clear existing buttons
+        for widget in button_frame.winfo_children():
+            widget.destroy()
+
+        # Add custom buttons if any
+        if current_alert['buttons']:
+            for btn_text in current_alert['buttons']:
+                btn = tk.Button(button_frame, text=btn_text, 
+                         command=lambda t=btn_text: finalize_alert(result=t))
+                btn.pack(side=tk.LEFT, padx=5)
+                if btn_text == 'Close Page':
+                    btn.focus_set()
+        
+        # Always add OK button
+        tk.Button(button_frame, text='OK', command=on_ok).pack(side=tk.LEFT, padx=5)
+
         root.deiconify()
         root.attributes('-topmost', True)
         root.after(250, lambda: root.attributes('-topmost', False))
@@ -207,15 +230,15 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
     timer_label = tk.Label(root, textvariable=timer_var, padx=20, pady=5, fg='red')
     timer_label.pack()
 
-    ok_button = tk.Button(root, text='OK', command=on_ok)
-    ok_button.pack(pady=5)
+    button_frame = tk.Frame(root)
+    button_frame.pack(pady=10)
 
     root.protocol('WM_DELETE_WINDOW', on_ok)
     root.withdraw()
     root.after(100, poll_events)
     root.mainloop()
 
-def show_non_blocking_alert(message, title):
+def show_non_blocking_alert(message, title, buttons=None):
     global last_notification_time
     global alert_queue
     if time.time() - last_notification_time < notification_cooldown:
@@ -230,6 +253,7 @@ def show_non_blocking_alert(message, title):
                 'message': message,
                 'title': title,
                 'created_at': time.time(),
+                'buttons': buttons or []
             }
             alert_queue.put(event_payload)
 
@@ -254,6 +278,30 @@ def process_alert_results() -> None:
 
             if not event_id or not result:
                 continue
+
+            if result == 'Close Page':
+                logging.info("User chose to close the wasted page.")
+                try:
+                    # Attempt to close the current window (assumed to be the wasted one)
+                    # We might need to ensure the correct window is focused first, 
+                    # but typically the user is interacting with the dialog which is on top.
+                    # However, to send Ctrl+W to the browser, we need the browser to be focused.
+                    
+                    # 1. Get the foreground window (which might be our dialog or something else)
+                    # 2. If it's our dialog, we need to find the browser window.
+                    #    But wait, the dialog closes immediately after clicking.
+                    #    So the previous window (the browser) should regain focus automatically 
+                    #    in many cases, OR we need to force it.
+                    
+                    # A simple approach: Wait a split second for dialog to close and focus to return
+                    time.sleep(0.5)
+                    
+                    # Send Ctrl+W
+                    pyautogui.hotkey('ctrl', 'w')
+                    logging.info("Sent Ctrl+W to close page")
+                    
+                except Exception as e:
+                    logging.error(f"Failed to close page: {e}")
 
             try:
                 database.record_warning_flag(
@@ -602,13 +650,15 @@ TRACK YOUR TIME - DON'T WASTE IT!
 
             # Check if a new warning should be issued
             if current_wasted_minutes >= warning_threshold_minutes and current_wasted_minutes > last_warning_minute:
+                buttons = []
                 if focus_slot:
                     start, end = focus_slot
                     message = f"Focus time is {start} till {end}. You have wasted {current_wasted_minutes} minute(s)."
+                    buttons = ['Close Page']
                 else:
                     message = f"You have been on a 'wasted' task for {current_wasted_minutes} minute(s)."
                 
-                show_non_blocking_alert(message, "Wasted Time Warning")
+                show_non_blocking_alert(message, "Wasted Time Warning", buttons=buttons)
                 last_warning_minute = current_wasted_minutes # Update the last warning time
         else:
             if wasted_time_start is not None:
