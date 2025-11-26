@@ -775,8 +775,8 @@ test:
             if stock_html:
                 file.write(stock_html)
 
-            # Add Activity Summary section
-            file.write('<h2>Activity Summary</h2>\n')
+            # Add Activity Summary section with expand/collapse
+            file.write('<h2>Activity Summary <button id="toggle-summary-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
             table_html = '<table style="width:100%">'
             
             header_row = '<tr><td></td>'
@@ -786,7 +786,8 @@ test:
             header_row += '<td><b>Total Time</b></td></tr>\n'
             table_html += header_row
 
-            for log in reversed(log_list):
+            total_logs = len(log_list)
+            for idx, log in enumerate(reversed(log_list)):
                 self.print_pi_chart(log)
                 self.create_interactive_timeline(log)
                 
@@ -795,7 +796,9 @@ test:
                 
                 dur_map = dict(zip(u_cats_log, u_dur_log))
                 
-                row = '<tr>'
+                # Add class to hide older rows - show only the latest 3 days (at the bottom)
+                row_class = '' if idx >= total_logs - 3 else ' class="summary-extra-row" style="display:none;"'
+                row = f'<tr{row_class}>'
                 row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
                 
                 # Categories to show ratio for
@@ -959,7 +962,9 @@ window.addEventListener("load", function() {
                 file.write('<hr/>')
                 file.write(recent_activity_html)
 
-            file.write('<div class="gallery" style="width: 100%;">')
+            # Add section header with expand/collapse button for charts
+            file.write('<h2>Pie Charts and Activity Timelines <button id="toggle-charts-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
+            file.write('<div class="gallery" id="charts-gallery" style="width: 100%;">\n')
             img_list = sorted(os.listdir('figs/pie'))
             timeline_html_list = sorted(os.listdir('html/timelines'))
 
@@ -969,11 +974,13 @@ window.addEventListener("load", function() {
             # Show only the most recent 7 days
             recent_img_list = list(reversed(img_list))[:7]
 
-            for img in recent_img_list:
+            for idx, img in enumerate(recent_img_list):
                 date_str = img.split('.')[0]
                 timeline_html = timeline_map.get(date_str)
 
-                img_row = '<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
+                # Add class to hide older charts - show only the latest 3 days
+                chart_class = '' if idx < 3 else ' class="chart-extra-row" style="display:none;"'
+                img_row = f'<div{chart_class} style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
                 img_row += f'<img src="../figs/pie/{img}" style="width: 48%; max-width: 500px;" >'
                 if timeline_html:
                     img_row += f'<iframe src="timelines/{timeline_html}" style="width: 48%; height: 500px; border: none;"></iframe>'
@@ -981,6 +988,38 @@ window.addEventListener("load", function() {
                 file.write(img_row)
             file.write('</div>')
 
+            # Add JavaScript for expand/collapse functionality
+            file.write('''
+<script>
+// Toggle Activity Summary table
+var summaryBtn = document.getElementById('toggle-summary-btn');
+var summaryExpanded = false;
+if (summaryBtn) {
+    summaryBtn.addEventListener('click', function() {
+        var extraRows = document.querySelectorAll('.summary-extra-row');
+        summaryExpanded = !summaryExpanded;
+        for (var i = 0; i < extraRows.length; i++) {
+            extraRows[i].style.display = summaryExpanded ? 'table-row' : 'none';
+        }
+        summaryBtn.textContent = summaryExpanded ? 'Show Less' : 'Show All';
+    });
+}
+
+// Toggle Pie Charts and Timelines
+var chartsBtn = document.getElementById('toggle-charts-btn');
+var chartsExpanded = false;
+if (chartsBtn) {
+    chartsBtn.addEventListener('click', function() {
+        var extraCharts = document.querySelectorAll('.chart-extra-row');
+        chartsExpanded = !chartsExpanded;
+        for (var i = 0; i < extraCharts.length; i++) {
+            extraCharts[i].style.display = chartsExpanded ? 'flex' : 'none';
+        }
+        chartsBtn.textContent = chartsExpanded ? 'Show Less' : 'Show All';
+    });
+}
+</script>
+''')
             file.writelines(tail)
         
         self._save_analysis_cache()
