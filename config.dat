@@ -20,6 +20,7 @@ productivity_streak_threshold = 25
 max_idle_break_minutes = 5                                                                              
                                                                                                           
 [CATEGORIES]
+my.statefarm.com: family
 scitools: coding
 doxygen: coding
 claude: coding

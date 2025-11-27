@@ -1318,20 +1318,41 @@ if (chartsBtn) {
 
                 function shouldApplyServerState(label, entryUpdatedISO) {
                     if (!label) {
+                        console.log('[shouldApplyServerState] No label - APPLY');
                         return true;
                     }
                     if (label.dataset.pending === 'true') {
+                        console.log('[shouldApplyServerState]', label.dataset.habit, label.dataset.date, '- SKIP (pending)');
                         return false;
                     }
                     var labelMs = toMillis(label.dataset.updatedAt || null);
                     var entryMs = toMillis(entryUpdatedISO);
+                    
+                    console.log('[shouldApplyServerState]', label.dataset.habit, label.dataset.date, '- labelMs:', labelMs, 'entryMs:', entryMs, 'entryUpdatedISO:', entryUpdatedISO);
+                    
                     if (!entryUpdatedISO) {
-                        return labelMs === 0;
+                        // If server has no timestamp, only apply if label also has no timestamp
+                        // AND the checkbox is currently unchecked. This prevents unchecking
+                        // recently-saved checkboxes during sync.
+                        if (labelMs === 0) {
+                            var checkbox = label.querySelector('input[type="checkbox"]');
+                            var isChecked = checkbox ? checkbox.checked : false;
+                            console.log('[shouldApplyServerState]', label.dataset.habit, '- No server timestamp, no label timestamp, checkbox is', isChecked ? 'CHECKED' : 'UNCHECKED');
+                            // Only apply server state (which would uncheck) if checkbox is already unchecked
+                            var shouldApply = checkbox ? !checkbox.checked : true;
+                            console.log('[shouldApplyServerState]', label.dataset.habit, '- Decision:', shouldApply ? 'APPLY' : 'SKIP');
+                            return shouldApply;
+                        }
+                        console.log('[shouldApplyServerState]', label.dataset.habit, '- No server timestamp but label has timestamp - SKIP');
+                        return false;
                     }
                     if (labelMs === 0) {
+                        console.log('[shouldApplyServerState]', label.dataset.habit, '- No label timestamp but server has timestamp - APPLY');
                         return true;
                     }
-                    return entryMs >= labelMs - 500;
+                    var shouldApply = entryMs >= labelMs - 500;
+                    console.log('[shouldApplyServerState]', label.dataset.habit, '- Timestamp comparison:', shouldApply ? 'APPLY' : 'SKIP');
+                    return shouldApply;
                 }
 
                 function formatUpdatedLabel(isoTimestamp) {
@@ -1538,6 +1559,7 @@ if (chartsBtn) {
                                 if (!data || !data.completions) {
                                     throw new Error('Missing completion data');
                                 }
+                                console.log('[Habit Sync] Received data from server:', data);
                                 checkboxes.forEach(function(cb) {
                                     var habit = cb.dataset.habit;
                                     var date = cb.dataset.date;
@@ -1545,10 +1567,17 @@ if (chartsBtn) {
                                     var entry = habitMap[date];
                                     var label = labelLookup[habit + '||' + date];
                                     var entryUpdatedISO = getEntryUpdatedAt(entry);
+                                    var currentChecked = cb.checked;
+                                    
                                     if (!shouldApplyServerState(label, entryUpdatedISO)) {
+                                        console.log('[Habit Sync] SKIPPING', habit, date, '- shouldApplyServerState returned false');
                                         return;
                                     }
-                                    cb.checked = isEntryCompleted(entry);
+                                    
+                                    var serverCompleted = isEntryCompleted(entry);
+                                    console.log('[Habit Sync]', habit, date, '- Current:', currentChecked, 'Server:', serverCompleted, 'Entry:', entry);
+                                    
+                                    cb.checked = serverCompleted;
                                     if (label) {
                                         setUpdatedText(label, entryUpdatedISO);
                                     }
