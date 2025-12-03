@@ -925,6 +925,7 @@ window.addEventListener("load", function() {
             file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Productive Streak</h3>')
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
+            
             file.write('</div>')
             
             # Longest Today

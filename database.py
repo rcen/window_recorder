@@ -104,6 +104,7 @@ def initialize_database():
             )
         ''')
 
+
     # Initialize remote PostgreSQL database
     if remote_engine:
         try:

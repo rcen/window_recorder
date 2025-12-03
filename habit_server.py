@@ -137,10 +137,12 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
         
+
+
         # Handle habit completions
         if parsed.path != '/habits':
             self._set_headers(404)
-            self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
+            self.wfile.write(json.dumps({'error': f'Not found: {parsed.path}'}).encode('utf-8'))
             return
 
         length = int(self.headers.get('Content-Length', 0))
