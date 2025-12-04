@@ -977,26 +977,27 @@ function saveNote() {
                 saveBtn.style.color = 'white';
             }
 
-            // Append the new note to Recent Notes without refreshing
+            // Rebuild Recent Notes from server response
             const recentContainer = document.getElementById('recent-notes');
-            if (recentContainer) {
+            if (recentContainer && data.recent_notes) {
+                // Clear existing notes
+                recentContainer.innerHTML = '';
+                
                 // Ensure container is visible
                 recentContainer.style.display = '';
 
-                // Build note element with current local time
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const div = document.createElement('div');
-                div.style.margin = '4px 0';
-                div.style.color = '#555';
-                div.innerHTML = `<span style="color: #888;">${timeStr}</span> - ${savedText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
-
-                // Prepend for most-recent-first
-                if (recentContainer.firstChild) {
-                    recentContainer.insertBefore(div, recentContainer.firstChild);
-                } else {
+                // Add notes from server (most recent first)
+                data.recent_notes.forEach(note_item => {
+                    const timestamp = note_item.timestamp;
+                    const dt = new Date(timestamp * 1000); // Convert unix timestamp to ms
+                    const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    const div = document.createElement('div');
+                    div.style.margin = '4px 0';
+                    div.style.color = '#555';
+                    div.innerHTML = `<span style="color: #888;">${timeStr}</span> - ${note_item.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
                     recentContainer.appendChild(div);
-                }
+                });
             }
 
             // Also update Today's Notes if present
@@ -1175,9 +1176,11 @@ if (chartsBtn) {
 ''')
             file.writelines(tail)
         
-        self._save_analysis_cache()
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         print(f'[{timestamp}] html updated')
+        
+        # Save analysis cache asynchronously to avoid blocking the main thread
+        self._save_analysis_cache()
 
     def _build_habit_calendar_section(self):
         if not HABITS:

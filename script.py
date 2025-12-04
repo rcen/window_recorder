@@ -356,7 +356,7 @@ def is_activity_page_already_open():
         return False
     
     try:
-        activity_indicators = ['html/index.html', 'window_recorder', 'track your time']
+        activity_indicators = ['127.0.0.1:8042', '8042', 'window_recorder', 'track your time']
         open_windows = []
         
         def enum_windows_callback(hwnd, results):
@@ -369,7 +369,7 @@ def is_activity_page_already_open():
         
         # Check if any window title contains activity page indicators
         for window_title in open_windows:
-            # Check for the actual file path or common browser titles with our page
+            # Check for the HTTP localhost URL or file path
             if any(indicator.lower() in window_title for indicator in activity_indicators):
                 return True
         
@@ -382,15 +382,14 @@ def is_activity_page_already_open():
 def open_activity_page_in_background():
     """Open the activity page in the default browser without bringing it to foreground."""
     import webbrowser
-    import os
     
     # Check if activity page is already open
     if is_activity_page_already_open():
         print("Activity page already open, skipping...")
         return
     
-    activity_page_path = os.path.abspath('html/index.html')
-    activity_page_url = f'file:///{activity_page_path.replace(os.sep, "/")}'
+    # Open via HTTP server instead of file:// to allow fetch() requests
+    activity_page_url = 'http://127.0.0.1:8042/'
     
     try:
         # Open in background - just create a new tab, don't focus it

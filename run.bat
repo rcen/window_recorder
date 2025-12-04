@@ -22,7 +22,7 @@ echo Checking habit/must-done server...
 netstat -an | findstr "8042" >nul 2>&1
 if errorlevel 1 (
     echo Starting habit tracking and must-done server...
-    start /min pythonw.exe habit_server.py
+    start "" /min "%~dp0winrecord_env\Scripts\pythonw.exe" habit_server.py
     timeout /t 2 /nobreak >nul
     echo Server started on http://127.0.0.1:8042
     echo   - Habits endpoint: /habits

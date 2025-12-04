@@ -3,8 +3,16 @@ from __future__ import annotations
 
 import json
 import datetime
+import sys
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+# Redirect stdout/stderr to devnull if running without a console (pythonw.exe)
+if sys.stdout is None or not hasattr(sys.stdout, 'write'):
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None or not hasattr(sys.stderr, 'write'):
+    sys.stderr = open(os.devnull, 'w')
 
 import database
 from config import TIMEZONE, HABITS
@@ -41,6 +49,25 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        
+        # Serve index.html for root path
+        if parsed.path == '/' or parsed.path == '':
+            try:
+                with open('html/index.html', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({'error': 'index.html not found'}).encode('utf-8'))
+                return
+        
         if parsed.path != '/habits':
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
@@ -86,9 +113,23 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(payload).encode('utf-8'))
 
     def do_POST(self) -> None:  # noqa: N802
-        parsed = urlparse(self.path)
-        # Log incoming path for debugging
-        print(f"[habit-server] POST {parsed.path}")
+        try:
+            import sys
+            print(f"[habit-server] do_POST entered", flush=True)
+            sys.stdout.flush()
+            parsed = urlparse(self.path)
+            # Log incoming path for debugging
+            print(f"[habit-server] POST {parsed.path}", flush=True)
+            sys.stdout.flush()
+            
+            content_length = int(self.headers.get('Content-Length', 0))
+            print(f"[habit-server] Content-Length: {content_length}", flush=True)
+            sys.stdout.flush()
+        except Exception as e:
+            import traceback
+            print(f"[habit-server] EARLY EXCEPTION: {e}", flush=True)
+            traceback.print_exc()
+            return
         
         # Handle must_done updates
         if parsed.path == '/must_done/update':
@@ -153,10 +194,24 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
             note = payload.get('note')
             ts = payload.get('timestamp')
             try:
-                import database
                 note_id = database.add_streak_note(note, ts)
+                
+                # Fetch updated recent notes to send back to client
+                recent_notes = database.get_recent_streak_notes(5)
+                notes_list = [
+                    {
+                        'text': note_text,
+                        'timestamp': timestamp
+                    }
+                    for note_text, timestamp in recent_notes
+                ]
+                
                 self._set_headers(200)
-                self.wfile.write(json.dumps({'status': 'success', 'id': note_id}).encode('utf-8'))
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'id': note_id,
+                    'recent_notes': notes_list
+                }).encode('utf-8'))
                 return
             except Exception as e:
                 self._set_headers(500)
@@ -194,31 +249,40 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
             tz = datetime.datetime.now().astimezone().date()
             date_str = tz.isoformat()
 
-        result = database.record_habit_completion(habit, date_str, completed)
-        if not result:
-            self._set_headers(500)
-            self.wfile.write(json.dumps({'error': 'Failed to record habit'}).encode('utf-8'))
-            return
+        try:
+            result = database.record_habit_completion(habit, date_str, completed)
+            if not result:
+                print(f"[habit-server] record_habit_completion returned None for {habit} on {date_str}")
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': 'Failed to record habit'}).encode('utf-8'))
+                return
 
-        tz = pytz.timezone(TIMEZONE)
-        updated_iso = None
-        updated_raw = result.get('updated_at') if isinstance(result, dict) else None
-        if updated_raw:
-            try:
-                if isinstance(updated_raw, (int, float)):
-                    dt = datetime.datetime.fromtimestamp(float(updated_raw), tz)
-                elif isinstance(updated_raw, str):
-                    parsed_dt = datetime.datetime.fromisoformat(updated_raw)
-                    dt = parsed_dt.astimezone(tz) if parsed_dt.tzinfo else tz.localize(parsed_dt)
-                else:
+            tz = pytz.timezone(TIMEZONE)
+            updated_iso = None
+            updated_raw = result.get('updated_at') if isinstance(result, dict) else None
+            if updated_raw:
+                try:
+                    if isinstance(updated_raw, (int, float)):
+                        dt = datetime.datetime.fromtimestamp(float(updated_raw), tz)
+                    elif isinstance(updated_raw, str):
+                        parsed_dt = datetime.datetime.fromisoformat(updated_raw)
+                        dt = parsed_dt.astimezone(tz) if parsed_dt.tzinfo else tz.localize(parsed_dt)
+                    else:
+                        dt = None
+                except Exception:
                     dt = None
-            except Exception:
-                dt = None
-            if dt:
-                updated_iso = dt.isoformat()
+                if dt:
+                    updated_iso = dt.isoformat()
 
-        self._set_headers(200)
-        self.wfile.write(json.dumps({'status': 'ok', 'habit': habit, 'date': date_str, 'completed': completed, 'updated_at': updated_iso}).encode('utf-8'))
+            self._set_headers(200)
+            self.wfile.write(json.dumps({'status': 'ok', 'habit': habit, 'date': date_str, 'completed': completed, 'updated_at': updated_iso}).encode('utf-8'))
+        except Exception as e:
+            print(f"[habit-server] Exception in POST /habits: {e}")
+            import traceback
+            traceback.print_exc()
+            self._set_headers(500)
+            self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+
 
 
 def run_server() -> None:
@@ -229,6 +293,10 @@ def run_server() -> None:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down habit tracker server")
+    except Exception as e:
+        print(f"\n[habit-server] Server crashed with exception: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         httpd.server_close()
 
