@@ -926,6 +926,142 @@ window.addEventListener("load", function() {
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
             
+            # Add note-taking section
+            file.write('<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1);">')
+            file.write('<textarea id="streak-note" placeholder="What are you working on?" style="width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical; min-height: 60px;"></textarea>')
+            file.write('<div style="margin-top: 5px;"><button onclick="saveNote()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Save Note</button>')
+            file.write('<span id="note-status" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span></div>')
+            
+            file.write('</div>')
+            
+            # JavaScript for saving notes
+            file.write('''
+<script>
+function saveNote() {
+    const noteArea = document.getElementById('streak-note');
+    const statusSpan = document.getElementById('note-status');
+    const saveBtn = document.querySelector('button[onclick="saveNote()"]');
+    // Track unsaved changes
+    window.__streakNoteUnsaved = window.__streakNoteUnsaved || false;
+    const note = noteArea.value.trim();
+    
+    if (!note) {
+        statusSpan.textContent = 'Please enter a note';
+        statusSpan.style.color = '#d32f2f';
+        return;
+    }
+    
+    statusSpan.textContent = 'Saving...';
+    statusSpan.style.color = '#666';
+    
+    fetch('http://127.0.0.1:8042/save_note', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({note: note})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            statusSpan.textContent = 'Saved!';
+            statusSpan.style.color = '#4CAF50';
+
+            // Capture text before clearing
+            const savedText = note;
+            noteArea.value = '';
+            // Mark as saved and set button to blue
+            window.__streakNoteUnsaved = false;
+            if (saveBtn) {
+                saveBtn.style.background = '#1976D2'; // Blue
+                saveBtn.style.color = 'white';
+            }
+
+            // Append the new note to Recent Notes without refreshing
+            const recentContainer = document.getElementById('recent-notes');
+            if (recentContainer) {
+                // Ensure container is visible
+                recentContainer.style.display = '';
+
+                // Build note element with current local time
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const div = document.createElement('div');
+                div.style.margin = '4px 0';
+                div.style.color = '#555';
+                div.innerHTML = `<span style="color: #888;">${timeStr}</span> - ${savedText.replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+
+                // Prepend for most-recent-first
+                if (recentContainer.firstChild) {
+                    recentContainer.insertBefore(div, recentContainer.firstChild);
+                } else {
+                    recentContainer.appendChild(div);
+                }
+            }
+
+            // Also update Today's Notes if present
+            const todayContainer = document.getElementById('todays-notes');
+            if (todayContainer) {
+                const li = document.createElement('div');
+                li.style.margin = '4px 0';
+                li.textContent = savedText;
+                if (todayContainer.firstChild) {
+                    todayContainer.insertBefore(li, todayContainer.firstChild);
+                } else {
+                    todayContainer.appendChild(li);
+                }
+            }
+        } else {
+            statusSpan.textContent = 'Error: ' + (data.error || 'Unknown');
+            statusSpan.style.color = '#d32f2f';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusSpan.textContent = 'Network Error';
+        statusSpan.style.color = '#d32f2f';
+    });
+}
+</script>
+            ''')
+
+            # Add autosave guards and button color changes
+            file.write('''
+<script>
+// Make Save button yellow when typing, and guard against losing unsaved text
+(() => {
+    const noteArea = document.getElementById('streak-note');
+    const saveBtn = document.querySelector('button[onclick="saveNote()"]');
+    const statusSpan = document.getElementById('note-status');
+    if (!noteArea || !saveBtn) return;
+
+    const setButtonYellow = () => {
+        window.__streakNoteUnsaved = noteArea.value.trim().length > 0;
+        if (window.__streakNoteUnsaved) {
+            saveBtn.style.background = '#FBC02D'; // Yellow
+            saveBtn.style.color = '#000';
+            if (statusSpan && !statusSpan.textContent) {
+                statusSpan.textContent = 'Draft not saved';
+                statusSpan.style.color = '#8D6E63';
+            }
+        }
+    };
+
+    noteArea.addEventListener('input', setButtonYellow);
+    noteArea.addEventListener('change', setButtonYellow);
+
+    window.addEventListener('beforeunload', function(e) {
+        const hasUnsaved = window.__streakNoteUnsaved && noteArea.value.trim().length > 0;
+        if (hasUnsaved) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+})();
+</script>
+            ''')
+            
             file.write('</div>')
             
             # Longest Today
@@ -934,6 +1070,22 @@ window.addEventListener("load", function() {
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
             longest_today_info = f"Started at {longest_today_time}" if longest_today_time else "Best focus session"
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
+            
+            # Display recent notes under Longest Today
+            recent_notes = database.get_recent_streak_notes(5)
+            if recent_notes:
+                file.write('<div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); text-align:left;">')
+                file.write('<h4 style="margin: 0 0 8px 0; font-size: 0.9em; color: #555;">Recent Notes:</h4>')
+                file.write('<div id="recent-notes" style="font-size: 0.85em;">')
+                import pytz
+                tz = pytz.timezone(TIMEZONE)
+                for note_text, timestamp in recent_notes:
+                    dt = datetime.datetime.fromtimestamp(timestamp, tz)
+                    time_str = dt.strftime('%I:%M %p')
+                    file.write(f'<div style="margin: 4px 0; color: #555;"><span style="color: #888;">{time_str}</span> - {html.escape(note_text)}</div>')
+                file.write('</div></div>')
+            else:
+                file.write('<div id="recent-notes" style="display:none;"></div>')
             file.write('</div>')
             
             # Longest 7 Days

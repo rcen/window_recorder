@@ -87,6 +87,8 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        # Log incoming path for debugging
+        print(f"[habit-server] POST {parsed.path}")
         
         # Handle must_done updates
         if parsed.path == '/must_done/update':
@@ -136,13 +138,38 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
+
+        # Handle streak notes add
+        elif parsed.path in ('/notes/add', '/save_note'):
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            note = payload.get('note')
+            ts = payload.get('timestamp')
+            try:
+                import database
+                note_id = database.add_streak_note(note, ts)
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'id': note_id}).encode('utf-8'))
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
         
 
 
         # Handle habit completions
         if parsed.path != '/habits':
             self._set_headers(404)
-            self.wfile.write(json.dumps({'error': f'Not found: {parsed.path}'}).encode('utf-8'))
+            self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
             return
 
         length = int(self.headers.get('Content-Length', 0))
