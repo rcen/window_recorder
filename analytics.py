@@ -1103,8 +1103,24 @@ function saveNote() {
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#d32f2f;">{waste_display}</p>')
             if total_active_hours > 0:
                 file.write(f'<p style="margin:5px 0; color:#c62828; font-size:0.95em;">Wasted: {wasted_hours:.1f}h / {total_active_hours:.1f}h</p>')
+                
+                # Calculate needed focus hours to reach target waste ratio
+                target_waste_ratio = self.config.getfloat('SETTINGS', 'target_waste_ratio', fallback=0.20)
+                current_waste_ratio = waste_percentage / 100.0
+                
+                if current_waste_ratio > target_waste_ratio and wasted_hours > 0:
+                    # Calculate: wasted_hours / (total_active_hours + X) = target_waste_ratio
+                    # X = (wasted_hours / target_waste_ratio) - total_active_hours
+                    needed_hours = (wasted_hours / target_waste_ratio) - total_active_hours
+                    if needed_hours > 0:
+                        target_display = f"{int(target_waste_ratio * 100)}%"
+                        file.write(f'<p style="margin:10px 0 5px 0; color:#ff5722; font-size:0.95em; font-weight:bold;">💪 Need {needed_hours:.1f}h more focus to reach {target_display}</p>')
             else:
                 file.write(f'<p style="margin:5px 0; color:#666; font-size:0.95em;">No active time yet</p>')
+            file.write('<ul style="text-align:left; display:inline-block; margin:10px 0 0 0; padding-left:20px; font-size:1.1em; color:#d32f2f;">')
+            file.write('<li>No shoppings/gaming in the morning</li>')
+            file.write('<li>No facebook too</li>')
+            file.write('</ul>')
             file.write('</div>')
             
             file.write('</div>')
