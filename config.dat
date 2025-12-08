@@ -21,6 +21,9 @@ max_idle_break_minutes = 5
 target_waste_ratio = 0.18                                                                              
                                                                                                           
 [CATEGORIES]
+127.0.0.1: coding
+google keep: family
+google drive: family
 ianbclark: church
 pcc worship: church
 529 college savings plan: family

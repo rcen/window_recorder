@@ -768,7 +768,8 @@ test:
             
             # Fast refresh (15s) when wasting for immediate feedback, medium refresh (30s) when productive
             refresh_interval = 15 if is_currently_wasting else 30
-            file.write(f'<meta http-equiv="refresh" content="{refresh_interval}">\n')
+            # Store refresh interval for JavaScript-based refresh (not using meta tag to avoid first-load conflict)
+            file.write(f'<meta name="refresh-interval" content="{refresh_interval}">\n')
 
             # Add stock prices at the top
             stock_html = stock_prices.get_stock_html()
@@ -928,7 +929,7 @@ window.addEventListener("load", function() {
             
             # Add note-taking section
             file.write('<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<textarea id="streak-note" placeholder="What are you working on?" style="width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical; min-height: 60px;"></textarea>')
+            file.write('<textarea id="streak-note" placeholder="What are you working on?" style="width: 90%; padding: 8px; border: 2px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical; min-height: 60px; transition: all 0.2s ease;"></textarea>')
             file.write('<div style="margin-top: 5px;"><button onclick="saveNote()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Save Note</button>')
             file.write('<span id="note-status" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span></div>')
             
@@ -972,10 +973,14 @@ function saveNote() {
             noteArea.value = '';
             // Mark as saved and set button to blue
             window.__streakNoteUnsaved = false;
+            window.__refreshEnabled = true; // Re-enable page refresh after saving
             if (saveBtn) {
                 saveBtn.style.background = '#1976D2'; // Blue
                 saveBtn.style.color = 'white';
             }
+            // Reset textarea styling
+            noteArea.style.borderColor = '#ccc';
+            noteArea.style.boxShadow = 'none';
 
             // Rebuild Recent Notes from server response
             const recentContainer = document.getElementById('recent-notes');
@@ -1029,30 +1034,92 @@ function saveNote() {
             # Add autosave guards and button color changes
             file.write('''
 <script>
+// JavaScript-based page refresh (replaces meta http-equiv="refresh")
+// This allows us to prevent refresh while user is typing notes
+window.__refreshEnabled = true;
+window.__refreshTimeoutId = null;
+
+function scheduleRefresh() {
+    if (window.__refreshTimeoutId) {
+        clearTimeout(window.__refreshTimeoutId);
+    }
+    
+    const metaInterval = document.querySelector('meta[name="refresh-interval"]');
+    const refreshInterval = metaInterval ? parseInt(metaInterval.content) * 1000 : 30000;
+    
+    window.__refreshTimeoutId = setTimeout(() => {
+        if (window.__refreshEnabled) {
+            location.reload();
+        } else {
+            // Re-schedule if refresh is disabled
+            scheduleRefresh();
+        }
+    }, refreshInterval);
+}
+
+// Start refresh timer after page loads
+document.addEventListener('DOMContentLoaded', scheduleRefresh);
+
 // Make Save button yellow when typing, and guard against losing unsaved text
 (() => {
     const noteArea = document.getElementById('streak-note');
     const saveBtn = document.querySelector('button[onclick="saveNote()"]');
     const statusSpan = document.getElementById('note-status');
     if (!noteArea || !saveBtn) return;
-
+    
     const setButtonYellow = () => {
         window.__streakNoteUnsaved = noteArea.value.trim().length > 0;
+        
+        // Disable refresh when there's unsaved text
+        window.__refreshEnabled = !window.__streakNoteUnsaved;
+        
         if (window.__streakNoteUnsaved) {
             saveBtn.style.background = '#FBC02D'; // Yellow
             saveBtn.style.color = '#000';
+            // Highlight the textarea
+            noteArea.style.borderColor = '#FBC02D';
+            noteArea.style.boxShadow = '0 0 8px rgba(251, 192, 45, 0.5)';
             if (statusSpan && !statusSpan.textContent) {
                 statusSpan.textContent = 'Draft not saved';
                 statusSpan.style.color = '#8D6E63';
+            }
+        } else {
+            // Reset styling when empty
+            saveBtn.style.background = '#4CAF50';
+            saveBtn.style.color = 'white';
+            noteArea.style.borderColor = '#ccc';
+            noteArea.style.boxShadow = 'none';
+            if (statusSpan) {
+                statusSpan.textContent = '';
             }
         }
     };
 
     noteArea.addEventListener('input', setButtonYellow);
     noteArea.addEventListener('change', setButtonYellow);
+    
+    // Add visual feedback on focus
+    noteArea.addEventListener('focus', function() {
+        if (noteArea.value.trim().length > 0) {
+            noteArea.style.borderColor = '#FBC02D';
+            noteArea.style.boxShadow = '0 0 8px rgba(251, 192, 45, 0.5)';
+        } else {
+            noteArea.style.borderColor = '#4CAF50';
+            noteArea.style.boxShadow = '0 0 8px rgba(76, 175, 80, 0.3)';
+        }
+    });
+    
+    // Reset on blur if no unsaved text
+    noteArea.addEventListener('blur', function() {
+        if (noteArea.value.trim().length === 0) {
+            noteArea.style.borderColor = '#ccc';
+            noteArea.style.boxShadow = 'none';
+        }
+    });
 
+    // Prevent page unload if there's unsaved text
     window.addEventListener('beforeunload', function(e) {
-        const hasUnsaved = window.__streakNoteUnsaved && noteArea.value.trim().length > 0;
+        const hasUnsaved = noteArea.value.trim().length > 0;
         if (hasUnsaved) {
             e.preventDefault();
             e.returnValue = '';
@@ -1069,7 +1136,15 @@ function saveNote() {
             file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
             file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest Today</h3>')
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
-            longest_today_info = f"Started at {longest_today_time}" if longest_today_time else "Best focus session"
+            
+            # Get current time
+            tz = pytz.timezone(TIMEZONE)
+            current_time = datetime.datetime.now(tz).strftime('%I:%M %p')
+            
+            if longest_today_time:
+                longest_today_info = f"Started at {longest_today_time} · Now {current_time}"
+            else:
+                longest_today_info = f"Best focus session · Now {current_time}"
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
             
             # Display recent notes under Longest Today
@@ -1078,7 +1153,6 @@ function saveNote() {
                 file.write('<div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); text-align:left;">')
                 file.write('<h4 style="margin: 0 0 8px 0; font-size: 0.9em; color: #555;">Recent Notes:</h4>')
                 file.write('<div id="recent-notes" style="font-size: 0.85em;">')
-                import pytz
                 tz = pytz.timezone(TIMEZONE)
                 for note_text, timestamp in recent_notes:
                     dt = datetime.datetime.fromtimestamp(timestamp, tz)
@@ -1118,7 +1192,7 @@ function saveNote() {
             else:
                 file.write(f'<p style="margin:5px 0; color:#666; font-size:0.95em;">No active time yet</p>')
             file.write('<ul style="text-align:left; display:inline-block; margin:10px 0 0 0; padding-left:20px; font-size:1.1em; color:#d32f2f;">')
-            file.write('<li>No shoppings/gaming in the morning</li>')
+            file.write('<li>No shopping/gaming in the morning</li>')
             file.write('<li>No facebook too</li>')
             file.write('</ul>')
             file.write('</div>')
@@ -1882,7 +1956,6 @@ if (chartsBtn) {
         if not log_list or not date_list:
             return 0, "0 min"
 
-        import pytz
         tz = pytz.timezone(TIMEZONE)
         now = datetime.datetime.now(tz)
 
@@ -2171,7 +2244,6 @@ if (chartsBtn) {
         if not log_list or not date_list:
             return None
 
-        import pytz
         tz = pytz.timezone(TIMEZONE)
 
         # Get recent activities from the most recent day(s)
@@ -2203,7 +2275,6 @@ if (chartsBtn) {
             return ''
 
         # Find the most recent activities within the last N minutes
-        import pytz
         tz = pytz.timezone(TIMEZONE)
         now = datetime.datetime.now(tz)
 
