@@ -20,10 +20,21 @@ def list_activities_by_category(category):
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             today_timestamp = today.timestamp()
             
-            cursor.execute(
-                "SELECT window_title, category, timestamp FROM activity WHERE category = ? AND timestamp >= ? ORDER BY timestamp DESC",
-                (category, today_timestamp)
-            )
+            # Check if window_url column exists
+            cursor.execute("PRAGMA table_info(activity)")
+            columns = [row[1] for row in cursor.fetchall()]
+            has_window_url = 'window_url' in columns
+            
+            if has_window_url:
+                cursor.execute(
+                    "SELECT window_title, category, timestamp, window_url FROM activity WHERE category = ? AND timestamp >= ? ORDER BY timestamp DESC",
+                    (category, today_timestamp)
+                )
+            else:
+                cursor.execute(
+                    "SELECT window_title, category, timestamp, NULL FROM activity WHERE category = ? AND timestamp >= ? ORDER BY timestamp DESC",
+                    (category, today_timestamp)
+                )
             activities = cursor.fetchall()
 
             if not activities:
@@ -31,9 +42,14 @@ def list_activities_by_category(category):
                 return
 
             print(f"Found {len(activities)} activities today:")
-            for title, cat, ts in activities:
+            for row in activities:
+                title, cat, ts = row[0], row[1], row[2]
+                url = row[3] if len(row) > 3 and row[3] else None
+                
                 dt_object = datetime.fromtimestamp(ts)
                 line = f"  - {dt_object.strftime('%Y-%m-%d %H:%M:%S')}: [{cat}] {title}"
+                if url:
+                    line += f"\n    URL: {url}"
                 # Encode to stdout's encoding, replacing characters that can't be handled
                 print(line.encode(sys.stdout.encoding, errors='replace').decode(sys.stdout.encoding))
 

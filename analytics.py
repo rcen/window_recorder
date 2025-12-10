@@ -805,11 +805,11 @@ test:
                 # Categories to show ratio for
                 ratio_cats = {'family', 'gaming', 'coding', 'wasted', 'learning', 'church', 'mail'}
                 
+                # Calculate total_time from ALL non-idle categories in the log (not just all_u_cats)
                 total_time = 0
-                for cat in all_u_cats:
-                    dur = dur_map.get(cat, 0)
+                for cat in dur_map.keys():
                     if cat.lower() != 'idle':
-                        total_time += dur
+                        total_time += dur_map[cat]
                 
                 # Now render cells with ratios for specified categories
                 for cat in all_u_cats:
@@ -1194,6 +1194,8 @@ document.addEventListener('DOMContentLoaded', scheduleRefresh);
             file.write('<ul style="text-align:left; display:inline-block; margin:10px 0 0 0; padding-left:20px; font-size:1.1em; color:#d32f2f;">')
             file.write('<li>No shopping/gaming in the morning</li>')
             file.write('<li>No facebook too</li>')
+            file.write('<li></li>')
+            file.write('<li>PUT CELL PHONE AWAY</li>')
             file.write('</ul>')
             file.write('</div>')
             
