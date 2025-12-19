@@ -21,6 +21,17 @@ max_idle_break_minutes = 5
 target_waste_ratio = 0.18                                                                              
                                                                                                           
 [CATEGORIES]
+thedailybeast.com: wasted
+explorerpatcher: learning
+blog.herlein.com: learning
+pay.google.com/gp: family
+google.com/wallet/: family
+separators_tables: coding
+streamyard.com: family
+smore.com: family
+smartsocial.com: family
+neon.com: coding
+flychina.com: family
 127.0.0.1: coding
 google keep: family
 google drive: family

@@ -1,12 +1,74 @@
 """
 Stock price checker module using yfinance
 Fetches current prices and daily changes for configured stock tickers
+
+Caching: Stock data is cached and only refreshed once per hour during market hours
+(6 AM - 8 PM local time) to reduce API calls.
 """
 import yfinance as yf
 import configparser
 import logging
+import json
+import os
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Cache settings
+CACHE_FILE = 'data/stock_cache.json'
+CACHE_DURATION_MINUTES = 60  # Refresh every hour
+MARKET_HOURS_START = 6       # 6 AM local time (covers pre-market)
+MARKET_HOURS_END = 20        # 8 PM local time (covers after-hours)
+
+
+def _is_market_hours() -> bool:
+    """Check if current time is within extended market hours (6 AM - 8 PM)"""
+    current_hour = datetime.now().hour
+    return MARKET_HOURS_START <= current_hour < MARKET_HOURS_END
+
+
+def _is_weekday() -> bool:
+    """Check if today is a weekday (Mon-Fri)"""
+    return datetime.now().weekday() < 5
+
+
+def _load_cache() -> Optional[Dict]:
+    """Load cached stock data from file"""
+    try:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        logging.warning(f"Failed to load stock cache: {e}")
+    return None
+
+
+def _save_cache(data: Dict) -> None:
+    """Save stock data to cache file"""
+    try:
+        os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+        with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        logging.warning(f"Failed to save stock cache: {e}")
+
+
+def _is_cache_valid(cache: Dict) -> bool:
+    """Check if cache is still valid (less than CACHE_DURATION_MINUTES old)"""
+    if not cache or 'cached_at' not in cache:
+        return False
+    
+    try:
+        cached_at = datetime.fromisoformat(cache['cached_at'])
+        age = datetime.now() - cached_at
+        
+        # During market hours on weekdays, refresh hourly
+        if _is_weekday() and _is_market_hours():
+            return age < timedelta(minutes=CACHE_DURATION_MINUTES)
+        
+        # Outside market hours or on weekends, cache is valid for longer (4 hours)
+        return age < timedelta(hours=4)
+    except Exception:
+        return False
 
 def get_stock_tickers() -> List[str]:
     """Read stock tickers from config.dat [STOCKS] section"""
@@ -44,7 +106,10 @@ def fetch_stock_data(tickers: List[str]) -> Dict[str, Dict]:
         try:
             stock = yf.Ticker(ticker)
             info = stock.info
-            hist = stock.history(period='2d')
+            
+            # Try to get 5 days of history to ensure we have enough data
+            # This helps when there are weekends, holidays, or delayed data
+            hist = stock.history(period='5d')
             
             if hist.empty or len(hist) < 1:
                 logging.warning(f"No historical data for {ticker}")
@@ -52,11 +117,17 @@ def fetch_stock_data(tickers: List[str]) -> Dict[str, Dict]:
             
             current_price = hist['Close'].iloc[-1]
             
-            # Get previous close
-            if len(hist) >= 2:
-                previous_close = hist['Close'].iloc[-2]
-            else:
-                previous_close = info.get('previousClose', current_price)
+            # Get previous close - prioritize info dict which is more reliable
+            # for the official previous close price
+            previous_close = info.get('previousClose') or info.get('regularMarketPreviousClose')
+            
+            # Fallback to history data if info doesn't have previousClose
+            if previous_close is None:
+                if len(hist) >= 2:
+                    previous_close = hist['Close'].iloc[-2]
+                else:
+                    logging.warning(f"No previous close data available for {ticker}")
+                    previous_close = current_price
             
             change = current_price - previous_close
             change_percent = (change / previous_close * 100) if previous_close else 0
@@ -142,6 +213,8 @@ def get_stock_html() -> str:
     """
     Main function to get stock data and return formatted HTML
     
+    Uses caching to only fetch from API once per hour during market hours.
+    
     Returns:
         HTML string ready to be inserted into webpage
     """
@@ -150,9 +223,28 @@ def get_stock_html() -> str:
         if not tickers:
             return ""
         
+        # Try to use cached data first
+        cache = _load_cache()
+        if cache and _is_cache_valid(cache):
+            stock_data = cache.get('stock_data', {})
+            if stock_data:
+                logging.debug(f"Using cached stock data from {cache.get('cached_at')}")
+                return format_stock_html(stock_data)
+        
+        # Fetch fresh data
         stock_data = fetch_stock_data(tickers)
         if not stock_data:
+            # If fetch failed but we have stale cache, use it anyway
+            if cache and cache.get('stock_data'):
+                logging.info("Using stale stock cache due to fetch failure")
+                return format_stock_html(cache['stock_data'])
             return ""
+        
+        # Save to cache
+        _save_cache({
+            'cached_at': datetime.now().isoformat(),
+            'stock_data': stock_data
+        })
         
         return format_stock_html(stock_data)
     except Exception as e:
