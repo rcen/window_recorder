@@ -21,6 +21,8 @@ max_idle_break_minutes = 5
 target_waste_ratio = 0.18                                                                              
                                                                                                           
 [CATEGORIES]
+learn.nvidia.com: learning
+developer.nvidia.com: learning
 thedailybeast.com: wasted
 explorerpatcher: learning
 blog.herlein.com: learning
