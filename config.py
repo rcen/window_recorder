@@ -97,7 +97,9 @@ def get_vibe_repos():
     """
     Reads vibe coding repository names from [VIBE_REPOS] section.
     Returns a dict with 'repos' (list of repo names) and 'paths' (list of folder paths).
-    These are personal/fun projects that count as vibe coding vs work coding.
+    
+    NOTE: Primary vibe_coding detection now happens via [CATEGORIES] section in config.dat.
+    This function is kept for potential query-time analysis or backup detection.
     """
     result = {
         'repos': [],

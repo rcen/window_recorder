@@ -29,6 +29,13 @@ max_idle_break_minutes = 5
 target_waste_ratio = 0.18                                                                              
                                                                                                           
 [CATEGORIES]
+# Vibe coding repos - MUST be before generic coding patterns to match first
+window_recorder: vibe_coding
+tennis_scores: vibe_coding
+personal_projects: vibe_coding
+# Add more vibe repos here as needed
+
+# Regular categories
 learn.nvidia.com: learning
 developer.nvidia.com: learning
 thedailybeast.com: wasted
@@ -472,7 +479,7 @@ file explorer: coding
 172.16: coding                                                                                            
 chicore: coding                                                                                           
 vm_share: coding                                                                                          
-window_recorder: coding                                                                                   
+# window_recorder moved to top as vibe_coding
 network graph: coding                                                                                     
 virgin pulse: coding                                                                                      
 program manager: coding                                                                                   
@@ -577,6 +584,7 @@ google maps: family
 jogging: family
 [COLORS]                                                                                                  
 coding: #4954EA                                                                                           
+vibe_coding: #9B59B6
 learning: #F2F767                                                                                         
 gaming: #F68D15                                                                                           
 church: #00A000                                                                                           

@@ -2748,6 +2748,105 @@ document.addEventListener('DOMContentLoaded', function() {
         
         html_parts.append('</div>')  # Close flex container
         
+        # Add Behavioral Metrics section (from agent-instructions.md spec)
+        metrics = dashboard_data.get('metrics', {})
+        is_rest_day = metrics.get('is_rest_day', False)
+        rest_reason = metrics.get('rest_reason', '')
+        
+        html_parts.append('<div style="margin-top:20px; padding:15px; background:#f5f5f5; border-radius:8px;">')
+        html_parts.append('<h3 style="margin:0 0 12px 0; color:#455a64;">📈 Behavioral Metrics</h3>')
+        
+        # Rest day indicator
+        if is_rest_day:
+            html_parts.append(f'''
+            <div style="background:#e8f5e9; padding:8px 12px; border-radius:6px; margin-bottom:12px; border-left:4px solid #4caf50;">
+                🌴 <strong>Rest Day:</strong> {html.escape(rest_reason)} - Relaxed thresholds active!
+            </div>
+            ''')
+        
+        html_parts.append('<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">')
+        
+        # 1. Waste Ratio
+        waste_ratio = metrics.get('waste_ratio', 0)
+        waste_target = metrics.get('waste_ratio_target', 15)
+        waste_ok = waste_ratio < waste_target
+        waste_color = '#4caf50' if waste_ok else '#f44336'
+        waste_emoji = '✅' if waste_ok else '🚨'
+        html_parts.append(f'''
+        <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid {waste_color};">
+            <div style="font-weight:bold; color:#333;">{waste_emoji} Waste Ratio</div>
+            <div style="font-size:1.4em; color:{waste_color}; margin:4px 0;">{waste_ratio:.1f}%</div>
+            <div style="font-size:0.85em; color:#666;">Target: &lt;{waste_target:.0f}%</div>
+        </div>
+        ''')
+        
+        # 2. Vibe-to-Job Ratio (skip on rest days)
+        if not is_rest_day:
+            vibe_min = metrics.get('vibe_minutes', 0)
+            job_min = metrics.get('job_minutes', 0)
+            job_required = metrics.get('job_required', 0)
+            job_ok = job_min >= job_required
+            job_color = '#4caf50' if job_ok else '#ff9800'
+            job_emoji = '✅' if job_ok else '⚖️'
+            html_parts.append(f'''
+            <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid {job_color};">
+                <div style="font-weight:bold; color:#333;">{job_emoji} Job Balance</div>
+                <div style="font-size:1.4em; color:{job_color}; margin:4px 0;">{job_min:.0f}/{job_required:.0f}m</div>
+                <div style="font-size:0.85em; color:#666;">1:5 vibe-to-job ratio</div>
+            </div>
+            ''')
+        else:
+            html_parts.append('''
+            <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid #9e9e9e;">
+                <div style="font-weight:bold; color:#333;">😴 Job Balance</div>
+                <div style="font-size:1.1em; color:#9e9e9e; margin:4px 0;">Not required</div>
+                <div style="font-size:0.85em; color:#666;">Rest day</div>
+            </div>
+            ''')
+        
+        # 3. Focus Streak
+        streak_today = metrics.get('streak_today', 0)
+        streak_record = metrics.get('streak_record', 52)
+        streak_close = streak_today >= streak_record - 5
+        streak_color = '#ff9800' if streak_close else '#2196f3'
+        streak_emoji = '🔥' if streak_close else '⏱️'
+        html_parts.append(f'''
+        <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid {streak_color};">
+            <div style="font-weight:bold; color:#333;">{streak_emoji} Focus Streak</div>
+            <div style="font-size:1.4em; color:{streak_color}; margin:4px 0;">{streak_today:.0f}m</div>
+            <div style="font-size:0.85em; color:#666;">Record: {streak_record:.0f}m</div>
+        </div>
+        ''')
+        
+        # 4. Morning Shield (only show during morning hours or on weekdays)
+        morning_shield_enabled = metrics.get('morning_shield_enabled', True)
+        morning_productive = metrics.get('morning_productive', 0)
+        now = datetime.datetime.now()
+        is_morning = 8 <= now.hour < 11
+        
+        if is_morning and morning_shield_enabled:
+            shield_ok = morning_productive >= 10
+            shield_color = '#4caf50' if shield_ok else '#ff9800'
+            shield_emoji = '✅' if shield_ok else '🛡️'
+            html_parts.append(f'''
+            <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid {shield_color};">
+                <div style="font-weight:bold; color:#333;">{shield_emoji} Morning Shield</div>
+                <div style="font-size:1.4em; color:{shield_color}; margin:4px 0;">{morning_productive:.0f}/10m</div>
+                <div style="font-size:0.85em; color:#666;">Productive before wasting</div>
+            </div>
+            ''')
+        elif not morning_shield_enabled:
+            html_parts.append('''
+            <div style="padding:10px; background:white; border-radius:6px; border-left:4px solid #9e9e9e;">
+                <div style="font-weight:bold; color:#333;">😴 Morning Shield</div>
+                <div style="font-size:1.1em; color:#9e9e9e; margin:4px 0;">Not required</div>
+                <div style="font-size:0.85em; color:#666;">Rest day</div>
+            </div>
+            ''')
+        
+        html_parts.append('</div>')  # Close grid
+        html_parts.append('</div>')  # Close behavioral metrics container
+        
         # Add last updated timestamp
         html_parts.append(f'<div style="text-align:right; font-size:0.8em; color:#666; margin-top:10px;">Updated: {datetime.datetime.now().strftime("%H:%M:%S")}</div>')
         html_parts.append('</div>')  # Close main container
