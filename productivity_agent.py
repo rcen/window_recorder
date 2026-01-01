@@ -11,6 +11,7 @@ Features:
 - Timesheet Guardrail (Fri/Sat Must Done enforcement)
 - Friction Hack (MVD suggestions on wasted spikes)
 - Version Control Check (Git commit reminders)
+- AI Coaching via Gemini Pro (personalized advice)
 
 @author: Enhanced by GitHub Copilot
 """
@@ -28,6 +29,13 @@ import pytz
 
 import database
 from config import TIMEZONE, DAY_BOUNDARY_HOUR
+
+# Try to import Gemini coach
+try:
+    from gemini_coach import GeminiCoach
+    GEMINI_COACH_AVAILABLE = True
+except ImportError:
+    GEMINI_COACH_AVAILABLE = False
 
 # --- Configuration ---
 GOALS_CONFIG_FILE = 'data/productivity_goals.json'
@@ -177,6 +185,16 @@ class ProductivityAgent:
         self._last_warning_times: Dict[str, float] = {}
         self._warning_cooldown = 300  # 5 minutes
         self.state = AgentState()
+        
+        # Initialize AI coach (optional)
+        self.coach = None
+        if GEMINI_COACH_AVAILABLE:
+            try:
+                self.coach = GeminiCoach()
+                if self.coach.enabled:
+                    print("[ProductivityAgent] AI Coach (Gemini) enabled")
+            except Exception as e:
+                print(f"[ProductivityAgent] AI Coach init failed: {e}")
         
         self._load_goals()
         self._load_state()
@@ -707,6 +725,20 @@ class ProductivityAgent:
     def evaluate_goal(self, goal: ProductivityGoal, current_minutes: float) -> GoalProgress:
         """Evaluate progress toward a single goal."""
         expected_minutes = self.get_expected_progress(goal)
+        
+        # Adjust targets on rest days (weekends/holidays)
+        is_rest_day, rest_reason = self.is_rest_day()
+        
+        # On rest days: halve positive goals, double negative goals (more lenient)
+        if is_rest_day:
+            if goal.is_positive:
+                effective_target = goal.daily_target_minutes * 0.5  # Half the requirement
+                expected_minutes = expected_minutes * 0.5
+            else:
+                effective_target = goal.daily_target_minutes * 2.0  # Double the limit (more lenient)
+        else:
+            effective_target = goal.daily_target_minutes
+        
         progress = GoalProgress(
             goal=goal,
             current_minutes=current_minutes,
@@ -715,43 +747,51 @@ class ProductivityAgent:
         )
         
         if goal.is_positive:
-            if current_minutes >= goal.daily_target_minutes:
+            if current_minutes >= effective_target:
                 progress.status = GoalStatus.ACHIEVED
-                progress.message = f"🎉 Goal achieved! {current_minutes:.0f}/{goal.daily_target_minutes} min"
+                progress.message = f"🎉 Goal achieved! {current_minutes:.0f}/{effective_target:.0f} min"
             elif expected_minutes > 0:
                 ratio = current_minutes / expected_minutes
                 if ratio >= goal.warning_threshold:
                     progress.status = GoalStatus.ON_TRACK
-                    progress.message = f"✅ On track: {current_minutes:.0f}/{goal.daily_target_minutes} min"
+                    progress.message = f"✅ On track: {current_minutes:.0f}/{effective_target:.0f} min"
                 elif ratio >= goal.critical_threshold:
                     progress.status = GoalStatus.WARNING
                     behind = expected_minutes - current_minutes
-                    progress.message = f"⚠️ Behind: {current_minutes:.0f}/{goal.daily_target_minutes} min ({behind:.0f} min behind)"
+                    progress.message = f"⚠️ Behind: {current_minutes:.0f}/{effective_target:.0f} min ({behind:.0f} min behind)"
                 else:
                     progress.status = GoalStatus.CRITICAL
                     behind = expected_minutes - current_minutes
-                    progress.message = f"🚨 Critical! {current_minutes:.0f}/{goal.daily_target_minutes} min ({behind:.0f} min behind)"
+                    progress.message = f"🚨 Critical! {current_minutes:.0f}/{effective_target:.0f} min ({behind:.0f} min behind)"
             else:
                 progress.status = GoalStatus.ON_TRACK
-                progress.message = f"Day started: {current_minutes:.0f}/{goal.daily_target_minutes} min"
+                progress.message = f"Day started: {current_minutes:.0f}/{effective_target:.0f} min"
         else:
-            if current_minutes >= goal.daily_target_minutes:
+            if current_minutes >= effective_target:
                 progress.status = GoalStatus.FAILED
-                progress.message = f"🚨 Limit exceeded! {current_minutes:.0f}/{goal.daily_target_minutes} min"
-            elif current_minutes / goal.daily_target_minutes >= goal.critical_threshold:
+                progress.message = f"🚨 Limit exceeded! {current_minutes:.0f}/{effective_target:.0f} min"
+            elif current_minutes / effective_target >= goal.critical_threshold:
                 progress.status = GoalStatus.CRITICAL
-                remaining = goal.daily_target_minutes - current_minutes
+                remaining = effective_target - current_minutes
                 progress.message = f"🚨 Near limit! {remaining:.0f} min remaining"
-            elif current_minutes / goal.daily_target_minutes >= goal.warning_threshold:
+            elif current_minutes / effective_target >= goal.warning_threshold:
                 progress.status = GoalStatus.WARNING
-                remaining = goal.daily_target_minutes - current_minutes
+                remaining = effective_target - current_minutes
                 progress.message = f"⚠️ Approaching limit: {remaining:.0f} min remaining"
             else:
                 progress.status = GoalStatus.ON_TRACK
-                remaining = goal.daily_target_minutes - current_minutes
-                progress.message = f"✅ Under limit: {current_minutes:.0f}/{goal.daily_target_minutes} min"
+                remaining = effective_target - current_minutes
+                progress.message = f"✅ Under limit: {current_minutes:.0f}/{effective_target:.0f} min"
         
         return progress
+    
+    # Category aliases - maps goal categories to actual database categories
+    CATEGORY_ALIASES = {
+        'programming': ['coding', 'programming'],  # vibe_coding excluded - it's personal/fun
+        'documents': ['docs', 'documents'],
+        'wasted time': ['wasted', 'wasted time', 'gaming'],
+        'job search': ['job search', 'job', 'career', 'current job', 'interview'],
+    }
     
     def evaluate_all_goals(self) -> Dict[str, GoalProgress]:
         """Evaluate progress toward all goals."""
@@ -760,7 +800,11 @@ class ProductivityAgent:
         for category, goal in self.goals.items():
             if not goal.enabled:
                 continue
-            current_minutes = stats.get(category, 0)
+            
+            # Sum up all aliased categories
+            aliases = self.CATEGORY_ALIASES.get(category, [category])
+            current_minutes = sum(stats.get(alias, 0) for alias in aliases)
+            
             self.progress[category] = self.evaluate_goal(goal, current_minutes)
         
         return self.progress
@@ -913,6 +957,26 @@ class ProductivityAgent:
         elif is_rest:
             lines.append("  😴 Morning Shield: Disabled - sleep in!")
         
+        # AI Coach advice
+        if self.coach and self.coach.enabled:
+            lines.extend([
+                "",
+                "🤖 AI COACH",
+                "-" * 30
+            ])
+            goals_dict = {cat: g.daily_target_minutes for cat, g in self.goals.items()}
+            advice = self.coach.get_coaching(
+                stats=stats,
+                goals=goals_dict,
+                is_rest_day=is_rest,
+                rest_reason=thresholds['rest_reason'],
+                waste_ratio=waste_ratio,
+                focus_streak=self.state.longest_streak_today,
+                best_streak=self.state.longest_streak_today,
+            )
+            # Wrap advice text
+            lines.append(f"  {advice}")
+        
         return "\n".join(lines)
     
     def get_dashboard_data(self) -> Dict[str, Any]:
@@ -930,11 +994,13 @@ class ProductivityAgent:
         job_ratio = thresholds['vibe_to_job_ratio']
         job_required = vibe / job_ratio if job_ratio > 0 else 0
         
+        waste_ratio = (wasted / total_active * 100) if total_active > 0 else 0
+        
         data = {
             'timestamp': time.time(),
             'goals': [],
             'metrics': {
-                'waste_ratio': (wasted / total_active * 100) if total_active > 0 else 0,
+                'waste_ratio': waste_ratio,
                 'waste_ratio_target': thresholds['waste_ratio_target'] * 100,
                 'vibe_minutes': vibe,
                 'job_minutes': job,
@@ -948,6 +1014,20 @@ class ProductivityAgent:
                 'git_commit_enabled': thresholds['git_commit_enabled'],
             }
         }
+        
+        # Add AI coach advice
+        if self.coach and self.coach.enabled:
+            goals_dict = {cat: g.daily_target_minutes for cat, g in self.goals.items()}
+            advice = self.coach.get_coaching(
+                stats=stats,
+                goals=goals_dict,
+                is_rest_day=thresholds['is_rest_day'],
+                rest_reason=thresholds['rest_reason'],
+                waste_ratio=waste_ratio,
+                focus_streak=self.state.longest_streak_today,
+                best_streak=self.state.longest_streak_today,
+            )
+            data['ai_coach_advice'] = advice
         
         for category, progress in self.progress.items():
             goal_data = {
