@@ -743,4 +743,23 @@ def get_recent_streak_notes(limit=5):
         return []
 
 
+def get_must_done_status_for_week(week_id: str) -> dict:
+    """
+    Get the completion status of all Must Done items for a given week.
+    Returns a dict of task_id -> completed (bool).
+    """
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT task_id, completed FROM must_done_items WHERE week_id = ?",
+                (week_id,)
+            )
+            rows = cursor.fetchall()
+            return {task_id: bool(completed) for task_id, completed in rows}
+    except Exception as e:
+        print(f"Error retrieving must done status: {e}")
+        return {}
+
+
 

@@ -92,6 +92,79 @@ def get_habits():
         pass
     return habits
 
+
+def get_vibe_repos():
+    """
+    Reads vibe coding repository names from [VIBE_REPOS] section.
+    Returns a dict with 'repos' (list of repo names) and 'paths' (list of folder paths).
+    These are personal/fun projects that count as vibe coding vs work coding.
+    """
+    result = {
+        'repos': [],
+        'paths': []
+    }
+    try:
+        config = get_config_parser()
+        if config.has_section('VIBE_REPOS'):
+            # Get repo names
+            repos_str = config.get('VIBE_REPOS', 'repos', fallback='')
+            if repos_str:
+                result['repos'] = [r.strip().lower() for r in repos_str.split(',') if r.strip()]
+            
+            # Get paths
+            paths_str = config.get('VIBE_REPOS', 'paths', fallback='')
+            if paths_str:
+                result['paths'] = [p.strip().lower() for p in paths_str.split(',') if p.strip()]
+    except Exception as e:
+        print(f"Warning: Error reading VIBE_REPOS config: {e}")
+    return result
+
+
+def is_vibe_coding(window_title: str) -> bool:
+    """
+    Detect if the current coding activity is "vibe coding" based on window title.
+    
+    Parses VS Code window titles like:
+    - "filename.py - window_recorder - Visual Studio Code"
+    - "window_recorder - Visual Studio Code"
+    
+    Returns True if the repo/folder matches a vibe repo, False otherwise.
+    """
+    vibe_config = get_vibe_repos()
+    title_lower = window_title.lower()
+    
+    # Check if any vibe repo name appears in the window title
+    for repo in vibe_config['repos']:
+        if repo in title_lower:
+            return True
+    
+    # Check if any vibe path appears in the window title
+    for path in vibe_config['paths']:
+        if path in title_lower:
+            return True
+    
+    return False
+
+
+def get_coding_type(window_title: str) -> str:
+    """
+    Determine the type of coding activity.
+    Returns: 'vibe_coding', 'work_coding', or 'coding' (if undetermined)
+    """
+    if is_vibe_coding(window_title):
+        return 'vibe_coding'
+    
+    # If it looks like VS Code but not vibe, assume work
+    vscode_indicators = ['visual studio code', 'vscode', '- code']
+    title_lower = window_title.lower()
+    for indicator in vscode_indicators:
+        if indicator in title_lower:
+            return 'work_coding'
+    
+    # Default to generic coding
+    return 'coding'
+
+
 def get_day_boundary_hour():
     """
     Reads the day boundary hour from the [SETTINGS] section of config.dat.
@@ -116,3 +189,4 @@ API_KEY = None
 FOCUS_SLOTS = get_focus_slots()
 DAY_BOUNDARY_HOUR = get_day_boundary_hour()
 HABITS = get_habits()
+VIBE_REPOS = get_vibe_repos()

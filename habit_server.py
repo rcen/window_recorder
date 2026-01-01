@@ -16,10 +16,21 @@ if sys.stderr is None or not hasattr(sys.stderr, 'write'):
 
 import database
 from config import TIMEZONE, HABITS
+from productivity_agent import ProductivityAgent
 import pytz
 
 HOST = '127.0.0.1'
 PORT = 8042
+
+# Global productivity agent instance for the server
+_productivity_agent = None
+
+def get_productivity_agent():
+    """Get or create the productivity agent instance."""
+    global _productivity_agent
+    if _productivity_agent is None:
+        _productivity_agent = ProductivityAgent()
+    return _productivity_agent
 
 
 def _default_start_end(days: int = 30) -> tuple[str, str]:
@@ -39,6 +50,42 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
+
+    def _handle_productivity_get(self) -> None:
+        """Handle GET /productivity - returns current productivity status."""
+        try:
+            agent = get_productivity_agent()
+            data = agent.get_dashboard_data()
+            self._set_headers(200)
+            self.wfile.write(json.dumps(data).encode('utf-8'))
+        except Exception as e:
+            print(f"[habit-server] Error in /productivity: {e}")
+            self._set_headers(500)
+            self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+
+    def _handle_goals_get(self) -> None:
+        """Handle GET /productivity/goals - returns goal configurations."""
+        try:
+            agent = get_productivity_agent()
+            goals_data = {
+                'goals': [
+                    {
+                        'category': g.category,
+                        'target_minutes': g.daily_target_minutes,
+                        'warning_threshold': g.warning_threshold,
+                        'critical_threshold': g.critical_threshold,
+                        'is_positive': g.is_positive,
+                        'enabled': g.enabled
+                    }
+                    for g in agent.goals.values()
+                ]
+            }
+            self._set_headers(200)
+            self.wfile.write(json.dumps(goals_data).encode('utf-8'))
+        except Exception as e:
+            print(f"[habit-server] Error in /productivity/goals: {e}")
+            self._set_headers(500)
+            self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
 
     def log_message(self, format: str, *args) -> None:  # noqa: A003
         # Reduce noise by logging to stdout once per request
@@ -67,6 +114,14 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps({'error': 'index.html not found'}).encode('utf-8'))
                 return
+        
+        # Handle productivity endpoints
+        if parsed.path == '/productivity':
+            self._handle_productivity_get()
+            return
+        elif parsed.path == '/productivity/goals':
+            self._handle_goals_get()
+            return
         
         if parsed.path != '/habits':
             self._set_headers(404)
@@ -130,6 +185,56 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
             print(f"[habit-server] EARLY EXCEPTION: {e}", flush=True)
             traceback.print_exc()
             return
+        
+        # Handle productivity goal updates
+        if parsed.path == '/productivity/goals':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+            
+            try:
+                from productivity_agent import ProductivityGoal
+                agent = get_productivity_agent()
+                
+                category = payload.get('category', '').strip().lower()
+                target_minutes = payload.get('target_minutes')
+                is_positive = payload.get('is_positive', True)
+                enabled = payload.get('enabled', True)
+                
+                if not category or target_minutes is None:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Missing category or target_minutes'}).encode('utf-8'))
+                    return
+                
+                goal = ProductivityGoal(
+                    category=category,
+                    daily_target_minutes=int(target_minutes),
+                    is_positive=is_positive,
+                    enabled=enabled
+                )
+                agent.add_goal(goal)
+                
+                self._set_headers(200)
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'goal': {
+                        'category': goal.category,
+                        'target_minutes': goal.daily_target_minutes,
+                        'is_positive': goal.is_positive,
+                        'enabled': goal.enabled
+                    }
+                }).encode('utf-8'))
+                return
+            except Exception as e:
+                print(f"[habit-server] Error updating goal: {e}")
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
         
         # Handle must_done updates
         if parsed.path == '/must_done/update':

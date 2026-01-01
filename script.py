@@ -33,6 +33,7 @@ import csv
 import logging
 from analytics import Analytics
 from broser_start import generate_inspirational_html
+from productivity_agent import ProductivityAgent, GoalStatus
 import platform
 import uuid
 from typing import Any, Dict, Optional
@@ -85,6 +86,8 @@ wasted_time_start = None
 last_warning_minute = 0
 previous_category_state = None  # Track if previous state was 'wasting' or 'productive'
 activity_page_reminder_time = time.time() + 1800  # 30 minutes = 1800 seconds
+productivity_check_time = time.time() + 300  # Check productivity goals every 5 minutes
+productivity_agent = None  # Will be initialized in main()
 
 CHROMIUM_BROWSER_PROCESSES = {
     'chrome.exe',
@@ -414,9 +417,23 @@ def main():
     global alert_result_queue
     global previous_category_state
     global activity_page_reminder_time
+    global productivity_check_time
+    global productivity_agent
 
     hostname = socket.gethostname()
     database.initialize_database()
+
+    # Initialize Productivity Agent with warning callback
+    def productivity_warning_callback(title: str, message: str, level: str):
+        """Callback to display productivity warnings."""
+        show_non_blocking_alert(message, title)
+        print(f"[ProductivityAgent] {level.upper()}: {message}")
+    
+    productivity_agent = ProductivityAgent(callback_warn=productivity_warning_callback)
+    print("[ProductivityAgent] Initialized with goals:")
+    for cat, goal in productivity_agent.goals.items():
+        type_str = "maximize" if goal.is_positive else "minimize"
+        print(f"  • {cat}: {goal.daily_target_minutes} min/day ({type_str})")
 
     # Sync with the remote server at startup to get the latest data
     # database.sync_remote_to_local()
@@ -667,6 +684,16 @@ TRACK YOUR TIME - DON'T WASTE IT!
 
         check_ram()
         process_alert_results()
+        
+        # --- Productivity Goal Monitoring ---
+        if time.time() > productivity_check_time and productivity_agent:
+            try:
+                warnings = productivity_agent.check_and_warn()
+                if warnings:
+                    print(f"[ProductivityAgent] {len(warnings)} goal(s) need attention")
+            except Exception as e:
+                logging.error(f"[ProductivityAgent] Error checking goals: {e}")
+            productivity_check_time = time.time() + 300  # Check every 5 minutes
         
         if time.time() - last_sync_time > 300: # 5 minutes
             print("Running periodic sync...")

@@ -27,6 +27,7 @@ import requests
 import html
 from urllib.parse import urlparse
 import stock_prices
+from productivity_agent import ProductivityAgent, GoalStatus
 
 def main():
     reanalyze_all()
@@ -775,6 +776,11 @@ test:
             stock_html = stock_prices.get_stock_html()
             if stock_html:
                 file.write(stock_html)
+
+            # Add Productivity Goals Dashboard
+            productivity_goals_html = self._build_productivity_goals_section()
+            if productivity_goals_html:
+                file.write(productivity_goals_html)
 
             # Add Activity Summary section with expand/collapse
             file.write('<h2>Activity Summary <button id="toggle-summary-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
@@ -2625,6 +2631,127 @@ document.addEventListener('DOMContentLoaded', function() {
         ''')
         
         html_parts.append('</div>')
+        return '\n'.join(html_parts)
+
+    def _build_productivity_goals_section(self):
+        """Build the productivity goals dashboard section for the HTML report."""
+        try:
+            agent = ProductivityAgent()
+            dashboard_data = agent.get_dashboard_data()
+        except Exception as e:
+            print(f"Error loading productivity goals: {e}")
+            return ""
+        
+        goals = dashboard_data.get('goals', [])
+        if not goals:
+            return ""
+        
+        # Sort goals: positive goals first (to maximize), then negative (to minimize)
+        goals_sorted = sorted(goals, key=lambda g: (not g['is_positive'], g['category']))
+        
+        html_parts = [
+            '<div id="productivity-goals" class="productivity-goals-section" style="margin:20px 0; padding:15px; border:2px solid #3f51b5; border-radius:8px; background:linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%);">',
+            '<h2 style="margin:0 0 15px 0; color:#283593;">🎯 Daily Productivity Goals</h2>',
+            '<div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:center;">'
+        ]
+        
+        for goal in goals_sorted:
+            category = goal['category']
+            current = goal['current_minutes']
+            target = goal['target_minutes']
+            progress_pct = min(goal['progress_percentage'], 100)
+            status = goal['status']
+            is_positive = goal['is_positive']
+            
+            # Determine colors based on status
+            if status == 'achieved':
+                border_color = '#4caf50'
+                bg_color = '#e8f5e9'
+                bar_color = '#4caf50'
+                emoji = '🎉'
+            elif status == 'on_track':
+                border_color = '#2196f3'
+                bg_color = '#e3f2fd'
+                bar_color = '#2196f3'
+                emoji = '✅'
+            elif status == 'warning':
+                border_color = '#ff9800'
+                bg_color = '#fff3e0'
+                bar_color = '#ff9800'
+                emoji = '⚠️'
+            elif status in ('critical', 'failed'):
+                border_color = '#f44336'
+                bg_color = '#ffebee'
+                bar_color = '#f44336'
+                emoji = '🚨'
+            else:
+                border_color = '#9e9e9e'
+                bg_color = '#fafafa'
+                bar_color = '#9e9e9e'
+                emoji = '📊'
+            
+            # For negative goals (minimize), invert the display logic
+            if not is_positive:
+                if current >= target:
+                    emoji = '🚨'
+                    border_color = '#f44336'
+                    bg_color = '#ffebee'
+                    bar_color = '#f44336'
+                elif current / target >= 0.7 if target > 0 else False:
+                    emoji = '⚠️'
+                    border_color = '#ff9800'
+                    bg_color = '#fff3e0'
+                    bar_color = '#ff9800'
+                else:
+                    emoji = '✅'
+                    border_color = '#4caf50'
+                    bg_color = '#e8f5e9'
+                    bar_color = '#4caf50'
+            
+            # Format time display
+            current_hr = int(current // 60)
+            current_min = int(current % 60)
+            target_hr = int(target // 60)
+            target_min = int(target % 60)
+            
+            if current_hr > 0:
+                current_display = f"{current_hr}h {current_min}m"
+            else:
+                current_display = f"{current_min}m"
+            
+            if target_hr > 0:
+                target_display = f"{target_hr}h {target_min}m"
+            else:
+                target_display = f"{target_min}m"
+            
+            goal_type = "max" if is_positive else "limit"
+            
+            html_parts.append(f'''
+            <div style="flex:1; min-width:180px; max-width:250px; padding:12px; border:2px solid {border_color}; border-radius:8px; background:{bg_color}; text-align:center;">
+                <div style="font-size:1.1em; font-weight:bold; color:#333; margin-bottom:8px;">
+                    {emoji} {html.escape(category.title())}
+                </div>
+                <div style="font-size:1.8em; font-weight:bold; color:{border_color}; margin:5px 0;">
+                    {current_display}
+                </div>
+                <div style="font-size:0.9em; color:#666; margin-bottom:8px;">
+                    {goal_type}: {target_display}
+                </div>
+                <div style="background:#ddd; border-radius:4px; height:8px; overflow:hidden;">
+                    <div style="background:{bar_color}; height:100%; width:{progress_pct:.0f}%; transition:width 0.3s;"></div>
+                </div>
+                <div style="font-size:0.85em; color:#888; margin-top:5px;">
+                    {progress_pct:.0f}%
+                </div>
+            </div>
+            ''')
+        
+        html_parts.append('</div>')  # Close flex container
+        
+        # Add last updated timestamp
+        html_parts.append(f'<div style="text-align:right; font-size:0.8em; color:#666; margin-top:10px;">Updated: {datetime.datetime.now().strftime("%H:%M:%S")}</div>')
+        html_parts.append('</div>')  # Close main container
+        
         return '\n'.join(html_parts)
 
     def _build_warning_flag_summary(self):

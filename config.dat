@@ -9,7 +9,15 @@ eat_the_frog = #4d96ff
 [FOCUS_SLOTS]                                                                                             
 morning_focus = 09:00-12:30                                                                               
 afternoon_focus = 13:25-16:45                                                                             
-                                                                                                          
+
+[VIBE_REPOS]
+# Repositories considered "vibe coding" (personal/fun projects)
+# These will be tracked separately from work coding
+# Format: repo_name or folder_name (case-insensitive, partial match)
+repos = window_recorder, tennis_scores, personal_projects
+# Paths that indicate vibe coding (optional, comma-separated)
+paths = c:\projects\vibe, c:\projects\personal
+
 [SETTINGS]                                                                                                
 timezone = America/New_York                                                                               
 day_boundary_hour = 3                                                                                     
