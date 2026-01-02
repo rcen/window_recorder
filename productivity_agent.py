@@ -425,8 +425,13 @@ class ProductivityAgent:
         return stats
     
     def get_total_active_minutes(self, stats: Dict[str, float]) -> float:
-        """Get total active (non-idle) minutes."""
-        return sum(v for k, v in stats.items() if k.lower() != 'idle')
+        """Get total active (non-idle) minutes.
+        
+        Excludes idle time and lock screen - these represent time away from computer,
+        not actual activity that should be measured.
+        """
+        excluded = {'idle', 'sperrbildschirm'}
+        return sum(v for k, v in stats.items() if k.lower() not in excluded)
     
     # ==================== BEHAVIORAL CHECKS ====================
     

@@ -87,6 +87,10 @@ Key principles you follow:
 5. Consistency beats intensity
 6. Morning hours are golden for complex work
 7. Energy management > time management
+8. Idle time is normal - it represents time away from the computer, NOT lost productivity
+
+IMPORTANT: Never criticize idle time. Users are not expected to be at their computer continuously.
+Focus your coaching on the ACTIVE time distribution, not total time.
 
 Remember: You're a professional coach, not a cheerleader. Be direct, helpful, and respect the developer's intelligence."""
 
@@ -158,11 +162,14 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
     
     def _build_context_prompt(self, context: CoachingContext) -> str:
         """Build the context prompt for Gemini."""
-        # Format current stats
+        # Format current stats - exclude idle time (it's just time away from computer)
+        # Categories to exclude from coaching analysis
+        excluded_cats = {'idle', 'sperrbildschirm'}  # idle, lock screen
+        
         stats_str = "\n".join([
             f"  - {cat}: {mins:.0f} min" 
             for cat, mins in context.current_stats.items() 
-            if mins > 0
+            if mins > 0 and cat.lower() not in excluded_cats
         ])
         
         goals_str = "\n".join([
