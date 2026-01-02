@@ -63,18 +63,19 @@ class GeminiCoach:
     SYSTEM_PROMPT = """You are an expert productivity coach for software developers. Your name is "Dev Coach".
 
 Your personality:
-- Encouraging and supportive, never judgmental
-- Practical and actionable advice
+- Professional and direct, never patronizing or overly cheerful
+- Practical, evidence-based advice grounded in productivity research
 - Understanding of developer challenges (context switching, debugging frustration, meeting fatigue)
-- Celebrates small wins enthusiastically
+- Acknowledges progress factually without excessive praise
 - Uses developer-friendly analogies (commits, refactoring, debugging)
 
 Your coaching style:
-- Keep responses concise (2-3 sentences max for quick advice)
-- Be specific to the current situation
-- Acknowledge effort, not just results
-- Suggest one actionable next step
-- Use appropriate emojis sparingly for warmth
+- Keep responses concise (2-3 sentences max)
+- Be specific and data-driven based on the current metrics
+- Focus on the next actionable step
+- Avoid cheerleader phrases like "You got this!", "Amazing!", "Awesome!", "Great job!"
+- Use a calm, focused tone like a senior engineer giving advice
+- Use emojis very sparingly (max 1 per response, only if it adds clarity)
 
 Key principles you follow:
 1. Deep work blocks are precious - protect them
@@ -85,7 +86,7 @@ Key principles you follow:
 6. Morning hours are golden for complex work
 7. Energy management > time management
 
-Remember: You're coaching a real person who is trying their best. Be their supportive ally."""
+Remember: You're a professional coach, not a cheerleader. Be direct, helpful, and respect the developer's intelligence."""
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the Gemini coach."""
@@ -98,7 +99,16 @@ Remember: You're coaching a real person who is trying their best. Be their suppo
         self._cached_advice = None
         self._cached_context_hash = None
         self._advice_cooldown = 1800  # 30 minutes between API calls (was 5 min)
-        self._model_name = 'gemma-3-12b-it'  # Gemma has separate quota from Gemini
+        
+        # Model fallback chain - try each in order if quota exhausted
+        self._model_fallbacks = [
+            'gemma-3-27b-it',   # Primary: largest Gemma, best quality
+            'gemma-3-12b-it',   # Fallback 1: good balance of speed/quality
+            'gemma-3-4b-it',    # Fallback 2: smaller, faster
+            'gemini-2.0-flash', # Fallback 3: try Gemini if Gemma exhausted
+            'gemini-2.5-flash', # Fallback 4: latest Gemini flash
+        ]
+        self._model_name = self._model_fallbacks[0]
         
         if not GEMINI_AVAILABLE:
             print("[GeminiCoach] Gemini library not available")
@@ -285,37 +295,54 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
                 else:
                     print(f"[GeminiCoach] Context changed significantly, will refresh")
         
-        # Call API for fresh advice
-        try:
-            prompt = self._build_context_prompt(context)
-            full_prompt = f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
-            
-            # Use new google.genai API
-            response = self.client.models.generate_content(
-                model=self._model_name,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                    top_p=0.9,
-                    max_output_tokens=200,
+        # Call API for fresh advice - try models in fallback order
+        prompt = self._build_context_prompt(context)
+        full_prompt = f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
+        
+        last_error = None
+        for model in self._model_fallbacks:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=full_prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        top_p=0.9,
+                        max_output_tokens=200,
+                    )
                 )
-            )
-            
-            advice = response.text.strip()
-            
-            # Cache the advice
-            self._save_cached_advice(advice, context_hash)
-            self._cache_advice(context, advice)
-            
-            return advice
-            
-        except Exception as e:
-            print(f"[GeminiCoach] API error: {e}")
-            # Try to return stale cache if available
-            if cached and cached.get('advice'):
-                print("[GeminiCoach] Returning stale cached advice")
-                return cached['advice']
-            return self._get_fallback_advice(stats, goals, is_rest_day)
+                
+                advice = response.text.strip()
+                
+                # Update current model if fallback succeeded
+                if model != self._model_name:
+                    print(f"[GeminiCoach] Switched to {model} (primary exhausted)")
+                    self._model_name = model
+                
+                # Cache the advice
+                self._save_cached_advice(advice, context_hash)
+                self._cache_advice(context, advice)
+                
+                return advice
+                
+            except Exception as e:
+                last_error = e
+                err_str = str(e)
+                if '429' in err_str or 'quota' in err_str.lower():
+                    print(f"[GeminiCoach] {model} quota exhausted, trying next...")
+                    continue
+                else:
+                    # Non-quota error, don't try other models
+                    print(f"[GeminiCoach] API error with {model}: {e}")
+                    break
+        
+        # All models failed
+        print(f"[GeminiCoach] All models exhausted or failed: {last_error}")
+        # Try to return stale cache if available
+        if cached and cached.get('advice'):
+            print("[GeminiCoach] Returning stale cached advice")
+            return cached['advice']
+        return self._get_fallback_advice(stats, goals, is_rest_day)
     
     def _get_context_hash(self, context: CoachingContext) -> str:
         """Create a hash representing the current context situation."""
