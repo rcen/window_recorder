@@ -14,9 +14,9 @@ afternoon_focus = 13:25-16:45
 # Repositories considered "vibe coding" (personal/fun projects)
 # These will be tracked separately from work coding
 # Format: repo_name or folder_name (case-insensitive, partial match)
-repos = window_recorder, tennis_scores, personal_projects
+repos = window_recorder, tennis_game_log, personal_projects
 # Paths that indicate vibe coding (optional, comma-separated)
-paths = c:\projects\vibe, c:\projects\personal
+paths = c:\projects\window_recorder, C:\projects\tennis_game_log
 
 [SETTINGS]                                                                                                
 timezone = America/New_York                                                                               
@@ -31,11 +31,12 @@ target_waste_ratio = 0.18
 [CATEGORIES]
 # Vibe coding repos - MUST be before generic coding patterns to match first
 window_recorder: vibe_coding
-tennis_scores: vibe_coding
+tennis_game_log: vibe_coding
 personal_projects: vibe_coding
 # Add more vibe repos here as needed
 
 # Regular categories
+productivity alert: learning
 learn.nvidia.com: learning
 developer.nvidia.com: learning
 thedailybeast.com: wasted

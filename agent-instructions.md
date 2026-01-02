@@ -24,7 +24,7 @@ The Friction Hack: If a "Wasted" spike is detected, the Agent should suggest an 
 
 Version Control Check: If "Coding" is active for > 60 mins without a Git commit, remind the user that "documentation generation requires version control".
 
-4. set a seperated rules for saturday/sunday and holidays. I think I earn some rest on those days.
+4. set a separated rules for saturday/sunday and holidays. I think I earn some rest on those days.
    
 5. Integration Points for Copilot
 Input: Parse the index.html or the underlying log file that generates the "Activity Summary" table.
