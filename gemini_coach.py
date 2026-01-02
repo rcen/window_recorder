@@ -196,18 +196,18 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         situations = []
         
         # Check various situations
-        coding_mins = context.current_stats.get('coding', 0) + context.current_stats.get('programming', 0)
+        work_mins = context.current_stats.get('work', 0) + context.current_stats.get('coding', 0) + context.current_stats.get('programming', 0)
         wasted_mins = context.current_stats.get('wasted', 0)
         learning_mins = context.current_stats.get('learning', 0)
         
-        coding_goal = context.goals.get('programming', 240)
+        work_goal = context.goals.get('work', 240)
         
-        # Morning with no coding yet
-        if context.time_of_day == "morning" and coding_mins < 30:
-            situations.append("Developer hasn't started deep coding work yet this morning.")
+        # Morning with no work yet
+        if context.time_of_day == "morning" and work_mins < 30:
+            situations.append("Developer hasn't started deep work yet this morning.")
         
         # Good progress
-        if coding_mins >= coding_goal * 0.7:
+        if work_mins >= work_goal * 0.7:
             situations.append("Developer is making excellent progress on coding goals!")
         
         # High waste ratio
@@ -347,13 +347,14 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
     def _get_context_hash(self, context: CoachingContext) -> str:
         """Create a hash representing the current context situation."""
         # Round values to reduce sensitivity to minor changes
-        coding = round((context.current_stats.get('coding', 0) + 
-                       context.current_stats.get('programming', 0)) / 30) * 30  # Round to 30 min
+        work = round((context.current_stats.get('work', 0) +
+                     context.current_stats.get('coding', 0) + 
+                     context.current_stats.get('programming', 0)) / 30) * 30  # Round to 30 min
         wasted = round(context.current_stats.get('wasted', 0) / 15) * 15  # Round to 15 min
         waste_ratio_bucket = "low" if context.waste_ratio < 15 else ("mid" if context.waste_ratio < 30 else "high")
         streak_bucket = "none" if context.focus_streak < 10 else ("short" if context.focus_streak < 30 else "long")
         
-        return f"{context.day_type}:{context.time_of_day}:{coding}:{wasted}:{waste_ratio_bucket}:{streak_bucket}"
+        return f"{context.day_type}:{context.time_of_day}:{work}:{wasted}:{waste_ratio_bucket}:{streak_bucket}"
     
     def _is_similar_context(self, current_hash: str, cached_hash: str) -> bool:
         """Check if two context hashes are similar enough to reuse advice."""
@@ -416,16 +417,16 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         is_rest_day: bool
     ) -> str:
         """Fallback advice when Gemini is unavailable."""
-        coding = stats.get('coding', 0) + stats.get('programming', 0)
+        work = stats.get('work', 0) + stats.get('coding', 0) + stats.get('programming', 0)
         wasted = stats.get('wasted', 0)
-        coding_goal = goals.get('programming', 240)
+        work_goal = goals.get('work', 240)
         
         time_of_day = self._get_time_of_day()
         
         if is_rest_day:
-            return "🌴 Rest days are for recharging. A little coding is fine, but don't forget to enjoy yourself!"
+            return "🌴 Rest days are for recharging. A little work is fine, but don't forget to enjoy yourself!"
         
-        if time_of_day == "morning" and coding < 30:
+        if time_of_day == "morning" and work < 30:
             return "🌅 Morning is golden time for deep work. Try starting with your most challenging task!"
         
         if coding >= coding_goal:
@@ -503,11 +504,11 @@ Keep it warm, encouraging, and specific to their actual numbers."""
     
     def _get_fallback_summary(self, stats: Dict[str, float], goals: Dict[str, float]) -> str:
         """Fallback daily summary."""
-        coding = stats.get('coding', 0) + stats.get('programming', 0)
+        work = stats.get('work', 0) + stats.get('coding', 0) + stats.get('programming', 0)
         learning = stats.get('learning', 0)
         
         return f"""📊 Daily Summary:
-🎯 Coding: {coding:.0f} min | Learning: {learning:.0f} min
+🎯 Work: {work:.0f} min | Learning: {learning:.0f} min
 💡 Tomorrow: Start with your hardest task while energy is fresh!"""
     
     def ask_question(self, question: str, stats: Dict[str, float]) -> str:
@@ -546,14 +547,14 @@ if __name__ == "__main__":
     
     # Test stats
     test_stats = {
-        'coding': 45,
+        'work': 45,
         'learning': 30,
         'wasted': 20,
         'docs': 10,
     }
     
     test_goals = {
-        'programming': 240,
+        'work': 240,
         'learning': 60,
         'wasted time': 60,
         'documents': 30,

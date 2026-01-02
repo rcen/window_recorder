@@ -44,13 +44,13 @@ explorerpatcher: learning
 blog.herlein.com: learning
 pay.google.com/gp: family
 google.com/wallet/: family
-separators_tables: coding
+separators_tables: work
 streamyard.com: family
 smore.com: family
 smartsocial.com: family
-neon.com: coding
+neon.com: work
 flychina.com: family
-127.0.0.1: coding
+127.0.0.1: work
 google keep: family
 google drive: family
 ianbclark: church
@@ -58,56 +58,56 @@ pcc worship: church
 529 college savings plan: family
 vgi529.com: family
 my.statefarm.com: family
-scitools: coding
-doxygen: coding
-claude: coding
-antigravity: coding
-la2405: coding
-hp® support: coding
-usb device: coding
-c++: coding
-github copilot: coding
-device manager: coding
-statics.teams.cdn.office.net: coding
+scitools: work
+doxygen: work
+claude: work
+antigravity: work
+la2405: work
+hp® support: work
+usb device: work
+c++: work
+github copilot: work
+device manager: work
+statics.teams.cdn.office.net: work
 www.minervaaction.com: family
 中华人民共和国: family
 china-consulate.gov.cn: family
 flex lng: gaming
 price forecast: gaming
-move to the recycle bin: coding
+move to the recycle bin: work
 100 best gadgets: wasted
 www.tomsguide.com: wasted
 read.amazon.com: learning
 www.msn.com/en-us/money: gaming
-ultracopier: coding
-fastcopy: coding
-projects-build: coding
-regex__\bpaste window\b: coding
-regex__\bselect an account\b: coding
-regex__\bfolder in use\b: coding
+ultracopier: work
+fastcopy: work
+projects-build: work
+regex__\bpaste window\b: work
+regex__\bselect an account\b: work
+regex__\bfolder in use\b: work
 regex__\bfind\b: learning
 regex__\bwarning\b: learning
-regex__\b7-zip\b: coding
-regex__^online barcode decoder: coding
-regex__\bsearch\b: coding
-regex__\bsave as\b: coding
-regex__\bsave configuration\b: coding
-regex__\bprint\b: coding
-regex__\bopen project/solution\b: coding
+regex__\b7-zip\b: work
+regex__^online barcode decoder: work
+regex__\bsearch\b: work
+regex__\bsave as\b: work
+regex__\bsave configuration\b: work
+regex__\bprint\b: work
+regex__\bopen project/solution\b: work
 regex__\bline\b: church
-regex__\bsave file as\b: coding
-regex__\bconfirm save as\b: coding
-regex__\bencoding\b: coding
-regex__\bopen file\b: coding
-typedown: coding
-iso 15438: coding
+regex__\bsave file as\b: work
+regex__\bconfirm save as\b: work
+regex__\bencoding\b: work
+regex__\bopen file\b: work
+typedown: work
+iso 15438: work
 hsa bank: family
 quadrilateral: learning
 webster: learning
-pdf417: coding
-translate.google.com: coding
+pdf417: work
+translate.google.com: work
 merriam-webster.com: learning
-changelog.txt: coding
+changelog.txt: work
 inputking online ime: family
 buckslib.org: learning
 wise.oclc.org: learning
@@ -116,20 +116,20 @@ teriyaki: family
 wd.bible: church
 義大利麵: family
 燉牛肉: family
-add existing project: coding
-symbologies: coding
+add existing project: work
+symbologies: work
 www.youtube.com/shorts: wasted
 www.cvs.com/photo: family                                        
 app.utrsports.net: family                                                                                
-ANSI: coding                                                                                             
-cpc-cenra-i5l9l: coding                                                                                   
-codabar: coding                                                                                           
-image subfolder: coding                                                                                   
-fobj: coding                                                                                              
+ANSI: work                                                                                             
+cpc-cenra-i5l9l: work                                                                                   
+codabar: work                                                                                           
+image subfolder: work                                                                                   
+fobj: work                                                                                              
 hugging face: learning                                                                                    
 optum financial: family                                                                                   
-boost/: coding                                                                                            
-code browser: coding                                                                                      
+boost/: work                                                                                            
+code browser: work                                                                                      
 wikipedia.org: learning                                                                                   
 best deals: wasted                                                                                        
 pfna: family                                                                                              
@@ -137,30 +137,30 @@ teachustuesday.mp4: family
 bjarne stroustrup: learning                                                                               
 weather forecast: family                                                                                  
 vanguard index: gaming                                                                                    
-calculator: coding                                                                                        
+calculator: work                                                                                        
 learner tien: wasted                                                                                      
 vanguard.com: family                                                                                      
-m365.cloud.microsoft: coding                                                                              
+m365.cloud.microsoft: work                                                                              
 vanguard login: family                                                                                    
-.cpp: coding                                                                                              
-workspace1: coding                                                                                        
-windows app: coding                                                                                       
-open image: coding                                                                                        
-% copying: coding                                                                                         
-teracopy: coding                                                                                          
+.cpp: work                                                                                              
+workspace1: work                                                                                        
+windows app: work                                                                                       
+open image: work                                                                                        
+% copying: work                                                                                         
+teracopy: work                                                                                          
 newyorker.com: wasted                                                                                     
-save images: coding                                                                                       
-barcode reader: coding                                                                                    
-recognizing: coding                                                                                       
-microsoft 365 copilot: coding                                                                             
-clink: coding                                                                                             
-notepad 2e: coding                                                                                        
-m365 copilot: coding                                                                                      
+save images: work                                                                                       
+barcode reader: work                                                                                    
+recognizing: work                                                                                       
+microsoft 365 copilot: work                                                                             
+clink: work                                                                                             
+notepad 2e: work                                                                                        
+m365 copilot: work                                                                                      
 newtown pa patch: wasted                                                                                  
 amazon resale: wasted                                                                                     
-allocator: coding                                                                                         
+allocator: work                                                                                         
 mail.google.com: mail                                                                                     
-myaccess.microsoft: coding                                                                                
+myaccess.microsoft: work                                                                                
 instagram.com: wasted                                                                                     
 x.com: wasted                                                                                             
 recipe: family                                                                                            
@@ -169,40 +169,40 @@ chinese bible: family
 track package: family                                                                                     
 google sheets: family                                                                                     
 wasted time warning: idle                                                                                 
-deepl: coding                                                                                             
+deepl: work                                                                                             
 patch.com: wasted                                                                                         
 sesameplace.com: family                                                                                   
 thetennisgazette.com: wasted                                                                              
-0x0000: coding                                                                                            
-quickwatch: coding                                                                                        
+0x0000: work                                                                                            
+quickwatch: work                                                                                        
 transunion.com: family                                                                                    
 equifax.com: family                                                                                       
 hsabank.com: family                                                                                       
-devbox: coding                                                                                            
+devbox: work                                                                                            
 lincoln financial field: wasted                                                                           
-cisco secure client: coding                                                                               
+cisco secure client: work                                                                               
 inoreader: learning                                                                                       
 wyze: family                                                                                              
 bleeding green nation: wasted                                                                             
-apexsystemsinc.com: coding                                                                                
+apexsystemsinc.com: work                                                                                
 my apps: learning                                                                                         
-windows security: coding                                                                                  
-remote desktop: coding                                                                                    
-select folder: coding                                                                                     
-dev box: coding                                                                                           
-microsoft loop: coding                                                                                    
+windows security: work                                                                                  
+remote desktop: work                                                                                    
+select folder: work                                                                                     
+dev box: work                                                                                           
+microsoft loop: work                                                                                    
 apple card: family                                                                                        
 Computer Wake: idle                                                                                       
 crlog_laptop: learning                                                                                    
 engadget.com: wasted                                                                                      
 hindustantimes.com: wasted                                                                                
 sfgate.com: wasted                                                                                        
-abbyy: coding                                                                                             
-domain-vm: coding                                                                                         
+abbyy: work                                                                                             
+domain-vm: work                                                                                         
 seeking alpha: gaming                                                                                     
 business insider: wasted                                                                                  
-my access: coding                                                                                         
-crao: coding                                                                                              
+my access: work                                                                                         
+crao: work                                                                                              
 amazon.com: wasted                                                                                        
 family dentistry: family                                                                                  
 heinefamilydental: family                                                                                 
@@ -216,8 +216,8 @@ the eagles: wasted
 watch dolphins: wasted                                                                                    
 google news: wasted                                                                                       
 laver cup: wasted                                                                                         
-finereader: coding                                                                                        
-OCRT: coding                                                                                              
+finereader: work                                                                                        
+OCRT: work                                                                                              
 windows default lock screen: idle                                                                         
 gnome screen shield: idle                                                                                 
 gmail: mail                                                                                               
@@ -234,8 +234,8 @@ chatgpt: learning
 deepseek: learning                                                                                        
 tennis: family                                                                                            
 stock: gaming                                                                                             
-pixtest: coding                                                                                           
-perplexity: coding                                                                                        
+pixtest: work                                                                                           
+perplexity: work                                                                                        
 coursework: family                                                                                        
 grades: family                                                                                            
 chez: family                                                                                              
@@ -245,7 +245,7 @@ compass hhs: family
 zebra gem: learning                                                                                       
 penndot: family                                                                                           
 usta: family                                                                                              
-zcode: coding                                                                                             
+zcode: work                                                                                             
 swarthmore: family                                                                                        
 ccicnv: family                                                                                            
 sunday service: family                                                                                    
@@ -256,17 +256,17 @@ pandemic: wasted
 redick: wasted                                                                                            
 climate: wasted                                                                                           
 conservatives: wasted                                                                                     
-confluence: coding                                                                                        
-imaging internal: coding                                                                                  
-chiproc: coding                                                                                           
-green hills: coding                                                                                       
-tera term: coding                                                                                         
-multi launcher: coding                                                                                    
-program files (x88): coding                                                                               
-sourcetrail: coding                                                                                       
-microsoft learn: coding                                                                                   
-ibm rational: coding                                                                                      
-clearcase: coding                                                                                         
+confluence: work                                                                                        
+imaging internal: work                                                                                  
+chiproc: work                                                                                           
+green hills: work                                                                                       
+tera term: work                                                                                         
+multi launcher: work                                                                                    
+program files (x88): work                                                                               
+sourcetrail: work                                                                                       
+microsoft learn: work                                                                                   
+ibm rational: work                                                                                      
+clearcase: work                                                                                         
 inappropriate: wasted                                                                                     
 regrets: wasted                                                                                           
 dicaprio: wasted                                                                                          
@@ -306,53 +306,53 @@ new tab and: idle
 basketball: wasted                                                                                        
 caitlin: wasted                                                                                           
 draymond: wasted                                                                                          
-npp: coding                                                                                               
-planisware: coding                                                                                        
+npp: work                                                                                               
+planisware: work                                                                                        
 Ameritrade: gaming                                                                                        
-DCS_: coding                                                                                              
-DCH-: coding                                                                                              
-AVP-: coding                                                                                              
-vcpkg: coding                                                                                             
-powershell: coding                                                                                        
-win-unpacked-: coding                                                                                     
-winscp: coding                                                                                            
-microsoft docs: coding                                                                                    
-rand(): coding                                                                                            
-virtualbox: coding                                                                                        
-stack overflow: coding                                                                                    
-milconfig: coding                                                                                         
-interop: coding                                                                                           
-certmgr: coding                                                                                           
-cr3881: coding                                                                                            
-power nap: coding                                                                                         
-nsdr: coding                                                                                              
-std: coding                                                                                               
-__optimize__: coding                                                                                      
-dll: coding                                                                                               
-msdn: coding                                                                                              
-attach to process: coding                                                                                 
-protobuf: coding                                                                                          
-cl.exe: coding                                                                                            
-pdb: coding                                                                                               
-zbook: coding                                                                                             
-hp support: coding                                                                                        
-etc: coding                                                                                               
-dnf: coding                                                                                               
-repositories: coding                                                                                      
-crao@: coding                                                                                             
-output directory: coding                                                                                  
-start emulation: coding                                                                                   
-perf: coding                                                                                              
-bing ai: coding                                                                                           
-ubuntu: coding                                                                                            
-imgkit: coding                                                                                            
-power bi: coding                                                                                          
-anyconnect: coding                                                                                        
-dacustomstep2: coding                                                                                     
-matrox: coding                                                                                            
-pixalg.net: coding                                                                                        
-platform connection: coding                                                                               
-logseq: coding                                                                                            
+DCS_: work                                                                                              
+DCH-: work                                                                                              
+AVP-: work                                                                                              
+vcpkg: work                                                                                             
+powershell: work                                                                                        
+win-unpacked-: work                                                                                     
+winscp: work                                                                                            
+microsoft docs: work                                                                                    
+rand(): work                                                                                            
+virtualbox: work                                                                                        
+stack overflow: work                                                                                    
+milconfig: work                                                                                         
+interop: work                                                                                           
+certmgr: work                                                                                           
+cr3881: work                                                                                            
+power nap: work                                                                                         
+nsdr: work                                                                                              
+std: work                                                                                               
+__optimize__: work                                                                                      
+dll: work                                                                                               
+msdn: work                                                                                              
+attach to process: work                                                                                 
+protobuf: work                                                                                          
+cl.exe: work                                                                                            
+pdb: work                                                                                               
+zbook: work                                                                                             
+hp support: work                                                                                        
+etc: work                                                                                               
+dnf: work                                                                                               
+repositories: work                                                                                      
+crao@: work                                                                                             
+output directory: work                                                                                  
+start emulation: work                                                                                   
+perf: work                                                                                              
+bing ai: work                                                                                           
+ubuntu: work                                                                                            
+imgkit: work                                                                                            
+power bi: work                                                                                          
+anyconnect: work                                                                                        
+dacustomstep2: work                                                                                     
+matrox: work                                                                                            
+pixalg.net: work                                                                                        
+platform connection: work                                                                               
+logseq: work                                                                                            
 trump: wasted                                                                                             
 schooldoc: family                                                                                         
 s&p 500: gaming                                                                                           
@@ -364,18 +364,18 @@ intuit: family
 sol feinstone: family                                                                                     
 consumer cellular: family                                                                                 
 cathay pacific: family                                                                                    
-program docs: coding                                                                                      
-edit and continue: coding                                                                                 
+program docs: work                                                                                      
+edit and continue: work                                                                                 
 td bank: family                                                                                           
 portfolio summary: gaming                                                                                 
 mychop: family                                                                                            
 lawrenceville school: family                                                                              
 docnetwork: family                                                                                        
 youtube: wasted                                                                                           
-debug: coding                                                                                             
-CS2022: coding                                                                                            
-vs2022: coding                                                                                            
-vs 2022: coding                                                                                           
+debug: work                                                                                             
+CS2022: work                                                                                            
+vs2022: work                                                                                            
+vs 2022: work                                                                                           
 transformer: learning                                                                                     
 .pdf: learning                                                                                            
 yejin choi: learning                                                                                      
@@ -383,15 +383,15 @@ lecture: learning
 secure tooling: learning                                                                                  
 secure code training: learning                                                                            
 upskill: learning                                                                                         
-sonarqube: coding                                                                                         
-servicenow: coding                                                                                        
-service portal: coding                                                                                    
-system properties: coding                                                                                 
-chat.openai: coding                                                                                       
-zebra tools portal: coding                                                                                
+sonarqube: work                                                                                         
+servicenow: work                                                                                        
+service portal: work                                                                                    
+system properties: work                                                                                 
+chat.openai: work                                                                                       
+zebra tools portal: work                                                                                
 express scripts: family                                                                                   
 launch - google chrome: learning                                                                          
-visio: coding                                                                                             
+visio: work                                                                                             
 cen.rao@zebra.com: mail                                                                                   
 peddie: family                                                                                            
 labcorp: family                                                                                           
@@ -400,36 +400,36 @@ deep learning: learning
 Kindle: learning                                                                                          
 mathworks: learning                                                                                       
 9to5mac: wasted                                                                                           
-DEV20: coding                                                                                             
-BIN20: coding                                                                                             
-users: coding                                                                                             
-aurora: coding                                                                                            
-bmp: coding                                                                                               
-snipping tool: coding                                                                                     
-putty: coding                                                                                             
-pageant: coding                                                                                           
-dashboard: coding                                                                                         
-git: coding                                                                                               
-ssh: coding                                                                                               
-gdbserver: coding                                                                                         
-repository: coding                                                                                        
+DEV20: work                                                                                             
+BIN20: work                                                                                             
+users: work                                                                                             
+aurora: work                                                                                            
+bmp: work                                                                                               
+snipping tool: work                                                                                     
+putty: work                                                                                             
+pageant: work                                                                                           
+dashboard: work                                                                                         
+git: work                                                                                               
+ssh: work                                                                                               
+gdbserver: work                                                                                         
+repository: work                                                                                        
 tutorial: learning                                                                                        
 wordle: gaming                                                                                            
 msn money: gaming                                                                                         
 meeting: mail                                                                                             
-property pages: coding                                                                                    
-linux: coding                                                                                             
-matlab: coding                                                                                            
-octave: coding                                                                                            
-editor: coding                                                                                            
-gaussian: coding                                                                                          
-filter: coding                                                                                            
-winmerge: coding                                                                                          
+property pages: work                                                                                    
+linux: work                                                                                             
+matlab: work                                                                                            
+octave: work                                                                                            
+editor: work                                                                                            
+gaussian: work                                                                                          
+filter: work                                                                                            
+winmerge: work                                                                                          
 watchtime: think                                                                                          
 tensorflow: learning                                                                                      
 pytorch: learning                                                                                         
-environment variable: coding                                                                              
-settings: coding                                                                                          
+environment variable: work                                                                              
+settings: work                                                                                          
 firebase: learning                                                                                        
 dictionary: learning                                                                                      
 my backpack: mail                                                                                         
@@ -446,86 +446,86 @@ qaz: no_cat
 meditation: think                                                                                         
 jira: think                                                                                               
 linkedin: learning                                                                                        
-avl: coding                                                                                               
-chidecode: coding                                                                                         
-camera calibration: coding                                                                                
-opencv: coding                                                                                            
-halcon: coding                                                                                            
+avl: work                                                                                               
+chidecode: work                                                                                         
+camera calibration: work                                                                                
+opencv: work                                                                                            
+halcon: work                                                                                            
 espn: wasted                                                                                              
 google search: learning                                                                                   
-pattern match: coding                                                                                     
-multiple repeat: coding                                                                                   
-regex*search: coding                                                                                      
-APM*_*_*: coding                                                                                          
-spm*_*_*: coding                                                                                          
-manage extensions: coding                                                                                 
-open folder: coding                                                                                       
-figure ?: coding                                                                                          
-cmd: coding                                                                                               
-start tracking: coding                                                                                    
-zconnect home: coding                                                                                     
+pattern match: work                                                                                     
+multiple repeat: work                                                                                   
+regex*search: work                                                                                      
+APM*_*_*: work                                                                                          
+spm*_*_*: work                                                                                          
+manage extensions: work                                                                                 
+open folder: work                                                                                       
+figure ?: work                                                                                          
+cmd: work                                                                                               
+start tracking: work                                                                                    
+zconnect home: work                                                                                     
 scrum: learning                                                                                           
 agile: learning                                                                                           
 nicolajbky: learning                                                                                      
-template_*: coding                                                                                        
-open directory: coding                                                                                    
-onedrive: coding                                                                                          
-zebratechnologies: coding                                                                                 
-session buddy: coding                                                                                     
-cmake: coding                                                                                             
+template_*: work                                                                                        
+open directory: work                                                                                    
+onedrive: work                                                                                          
+zebratechnologies: work                                                                                 
+session buddy: work                                                                                     
+cmake: work                                                                                             
 Track your time: idle                                                                                 
-jfrog: coding                                                                                             
-administrator: coding                                                                                     
-file explorer: coding                                                                                     
-172.16: coding                                                                                            
-chicore: coding                                                                                           
-vm_share: coding                                                                                          
+jfrog: work                                                                                             
+administrator: work                                                                                     
+file explorer: work                                                                                     
+172.16: work                                                                                            
+chicore: work                                                                                           
+vm_share: work                                                                                          
 # window_recorder moved to top as vibe_coding
-network graph: coding                                                                                     
-virgin pulse: coding                                                                                      
-program manager: coding                                                                                   
-pingid: coding                                                                                            
+network graph: work                                                                                     
+virgin pulse: work                                                                                      
+program manager: work                                                                                   
+pingid: work                                                                                            
 onenote: think                                                                                            
 NY21: docs                                                                                                
 docx: docs                                                                                                
-spyder: coding                                                                                            
+spyder: work                                                                                            
 stackoverflow: learning                                                                                   
 stackexchange: learning                                                                                   
-github: coding                                                                                            
-eingabeaufforderung: coding                                                                               
-python: coding                                                                                            
-python35: coding                                                                                          
-high focus: coding                                                                                        
-binaural beats: coding                                                                                    
+github: work                                                                                            
+eingabeaufforderung: work                                                                               
+python: work                                                                                            
+python35: work                                                                                          
+high focus: work                                                                                        
+binaural beats: work                                                                                    
 texstudio: docs                                                                                           
 documentation: docs                                                                                       
 xls : docs                                                                                                
 word: docs                                                                                                
 adobe acrobat reader: docs                                                                                
 thunderbird: mail                                                                                         
-mingw64: coding                                                                                           
-vs2017: coding                                                                                            
-Notepad++: coding                                                                                         
-projects: coding                                                                                          
+mingw64: work                                                                                           
+vs2017: work                                                                                            
+Notepad++: work                                                                                         
+projects: work                                                                                          
 sperrbildschirm: idle                                                                                     
 stayfocusd: idle                                                                                          
-microsoft visual studio: coding                                                                           
-command prompt: coding                                                                                    
-windowssystem32: coding                                                                                   
-microsoft teams: mail                                                                                     
+microsoft visual studio: work                                                                           
+command prompt: work                                                                                    
+windowssystem32: work                                                                                   
+microsoft teams: work                                                                                     
 inbox: mail                                                                                               
-outlook: mail                                                                                             
+outlook: work                                                                                             
 message: mail                                                                                             
 message (html): mail                                                                                      
-run_win_record: coding                                                                                    
-visual studio: coding                                                                                     
-tortoisegit: coding                                                                                       
-.py: coding                                                                                               
-shortcut: coding                                                                                          
-this pc: coding                                                                                           
-Chimera: coding                                                                                           
-task manager: coding                                                                                      
-npm: coding                                                                                               
+run_win_record: work                                                                                    
+visual studio: work                                                                                     
+tortoisegit: work                                                                                       
+.py: work                                                                                               
+shortcut: work                                                                                          
+this pc: work                                                                                           
+Chimera: work                                                                                           
+task manager: work                                                                                      
+npm: work                                                                                               
 voice -: mail                                                                                             
 virginpulse: mail                                                                                         
 powerpoint: docs                                                                                          
@@ -536,16 +536,16 @@ mozilla: wasted
 chrome: wasted                                                                                            
 whatsapp: wasted                                                                                          
 news: wasted                                                                                              
-zebra: coding                                                                                             
-imageglass: coding                                                                                        
-paint: coding                                                                                             
-paint.net: coding                                                                                         
-GIMP: coding                                                                                              
+zebra: work                                                                                             
+imageglass: work                                                                                        
+paint: work                                                                                             
+paint.net: work                                                                                         
+GIMP: work                                                                                              
 netnanny: family                                                                                          
 coronavirus: family                                                                                       
 flu: family                                                                                               
 vaccine: family                                                                                           
-new chat: coding                                                                                          
+new chat: work                                                                                          
 mint.com: family                                                                                          
 feds: gaming                                                                                              
 widow: wasted                                                                                             
@@ -554,8 +554,8 @@ desi: wasted
 lydic: wasted                                                                                             
 tldr: learning                                                                                            
 modular: learning                                                                                         
-shell: coding                                                                                             
-options: coding                                                                                           
+shell: work                                                                                             
+options: work                                                                                           
 warning: idle                                                                                             
 chinesebibleonline: church                                                                                
 bible.com: church                                                                                         
@@ -567,17 +567,17 @@ order page : family
 home depot: family                                                                                        
 mychart: family                                                                                           
 wirecutter: wasted                                                                                        
-code-39: coding                                                                                           
+code-39: work                                                                                           
 walmart.com: family                                                                                       
 maga: wasted                                                                                              
 los angeles times: wasted                                                                                 
-mathjax: coding                                                                                           
+mathjax: work                                                                                           
 file finder: learning                                                                                     
 alldup: learning                                                                                          
-rcr-pf3lv9tf: coding                                                                                      
+rcr-pf3lv9tf: work                                                                                      
 budget laptops: family                                                                                    
 paddleocr: learning                                                                                       
-ghostscript: coding                                                                                       
+ghostscript: work                                                                                       
 fiscal.ai: gaming                                                                                         
 家常菜: family
 www.google.com/maps: family                                                                               

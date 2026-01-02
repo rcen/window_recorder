@@ -151,7 +151,7 @@ def is_vibe_coding(window_title: str) -> bool:
 def get_coding_type(window_title: str) -> str:
     """
     Determine the type of coding activity.
-    Returns: 'vibe_coding', 'work_coding', or 'coding' (if undetermined)
+    Returns: 'vibe_coding', 'work_coding', or 'work' (if undetermined)
     """
     if is_vibe_coding(window_title):
         return 'vibe_coding'
@@ -163,8 +163,8 @@ def get_coding_type(window_title: str) -> str:
         if indicator in title_lower:
             return 'work_coding'
     
-    # Default to generic coding
-    return 'coding'
+    # Default to generic work
+    return 'work'
 
 
 def get_day_boundary_hour():

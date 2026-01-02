@@ -42,10 +42,10 @@ GOALS_CONFIG_FILE = 'data/productivity_goals.json'
 AGENT_STATE_FILE = 'data/agent_state.json'
 
 # --- Category Classifications ---
-PRODUCTIVE_CATS = {"coding", "vibe_coding", "programming", "learning", "church", "documents", "docs", "think", "mail"}
+PRODUCTIVE_CATS = {"work", "coding", "vibe_coding", "programming", "learning", "church", "documents", "docs", "think", "mail"}
 WASTED_CATS = {"wasted", "wasted time", "gaming", "facebook", "shopping", "youtube", "reddit", "twitter"}
 JOB_CATS = {"job search", "current job", "interview", "job", "career"}
-VIBE_CATS = {"coding", "vibe_coding", "programming", "learning"}  # Categories that require job balance
+VIBE_CATS = {"work", "coding", "vibe_coding", "programming", "learning"}  # Categories that require job balance
 
 # --- Thresholds (Weekday) ---
 WASTE_RATIO_TARGET = 0.15  # 15% max wasted time
@@ -290,7 +290,7 @@ class ProductivityAgent:
         """Get default productivity goals aligned with spec."""
         return [
             ProductivityGoal(
-                category="programming",
+                category="work",
                 daily_target_minutes=240,  # 4 hours
                 warning_threshold=0.7,
                 critical_threshold=0.5,
@@ -646,7 +646,7 @@ class ProductivityAgent:
         if not thresholds['git_commit_enabled']:
             return None
         
-        if current_activity.lower() not in ('coding', 'programming'):
+        if current_activity.lower() not in ('work', 'coding', 'programming'):
             self.state.coding_since_last_commit = 0
             return None
         
@@ -787,7 +787,8 @@ class ProductivityAgent:
     
     # Category aliases - maps goal categories to actual database categories
     CATEGORY_ALIASES = {
-        'programming': ['coding', 'programming'],  # vibe_coding excluded - it's personal/fun
+        'work': ['work', 'coding', 'programming'],  # Work includes coding activities; vibe_coding excluded
+        'programming': ['work', 'coding', 'programming'],  # Legacy alias
         'documents': ['docs', 'documents'],
         'wasted time': ['wasted', 'wasted time', 'gaming'],
         'job search': ['job search', 'job', 'career', 'current job', 'interview'],
