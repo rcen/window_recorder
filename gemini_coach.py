@@ -32,13 +32,14 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from pathlib import Path
 
-# Try to import google generativeai
+# Try to import the new google.genai package (replaces deprecated google.generativeai)
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    print("[GeminiCoach] Warning: google-generativeai not installed. Run: pip install google-generativeai")
+    print("[GeminiCoach] Warning: google-genai not installed. Run: pip install google-genai")
 
 
 @dataclass
@@ -89,7 +90,7 @@ Remember: You're coaching a real person who is trying their best. Be their suppo
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the Gemini coach."""
         self.api_key = api_key or self._load_api_key()
-        self.model = None
+        self.client = None
         self.enabled = False
         self.cache_file = Path("data/coach_cache.json")
         self._advice_cache_file = Path("data/coach_advice_cache.json")
@@ -97,6 +98,7 @@ Remember: You're coaching a real person who is trying their best. Be their suppo
         self._cached_advice = None
         self._cached_context_hash = None
         self._advice_cooldown = 1800  # 30 minutes between API calls (was 5 min)
+        self._model_name = 'gemini-2.0-flash'
         
         if not GEMINI_AVAILABLE:
             print("[GeminiCoach] Gemini library not available")
@@ -107,17 +109,9 @@ Remember: You're coaching a real person who is trying their best. Be their suppo
             return
         
         try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(
-                model_name='gemini-2.0-flash',  # Fast and capable model
-                generation_config={
-                    'temperature': 0.7,
-                    'top_p': 0.9,
-                    'max_output_tokens': 200,
-                }
-            )
+            self.client = genai.Client(api_key=self.api_key)
             self.enabled = True
-            print("[GeminiCoach] Initialized successfully with gemini-2.0-flash")
+            print(f"[GeminiCoach] Initialized successfully with {self._model_name}")
         except Exception as e:
             print(f"[GeminiCoach] Failed to initialize: {e}")
     
@@ -294,13 +288,17 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         # Call API for fresh advice
         try:
             prompt = self._build_context_prompt(context)
+            full_prompt = f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
             
-            # Use chat for system prompt support
-            chat = self.model.start_chat(history=[])
-            
-            # Send system prompt context first
-            response = chat.send_message(
-                f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
+            # Use new google.genai API
+            response = self.client.models.generate_content(
+                model=self._model_name,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_output_tokens=200,
+                )
             )
             
             advice = response.text.strip()
@@ -463,8 +461,13 @@ Provide:
 Keep it warm, encouraging, and specific to their actual numbers."""
 
         try:
-            response = self.model.generate_content(
-                f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
+            response = self.client.models.generate_content(
+                model=self._model_name,
+                contents=f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}",
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=300,
+                )
             )
             return response.text.strip()
         except Exception as e:
@@ -495,8 +498,13 @@ Their question: {question}
 Provide a helpful, concise answer (2-4 sentences). Be practical and developer-focused."""
 
         try:
-            response = self.model.generate_content(
-                f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}"
+            response = self.client.models.generate_content(
+                model=self._model_name,
+                contents=f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}",
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=200,
+                )
             )
             return response.text.strip()
         except Exception as e:
