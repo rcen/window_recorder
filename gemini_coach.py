@@ -98,7 +98,7 @@ Remember: You're coaching a real person who is trying their best. Be their suppo
         self._cached_advice = None
         self._cached_context_hash = None
         self._advice_cooldown = 1800  # 30 minutes between API calls (was 5 min)
-        self._model_name = 'gemini-2.0-flash'
+        self._model_name = 'gemma-3-12b-it'  # Gemma has separate quota from Gemini
         
         if not GEMINI_AVAILABLE:
             print("[GeminiCoach] Gemini library not available")
