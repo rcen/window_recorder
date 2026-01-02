@@ -687,7 +687,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
         # --- Productivity Goal Monitoring ---
         if time.time() > productivity_check_time and productivity_agent:
             try:
-                warnings = productivity_agent.check_and_warn()
+                # Pass current activity so we don't interrupt productive work
+                warnings = productivity_agent.check_and_warn(current_category)
                 if warnings:
                     print(f"[ProductivityAgent] {len(warnings)} goal(s) need attention")
             except Exception as e:

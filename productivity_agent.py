@@ -852,11 +852,19 @@ class ProductivityAgent:
         return alerts
     
     def check_and_warn(self, current_activity: str = "") -> List[GoalProgress]:
-        """Check all goals and rules, trigger warnings as needed."""
+        """Check all goals and rules, trigger warnings as needed.
+        
+        Suppresses goal warnings when user is currently doing productive work,
+        since interrupting a productive session is counterproductive.
+        """
         self.evaluate_all_goals()
         warnings_triggered = []
         
-        # Check behavioral rules
+        # Check if user is currently being productive - if so, skip goal warnings
+        # (don't interrupt productive work with "you're behind" messages)
+        current_is_productive = is_productive(current_activity) if current_activity else False
+        
+        # Check behavioral rules (these still apply even during productive work)
         alerts = self.check_all_rules(current_activity)
         for title, message, alert_type in alerts:
             if self._should_warn(alert_type):
@@ -864,7 +872,11 @@ class ProductivityAgent:
                 if self.callback_warn:
                     self.callback_warn(title, message, "warning")
         
-        # Check goal progress
+        # Check goal progress - skip if user is currently productive
+        if current_is_productive:
+            # User is doing productive work - don't interrupt with "behind" warnings
+            return warnings_triggered
+        
         for category, progress in self.progress.items():
             if progress.status in (GoalStatus.WARNING, GoalStatus.CRITICAL, GoalStatus.FAILED):
                 if self._should_warn(f"goal_{category}"):
