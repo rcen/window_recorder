@@ -32,6 +32,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from pathlib import Path
 
+from categories import aggregate_stats
+
 # Try to import the new google.genai package (replaces deprecated google.generativeai)
 try:
     from google import genai
@@ -196,7 +198,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         situations = []
         
         # Check various situations
-        work_mins = context.current_stats.get('work', 0) + context.current_stats.get('coding', 0) + context.current_stats.get('programming', 0)
+        work_mins = aggregate_stats(context.current_stats, 'work')
         wasted_mins = context.current_stats.get('wasted', 0)
         learning_mins = context.current_stats.get('learning', 0)
         
@@ -417,7 +419,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         is_rest_day: bool
     ) -> str:
         """Fallback advice when Gemini is unavailable."""
-        work = stats.get('work', 0) + stats.get('coding', 0) + stats.get('programming', 0)
+        work = aggregate_stats(stats, 'work')
         wasted = stats.get('wasted', 0)
         work_goal = goals.get('work', 240)
         
@@ -429,13 +431,13 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         if time_of_day == "morning" and work < 30:
             return "🌅 Morning is golden time for deep work. Try starting with your most challenging task!"
         
-        if coding >= coding_goal:
-            return "🎉 Amazing! You've hit your coding goal. Consider some learning time or a well-deserved break!"
+        if work >= work_goal:
+            return "🎉 Amazing! You've hit your work goal. Consider some learning time or a well-deserved break!"
         
         if wasted > 60:
             return "🔄 Time for a reset? Try the 2-minute rule: pick one small task and complete it."
         
-        progress = coding / coding_goal if coding_goal > 0 else 0
+        progress = work / work_goal if work_goal > 0 else 0
         if progress >= 0.7:
             return f"💪 Great progress at {progress*100:.0f}%! You're in the home stretch - keep the momentum!"
         
@@ -504,7 +506,7 @@ Keep it warm, encouraging, and specific to their actual numbers."""
     
     def _get_fallback_summary(self, stats: Dict[str, float], goals: Dict[str, float]) -> str:
         """Fallback daily summary."""
-        work = stats.get('work', 0) + stats.get('coding', 0) + stats.get('programming', 0)
+        work = aggregate_stats(stats, 'work')
         learning = stats.get('learning', 0)
         
         return f"""📊 Daily Summary:

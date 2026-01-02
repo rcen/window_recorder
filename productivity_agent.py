@@ -29,6 +29,10 @@ import pytz
 
 import database
 from config import TIMEZONE, DAY_BOUNDARY_HOUR
+from categories import (
+    PRODUCTIVE_CATS, WASTED_CATS, JOB_CATS, VIBE_CATS,
+    CATEGORY_ALIASES, is_productive, is_wasted, aggregate_stats
+)
 
 # Try to import Gemini coach
 try:
@@ -40,12 +44,6 @@ except ImportError:
 # --- Configuration ---
 GOALS_CONFIG_FILE = 'data/productivity_goals.json'
 AGENT_STATE_FILE = 'data/agent_state.json'
-
-# --- Category Classifications ---
-PRODUCTIVE_CATS = {"work", "coding", "vibe_coding", "programming", "learning", "church", "documents", "docs", "think", "mail", "job search"}
-WASTED_CATS = {"wasted", "wasted time", "gaming", "facebook", "shopping", "youtube", "reddit", "twitter"}
-JOB_CATS = {"job search", "current job", "interview", "job", "career"}
-VIBE_CATS = {"work", "coding", "vibe_coding", "programming", "learning"}  # Categories that require job balance
 
 # --- Thresholds (Weekday) ---
 WASTE_RATIO_TARGET = 0.15  # 15% max wasted time
@@ -785,15 +783,6 @@ class ProductivityAgent:
         
         return progress
     
-    # Category aliases - maps goal categories to actual database categories
-    CATEGORY_ALIASES = {
-        'work': ['work', 'coding', 'programming'],  # Work includes coding activities; vibe_coding excluded
-        'programming': ['work', 'coding', 'programming'],  # Legacy alias
-        'documents': ['docs', 'documents'],
-        'wasted time': ['wasted', 'wasted time', 'gaming'],
-        'job search': ['job search', 'job', 'career', 'current job', 'interview'],
-    }
-    
     def evaluate_all_goals(self) -> Dict[str, GoalProgress]:
         """Evaluate progress toward all goals."""
         stats = self.get_current_day_stats()
@@ -802,9 +791,8 @@ class ProductivityAgent:
             if not goal.enabled:
                 continue
             
-            # Sum up all aliased categories
-            aliases = self.CATEGORY_ALIASES.get(category, [category])
-            current_minutes = sum(stats.get(alias, 0) for alias in aliases)
+            # Sum up all aliased categories using centralized function
+            current_minutes = aggregate_stats(stats, category)
             
             self.progress[category] = self.evaluate_goal(goal, current_minutes)
         

@@ -4,6 +4,8 @@ import argparse
 import os
 from datetime import datetime
 
+from categories import is_productive
+
 DB_FILE = 'data/activity.sqlite'
 
 def initialize_database():
@@ -166,11 +168,10 @@ def view_project(short_name):
         # Calculate totals
         total_productive_duration = 0
         category_totals = {}
-        non_productive_categories = ['idle', 'sperrbildschirm']
 
         for category, duration in activities:
             category_totals[category] = category_totals.get(category, 0) + duration
-            if category not in non_productive_categories:
+            if is_productive(category):
                 total_productive_duration += duration
 
         # Display totals

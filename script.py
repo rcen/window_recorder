@@ -34,6 +34,7 @@ import logging
 from analytics import Analytics
 from broser_start import generate_inspirational_html
 from productivity_agent import ProductivityAgent, GoalStatus
+from categories import is_wasted
 import platform
 import uuid
 from typing import Any, Dict, Optional
@@ -596,8 +597,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             # Medium updates (30s) when productive to see streak increment
             # Quick update (15s) when switching between productive/wasted for instant feedback
             current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
-            non_productive_cats = {"wasted", "wasted time", "gaming"}
-            is_currently_wasting = "wasted" in current_category.lower() or "gaming" in current_category.lower()
+            is_currently_wasting = is_wasted(current_category)
             
             # Determine current state
             current_state = 'wasting' if is_currently_wasting else 'productive'
@@ -627,8 +627,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         # Activity page reminder every 30 minutes
         if time.time() > activity_page_reminder_time:
             current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
-            non_productive_cats = {"wasted", "wasted time", "gaming"}
-            is_currently_wasting = "wasted" in current_category.lower() or "gaming" in current_category.lower()
+            is_currently_wasting = is_wasted(current_category)
             
             # Rule 1: If not on web browser, open activity page in background
             if not is_browser_window(current_window):
@@ -650,7 +649,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             activity_page_reminder_time = time.time() + 1800
 
         current_category = 'idle' if idle else analytic.get_cat(current_window, current_url)
-        if "wasted" in current_category.lower():
+        if is_wasted(current_category):
             if wasted_time_start is None:
                 wasted_time_start = time.time()
                 # last_warning_minute is reset when the activity is no longer "wasted"

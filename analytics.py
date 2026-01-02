@@ -22,6 +22,11 @@ import pytz
 import plotly.express as px
 import database
 from config import TIMEZONE, DAY_BOUNDARY_HOUR, HABITS
+from categories import (
+    PRODUCTIVE_CATS, WASTED_CATS, RATIO_DISPLAY_CATS, CATEGORY_PRIORITY,
+    RECENT_ACTIVITY_PRODUCTIVE, RECENT_ACTIVITY_DISTRACTED,
+    is_productive, is_wasted
+)
 import sqlite3
 import requests
 import html
@@ -90,11 +95,7 @@ def resolve_conflicts(df):
     if 'source' not in df.columns or df['source'].nunique() <= 1:
         return df.sort_values(by='start_time').reset_index(drop=True)
 
-    priority = {
-        'work': 1, 'programming': 1, 'documents': 1, 'mail': 2,
-        'not categorized': 3, 'wasted time': 4, 'idle': 5
-    }
-    df['priority'] = df['category'].map(priority).fillna(99)
+    df['priority'] = df['category'].map(CATEGORY_PRIORITY).fillna(99)
 
     # Sort events by start time, then by priority to process them in order.
     sorted_events = df.sort_values(by=['start_time', 'priority']).to_dict('records')
@@ -764,8 +765,7 @@ test:
             
             # Determine current activity and set refresh rate accordingly
             current_category = self._get_current_activity_category(log_list, date_list)
-            non_productive_cats = {"wasted", "wasted time", "gaming"}
-            is_currently_wasting = current_category and current_category in non_productive_cats
+            is_currently_wasting = current_category and is_wasted(current_category)
             
             # Fast refresh (15s) when wasting for immediate feedback, medium refresh (30s) when productive
             refresh_interval = 15 if is_currently_wasting else 30
@@ -803,8 +803,8 @@ test:
                 row = f'<tr{row_class}>'
                 row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
                 
-                # Categories to show ratio for
-                ratio_cats = {'family', 'gaming', 'work', 'wasted', 'learning', 'church', 'mail', 'job search'}
+                # Categories to show ratio for - use centralized definition
+                ratio_cats = RATIO_DISPLAY_CATS
                 
                 # Calculate total_time from ALL non-idle categories in the log (not just all_u_cats)
                 total_time = 0
@@ -877,12 +877,9 @@ window.addEventListener("load", function() {
             streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
             current_category = self._get_current_activity_category(log_list, date_list)
             
-            # Define productive and non-productive categories
-            productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search"}
-            non_productive_cats = {"wasted", "wasted time", "gaming"}
-            
+            # Use centralized category definitions
             # Check if current activity is non-productive
-            is_currently_wasting = current_category and current_category in non_productive_cats
+            is_currently_wasting = current_category and is_wasted(current_category)
             
             # Always calculate waste ratio for display
             waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
@@ -1981,9 +1978,7 @@ if (chartsBtn) {
                 datetime.time(hour=DAY_BOUNDARY_HOUR)
             ).tz_localize(tz)
 
-        # Define productive and non-productive categories
-        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search", "not categorized"}
-        non_productive_cats = {"wasted", "wasted time", "gaming"}
+        # Use centralized category definitions
         # Idle and mail are neutral - we skip them when looking for current activity
 
         # Get recent activities from the most recent day(s)
@@ -2021,7 +2016,7 @@ if (chartsBtn) {
         current_category = str(current_activity.get('category', '')).lower()
 
         # Check if current meaningful activity is productive
-        if current_category not in productive_cats:
+        if not is_productive(current_category):
             return 0, "0 min"
 
         # Backtrace through activities accumulating productive time
@@ -2056,11 +2051,11 @@ if (chartsBtn) {
                 continue
             
             # If we hit a non-productive activity, stop
-            if category in non_productive_cats:
+            if is_wasted(category):
                 break
             
             # If productive, accumulate the duration
-            if category in productive_cats:
+            if is_productive(category):
                 duration_seconds = activity.get('duration', 0)
                 total_productive_minutes += duration_seconds / 60.0
                 
@@ -2099,8 +2094,7 @@ if (chartsBtn) {
         # Sort by start time
         df = df.sort_values('start_time').reset_index(drop=True)
         
-        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search", "not categorized"}
-        non_productive_cats = {"wasted", "wasted time", "gaming"}
+        # Use centralized category definitions
         
         # Get max idle break threshold from config (default 30 minutes)
         max_idle_break_minutes = self.config.getint('SETTINGS', 'max_idle_break_minutes', fallback=30)
@@ -2128,7 +2122,7 @@ if (chartsBtn) {
                 continue
             
             # If productive, add to current streak
-            if category in productive_cats:
+            if is_productive(category):
                 # Track start time of current streak
                 if current_streak_minutes == 0 and 'start_time' in activity:
                     current_streak_start_time = activity['start_time']
@@ -2142,7 +2136,7 @@ if (chartsBtn) {
                     max_streak_start_time = current_streak_start_time
             
             # If non-productive, reset streak
-            elif category in non_productive_cats:
+            elif is_wasted(category):
                 current_streak_minutes = 0
                 current_streak_start_time = None
             
@@ -2328,8 +2322,9 @@ if (chartsBtn) {
         if df.empty:
             return ''
 
-        productive_cats = ["work", "coding", "programming", "learning", "church", "documents", "mail", "job search"]
-        distracted_cats = ["wasted", "wasted time", "gaming", "no_cat", "not categorized"]
+        # Use centralized category definitions
+        productive_cats = RECENT_ACTIVITY_PRODUCTIVE
+        distracted_cats = RECENT_ACTIVITY_DISTRACTED
 
         rows = []
         for _, row in df.iterrows():
