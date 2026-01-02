@@ -309,7 +309,7 @@ class ProductivityAgent:
                 is_positive=False
             ),
             ProductivityGoal(
-                category="job search",
+                category="job_search",
                 daily_target_minutes=30,  # 30 min job activities
                 warning_threshold=0.5,
                 critical_threshold=0.3,
@@ -484,7 +484,7 @@ class ProductivityAgent:
             return (
                 "⚖️ Job Balance Needed",
                 f"You've done {vibe_minutes:.0f} min of coding/learning. "
-                f"Time to spend {deficit:.0f} min on job search or work tasks!"
+                f"Time to spend {deficit:.0f} min on job_search or work tasks!"
             )
         return None
     

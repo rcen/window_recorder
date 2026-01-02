@@ -117,19 +117,19 @@ BASELINE_METRICS = {
         'start': '2025-12-27',
         'end': '2026-01-02'
     },
-    'total_records': 4351,
+    'total_records': 4365,
     'days_count': 7,
     
     # Expected category classifications
-    'productive_categories': {'work', 'learning', 'vibe_coding', 'mail', 'church', 'docs', 'think', 'job search                                                            linkedin'},
+    'productive_categories': {'work', 'learning', 'vibe_coding', 'mail', 'church', 'docs', 'think', 'job_search'},
     'wasted_categories': {'wasted', 'gaming'},
     'neutral_categories': {'idle', 'family'},
     
     # Expected daily totals (in seconds) for spot-checking
     'daily_totals': {
-        '2025-12-27': {'work': 2652, 'wasted': 6042},
+        '2025-12-27': {'work': 2652, 'wasted': 6042, 'job_search': 1794},
         '2025-12-31': {'work': 8976, 'learning': 1476},
-        '2026-01-01': {'learning': 6876, 'vibe_coding': 5064},
+        '2026-01-01': {'learning': 6876, 'vibe_coding': 5064, 'job_search': 2148},
     }
 }
 
@@ -181,11 +181,12 @@ class TestCategoryClassification:
         assert is_neutral('wasted') == False
     
     def test_is_job_related_function(self):
-        """Test job search category detection."""
-        assert is_job_related('job search') == True
+        """Test job_search category detection."""
+        assert is_job_related('job_search') == True
         assert is_job_related('job') == True
         assert is_job_related('career') == True
         assert is_job_related('interview') == True
+        assert is_job_related('linkedin') == True
         assert is_job_related('work') == False
     
     def test_category_mutual_exclusivity(self):

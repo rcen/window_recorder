@@ -24,7 +24,7 @@ PRODUCTIVE_CATS = frozenset({
     "documents",
     "docs",
     "think",
-    "job search",
+    "job_search",
     "mail",  # Work communication
 })
 
@@ -42,8 +42,8 @@ WASTED_CATS = frozenset({
 
 # Job-related activities - satisfy the job balance requirement
 JOB_CATS = frozenset({
-    "job search",
-    "current job",
+    "job_search",
+    "current_job",
     "interview",
     "job",
     "career",
@@ -78,7 +78,7 @@ RATIO_DISPLAY_CATS = frozenset({
     "learning",
     "church",
     "mail",
-    "job search",
+    "job_search",
 })
 
 # =============================================================================
@@ -90,7 +90,7 @@ CATEGORY_PRIORITY = {
     'work': 1,
     'programming': 1,
     'coding': 1,
-    'job search': 1,
+    'job_search': 1,
     'documents': 1,
     'learning': 2,
     'mail': 2,
@@ -113,7 +113,7 @@ CATEGORY_ALIASES = {
     'programming': ['work', 'coding', 'programming'],  # Legacy support
     'documents': ['docs', 'documents'],
     'wasted time': ['wasted', 'wasted time', 'gaming'],
-    'job search': ['job search', 'job', 'career', 'current job', 'interview'],
+    'job_search': ['job_search', 'job', 'career', 'current_job', 'interview'],
     'learning': ['learning'],
 }
 
@@ -135,7 +135,7 @@ def is_job_related(category: str) -> bool:
     """Check if a category satisfies job balance requirement.
     
     Uses substring matching to handle categories like 
-    'job search                linkedin: job search'.
+    'job_search                linkedin: job_search'.
     """
     cat_lower = category.lower()
     # First try exact match

@@ -1,10 +1,10 @@
 {
-  "extracted_at": "2026-01-02T12:21:27.719007",
+  "extracted_at": "2026-01-02T12:35:45.074909",
   "date_range": {
     "start": "2025-12-27",
     "end": "2026-01-02"
   },
-  "record_count": 4351,
+  "record_count": 4365,
   "activities": [
     {
       "id": 534204,
@@ -1395,7 +1395,7 @@
     {
       "id": 534330,
       "timestamp": 1766885243.997532,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "untitled and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1417,7 +1417,7 @@
     {
       "id": 534332,
       "timestamp": 1766885319.6319122,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 75,
       "window_title": "(16) staff machine learning engineer- video ai/computer vision | warner bros. discovery | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1428,7 +1428,7 @@
     {
       "id": 534333,
       "timestamp": 1766885410.1525998,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 90,
       "window_title": "(16) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1494,7 +1494,7 @@
     {
       "id": 534339,
       "timestamp": 1766885538.391798,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 8,
       "window_title": "(16) solutions architect - hpc/ai/ml | coreweave | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1505,7 +1505,7 @@
     {
       "id": 534340,
       "timestamp": 1766885573.6110966,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 35,
       "window_title": "(16) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1549,7 +1549,7 @@
     {
       "id": 534344,
       "timestamp": 1766885945.9914844,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 276,
       "window_title": "(16) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1571,7 +1571,7 @@
     {
       "id": 534346,
       "timestamp": 1766886133.3153229,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 183,
       "window_title": "(16) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1582,7 +1582,7 @@
     {
       "id": 534347,
       "timestamp": 1766886503.0461273,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 329,
       "window_title": "(16) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -1802,7 +1802,7 @@
     {
       "id": 534367,
       "timestamp": 1766887381.7843194,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 230,
       "window_title": "(16) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -2242,7 +2242,7 @@
     {
       "id": 534407,
       "timestamp": 1766888854.372053,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 357,
       "window_title": "(16) feed | linkedin and 3 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -2264,7 +2264,7 @@
     {
       "id": 534409,
       "timestamp": 1766889072.8204412,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 209,
       "window_title": "(16) top job picks for you | linkedin and 3 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5300,7 +5300,7 @@
     {
       "id": 534685,
       "timestamp": 1766944758.2274492,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 5,
       "window_title": "(16) lead research software engineer | princeton university | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5311,7 +5311,7 @@
     {
       "id": 534686,
       "timestamp": 1766944802.522468,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 44,
       "window_title": "(16) linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5322,7 +5322,7 @@
     {
       "id": 534687,
       "timestamp": 1766944811.4173172,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 6,
       "window_title": "(16) linkedin learning ai-powered coaching: about | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5355,7 +5355,7 @@
     {
       "id": 534690,
       "timestamp": 1766944879.906434,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 45,
       "window_title": "linkedin login sign in | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5366,7 +5366,7 @@
     {
       "id": 534691,
       "timestamp": 1766944886.335889,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 6,
       "window_title": "绳降/表演技巧 - google chrome",
       "source": "RCR-PF3LV9TF",
@@ -5377,7 +5377,7 @@
     {
       "id": 534692,
       "timestamp": 1766944930.0348587,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "linkedin login sign in | linkedin - google chrome",
       "source": "RCR-PF3LV9TF",
@@ -5399,7 +5399,7 @@
     {
       "id": 534694,
       "timestamp": 1766944936.541311,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 6,
       "window_title": "authorize | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5454,7 +5454,7 @@
     {
       "id": 534699,
       "timestamp": 1766945056.776765,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 14,
       "window_title": "(16) linkedin learning ai-powered coaching: about | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5465,7 +5465,7 @@
     {
       "id": 534700,
       "timestamp": 1766945073.719948,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 16,
       "window_title": "(16) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5773,7 +5773,7 @@
     {
       "id": 534728,
       "timestamp": 1766959768.7743995,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "untitled and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -5795,7 +5795,7 @@
     {
       "id": 534730,
       "timestamp": 1766959788.813033,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 19,
       "window_title": "(17) machine learning engineer | national basketball association (nba) | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -6015,7 +6015,7 @@
     {
       "id": 534750,
       "timestamp": 1766960103.993232,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 8,
       "window_title": "(17) machine learning engineer | national basketball association (nba) | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -6158,7 +6158,7 @@
     {
       "id": 534763,
       "timestamp": 1766960540.9447355,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 3,
       "window_title": "(17) machine learning engineer | national basketball association (nba) | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -7478,7 +7478,7 @@
     {
       "id": 534883,
       "timestamp": 1766980421.6363227,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 13,
       "window_title": "(17) machine learning engineer | national basketball association (nba) | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -7489,7 +7489,7 @@
     {
       "id": 534884,
       "timestamp": 1766980484.6714654,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 63,
       "window_title": "(17) feed | linkedin and 5 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -13440,7 +13440,7 @@
     {
       "id": 535425,
       "timestamp": 1767058726.298385,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "untitled and 8 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -13462,7 +13462,7 @@
     {
       "id": 535427,
       "timestamp": 1767058739.5824873,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 13,
       "window_title": "(19) ai and technology consultant | sei | linkedin and 8 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -13473,7 +13473,7 @@
     {
       "id": 535428,
       "timestamp": 1767059014.7578304,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 275,
       "window_title": "(19) feed | linkedin and 8 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -13484,7 +13484,7 @@
     {
       "id": 535429,
       "timestamp": 1767059073.5597212,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 57,
       "window_title": "notifications | linkedin and 8 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -13803,7 +13803,7 @@
     {
       "id": 535458,
       "timestamp": 1767062185.0656633,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 846,
       "window_title": "feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -14397,7 +14397,7 @@
     {
       "id": 535512,
       "timestamp": 1767063348.1627548,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 39,
       "window_title": "feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -17048,7 +17048,7 @@
     {
       "id": 535753,
       "timestamp": 1767103130.6782162,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "you may be a fit for the university of pennsylvania’s research software engineer role - actively recruiting - cen.rao@gmail.com - gmail - google chrome",
       "source": "RCR-PF3LV9TF",
@@ -17059,7 +17059,7 @@
     {
       "id": 535754,
       "timestamp": 1767103175.7130396,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 4,
       "window_title": "linkedin - google chrome",
       "source": "RCR-PF3LV9TF",
@@ -17070,7 +17070,7 @@
     {
       "id": 535755,
       "timestamp": 1767103219.3490102,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "(3) research software engineer | university of pennsylvania | linkedin - google chrome",
       "source": "RCR-PF3LV9TF",
@@ -17356,7 +17356,7 @@
     {
       "id": 535781,
       "timestamp": 1767104287.9319196,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "candidate home and 19 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -17378,7 +17378,7 @@
     {
       "id": 535783,
       "timestamp": 1767104405.2527518,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 117,
       "window_title": "(4) feed | linkedin and 20 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -19699,7 +19699,7 @@
     {
       "id": 535994,
       "timestamp": 1767148821.474884,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 7,
       "window_title": "untitled and 20 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -19721,7 +19721,7 @@
     {
       "id": 535996,
       "timestamp": 1767148950.1951842,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 128,
       "window_title": "(18) feed | linkedin and 20 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -30732,7 +30732,7 @@
     {
       "id": 536997,
       "timestamp": 1767221670.9470432,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 23,
       "window_title": "(23) jingyi lu | linkedin and 23 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36210,7 +36210,7 @@
     {
       "id": 537495,
       "timestamp": 1767280801.5768895,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 21,
       "window_title": "(24) ai and mep software developer | jaros baum & bolles | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36232,7 +36232,7 @@
     {
       "id": 537497,
       "timestamp": 1767280814.706451,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36243,7 +36243,7 @@
     {
       "id": 537498,
       "timestamp": 1767280836.8734486,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 22,
       "window_title": "(24) artificial intelligence engineer | charlemagne labs inc. | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36254,7 +36254,7 @@
     {
       "id": 537499,
       "timestamp": 1767280865.1112616,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 28,
       "window_title": "(24) feed | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36265,7 +36265,7 @@
     {
       "id": 537500,
       "timestamp": 1767281154.3000548,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 287,
       "window_title": "(24) top job picks for you | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36276,7 +36276,7 @@
     {
       "id": 537501,
       "timestamp": 1767281234.9009583,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 80,
       "window_title": "(24) linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36320,7 +36320,7 @@
     {
       "id": 537505,
       "timestamp": 1767281312.612544,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 69,
       "window_title": "(24) linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36353,7 +36353,7 @@
     {
       "id": 537508,
       "timestamp": 1767281367.4040885,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 52,
       "window_title": "(24) linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36386,7 +36386,7 @@
     {
       "id": 537511,
       "timestamp": 1767281399.8093717,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 17,
       "window_title": "(24) linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36463,7 +36463,7 @@
     {
       "id": 537518,
       "timestamp": 1767281634.4661622,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 15,
       "window_title": "(24) ai and mep software developer | jaros baum & bolles | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36474,7 +36474,7 @@
     {
       "id": 537519,
       "timestamp": 1767281824.7281845,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 189,
       "window_title": "(24) similar jobs | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36496,7 +36496,7 @@
     {
       "id": 537521,
       "timestamp": 1767281998.1142557,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 173,
       "window_title": "(24) similar jobs | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36507,7 +36507,7 @@
     {
       "id": 537522,
       "timestamp": 1767282138.2999148,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 140,
       "window_title": "(24) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36573,7 +36573,7 @@
     {
       "id": 537528,
       "timestamp": 1767282212.2597957,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 35,
       "window_title": "(24) feed | linkedin and 3 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36760,7 +36760,7 @@
     {
       "id": 537545,
       "timestamp": 1767282945.8960216,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 366,
       "window_title": "(24) feed | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -36782,7 +36782,7 @@
     {
       "id": 537547,
       "timestamp": 1767282956.0981064,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 3,
       "window_title": "(24) feed | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -37068,7 +37068,7 @@
     {
       "id": 537573,
       "timestamp": 1767284574.2115307,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 25,
       "window_title": "(24) computer vision & agentic systems engineer | flowmentum inc. | linkedin and 3 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -37288,7 +37288,7 @@
     {
       "id": 537593,
       "timestamp": 1767286523.0255797,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 5,
       "window_title": "(24) computer vision & agentic systems engineer | flowmentum inc. | linkedin and 3 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -38542,7 +38542,7 @@
     {
       "id": 537707,
       "timestamp": 1767301196.2349877,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 4,
       "window_title": "(24) joshua wilson | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -38586,7 +38586,7 @@
     {
       "id": 537711,
       "timestamp": 1767301243.401734,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 28,
       "window_title": "(24) joshua wilson | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -38597,7 +38597,7 @@
     {
       "id": 537712,
       "timestamp": 1767301297.5542858,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 53,
       "window_title": "(24) joshua wilson | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -38608,7 +38608,7 @@
     {
       "id": 537713,
       "timestamp": 1767301319.649639,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 21,
       "window_title": "(24) experience | joshua wilson | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -38619,7 +38619,7 @@
     {
       "id": 537714,
       "timestamp": 1767301322.2257757,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "(24) joshua wilson | linkedin and 1 more page - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39774,7 +39774,7 @@
     {
       "id": 537819,
       "timestamp": 1767321652.131779,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 3,
       "window_title": "untitled and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39796,7 +39796,7 @@
     {
       "id": 537821,
       "timestamp": 1767321706.0835743,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 53,
       "window_title": "(24) software engineer | areté | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39851,7 +39851,7 @@
     {
       "id": 537826,
       "timestamp": 1767321817.1789598,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 93,
       "window_title": "(24) software engineer | areté | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39862,7 +39862,7 @@
     {
       "id": 537827,
       "timestamp": 1767321849.2563663,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 32,
       "window_title": "(24) feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39884,7 +39884,7 @@
     {
       "id": 537829,
       "timestamp": 1767321914.0402775,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 64,
       "window_title": "(24) feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39906,7 +39906,7 @@
     {
       "id": 537831,
       "timestamp": 1767321983.8820508,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 54,
       "window_title": "(24) feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39917,7 +39917,7 @@
     {
       "id": 537832,
       "timestamp": 1767321999.7850401,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 15,
       "window_title": "notifications | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39928,7 +39928,7 @@
     {
       "id": 537833,
       "timestamp": 1767322192.8581583,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 193,
       "window_title": "feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -39950,7 +39950,7 @@
     {
       "id": 537835,
       "timestamp": 1767322221.6708574,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "feed | linkedin and 7 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -46803,7 +46803,7 @@
     {
       "id": 538458,
       "timestamp": 1767371948.783596,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 3,
       "window_title": "new tab and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -46825,7 +46825,7 @@
     {
       "id": 538460,
       "timestamp": 1767372002.1692245,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 53,
       "window_title": "(4) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -46836,7 +46836,7 @@
     {
       "id": 538461,
       "timestamp": 1767372153.6221156,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 151,
       "window_title": "(5) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -46990,7 +46990,7 @@
     {
       "id": 538475,
       "timestamp": 1767372389.2509632,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 5,
       "window_title": "(5) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47001,7 +47001,7 @@
     {
       "id": 538476,
       "timestamp": 1767372416.8784266,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 27,
       "window_title": "(5) messaging | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47122,7 +47122,7 @@
     {
       "id": 538487,
       "timestamp": 1767372557.50243,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 2,
       "window_title": "(5) messaging | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47133,7 +47133,7 @@
     {
       "id": 538488,
       "timestamp": 1767372574.0107038,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 16,
       "window_title": "(5) feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47144,7 +47144,7 @@
     {
       "id": 538489,
       "timestamp": 1767372585.2719254,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 10,
       "window_title": "notifications | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47155,7 +47155,7 @@
     {
       "id": 538490,
       "timestamp": 1767372633.2498307,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 47,
       "window_title": "feed | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47166,7 +47166,7 @@
     {
       "id": 538491,
       "timestamp": 1767372642.3943663,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 8,
       "window_title": "brandon rhodes | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47177,7 +47177,7 @@
     {
       "id": 538492,
       "timestamp": 1767372651.8689802,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 8,
       "window_title": "gamechanger: posts | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47232,7 +47232,7 @@
     {
       "id": 538497,
       "timestamp": 1767372805.5135436,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 20,
       "window_title": "gamechanger: posts | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47243,7 +47243,7 @@
     {
       "id": 538498,
       "timestamp": 1767372817.200128,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 10,
       "window_title": "gamechanger: jobs | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47353,7 +47353,7 @@
     {
       "id": 538508,
       "timestamp": 1767373197.0893924,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 10,
       "window_title": "notifications | linkedin and 4 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47485,7 +47485,7 @@
     {
       "id": 538520,
       "timestamp": 1767373542.0809617,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 3,
       "window_title": "feed | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47507,7 +47507,7 @@
     {
       "id": 538522,
       "timestamp": 1767373553.7229238,
-      "category": "job search                                                            linkedin: job search",
+      "category": "job_search",
       "duration": 4,
       "window_title": "feed | linkedin and 6 more pages - work - microsoft​ edge",
       "source": "RCR-PF3LV9TF",
@@ -47866,6 +47866,160 @@
       "window_url": null,
       "window_url_short": null,
       "local_date": "2026-01-02"
+    },
+    {
+      "id": 538555,
+      "timestamp": 1767374508.0929549,
+      "category": "vibe_coding",
+      "duration": 57,
+      "window_title": "config.dat - window_recorder - visual studio code",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538556,
+      "timestamp": 1767374664.9940937,
+      "category": "job_search",
+      "duration": 156,
+      "window_title": "feed | linkedin and 6 more pages - work - microsoft​ edge",
+      "source": "RCR-PF3LV9TF",
+      "window_url": "https://www.linkedin.com/feed/",
+      "window_url_short": "www.linkedin.com/feed",
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538557,
+      "timestamp": 1767374705.0756643,
+      "category": "vibe_coding",
+      "duration": 40,
+      "window_title": "config.dat - window_recorder - visual studio code",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538558,
+      "timestamp": 1767374717.918005,
+      "category": "vibe_coding",
+      "duration": 12,
+      "window_title": "c:\\projects\\window_recorder - log messages - tortoisegit",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538559,
+      "timestamp": 1767374735.7616646,
+      "category": "work",
+      "duration": 17,
+      "window_title": "winmerge - [tests/test_regression.py - tests/test_regression.py:89601117]",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538560,
+      "timestamp": 1767374742.6338599,
+      "category": "vibe_coding",
+      "duration": 6,
+      "window_title": "c:\\projects\\window_recorder - log messages - tortoisegit",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538561,
+      "timestamp": 1767374745.6661925,
+      "category": "work",
+      "duration": 2,
+      "window_title": "winmerge - [tests/readme.md - tests/readme.md:89601117]",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538562,
+      "timestamp": 1767374761.895911,
+      "category": "not categorized",
+      "duration": 16,
+      "window_title": "⚖️ job balance needed",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538563,
+      "timestamp": 1767374799.1586444,
+      "category": "work",
+      "duration": 37,
+      "window_title": "winmerge - [tests/readme.md - tests/readme.md:89601117]",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538564,
+      "timestamp": 1767374804.4702969,
+      "category": "not categorized",
+      "duration": 5,
+      "window_title": "⚖️ job balance needed",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538565,
+      "timestamp": 1767374843.7922058,
+      "category": "vibe_coding",
+      "duration": 39,
+      "window_title": "config.dat - window_recorder - visual studio code",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538566,
+      "timestamp": 1767374898.8757043,
+      "category": "job_search",
+      "duration": 55,
+      "window_title": "feed | linkedin and 6 more pages - work - microsoft​ edge",
+      "source": "RCR-PF3LV9TF",
+      "window_url": "https://www.linkedin.com/feed/",
+      "window_url_short": "www.linkedin.com/feed",
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538567,
+      "timestamp": 1767374939.3958597,
+      "category": "vibe_coding",
+      "duration": 40,
+      "window_title": "track your time - don't waste it! and 6 more pages - work - microsoft​ edge",
+      "source": "RCR-PF3LV9TF",
+      "window_url": "c:/projects/window_recorder/html/index.html",
+      "window_url_short": "c:/projects/window_recorder/...",
+      "local_date": "2026-01-02"
+    },
+    {
+      "id": 538568,
+      "timestamp": 1767375059.116367,
+      "category": "vibe_coding",
+      "duration": 119,
+      "window_title": "config.dat - window_recorder - visual studio code",
+      "source": "RCR-PF3LV9TF",
+      "window_url": null,
+      "window_url_short": null,
+      "local_date": "2026-01-02"
     }
   ],
   "daily_summary": {
@@ -47877,7 +48031,7 @@
         "not categorized": 6291,
         "church": 1319,
         "wasted": 6043,
-        "job search                                                            linkedin: job search": 1794,
+        "job_search": 1794,
         "family": 307,
         "learning": 156
       },
@@ -47889,7 +48043,7 @@
         "idle": 66633,
         "work": 3736,
         "mail": 634,
-        "job search                                                            linkedin: job search": 252,
+        "job_search": 252,
         "wasted": 4038,
         "learning": 607,
         "family": 221
@@ -47905,7 +48059,7 @@
         "not categorized": 1285,
         "mail": 1486,
         "family": 1811,
-        "job search                                                            linkedin: job search": 1232,
+        "job_search": 1232,
         "vibe_coding": 30,
         "gaming": 508
       },
@@ -47914,7 +48068,7 @@
     "2025-12-30": {
       "categories": {
         "idle": 61267,
-        "job search                                                            linkedin: job search": 262,
+        "job_search": 262,
         "wasted": 2453,
         "mail": 17,
         "not categorized": 792,
@@ -47939,7 +48093,7 @@
         "mail": 1884,
         "think": 2,
         "church": 36,
-        "job search                                                            linkedin: job search": 23
+        "job_search": 23
       },
       "total_duration": 54949
     },
@@ -47952,7 +48106,7 @@
         "learning": 6878,
         "family": 1636,
         "mail": 1094,
-        "job search                                                            linkedin: job search": 2146,
+        "job_search": 2146,
         "docs": 95,
         "vibe_coding": 5066,
         "gaming": 142,
@@ -47965,15 +48119,15 @@
         "idle": 19905,
         "learning": 672,
         "mail": 506,
-        "work": 1527,
+        "work": 1583,
         "gaming": 344,
-        "vibe_coding": 2682,
-        "not categorized": 93,
+        "vibe_coding": 2995,
+        "not categorized": 114,
         "wasted": 13,
         "church": 474,
-        "job search                                                            linkedin: job search": 377
+        "job_search": 588
       },
-      "total_duration": 26593
+      "total_duration": 27194
     }
   }
 }
