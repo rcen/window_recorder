@@ -47,6 +47,10 @@ JOB_CATS = frozenset({
     "interview",
     "job",
     "career",
+    "linkedin",
+    "indeed",
+    "glassdoor",
+    "dice",
 })
 
 # Vibe/personal coding activities - require job balance offset
@@ -128,8 +132,17 @@ def is_wasted(category: str) -> bool:
 
 
 def is_job_related(category: str) -> bool:
-    """Check if a category satisfies job balance requirement."""
-    return category.lower() in JOB_CATS
+    """Check if a category satisfies job balance requirement.
+    
+    Uses substring matching to handle categories like 
+    'job search                linkedin: job search'.
+    """
+    cat_lower = category.lower()
+    # First try exact match
+    if cat_lower in JOB_CATS:
+        return True
+    # Then check if any job keyword is in the category string
+    return any(job_cat in cat_lower for job_cat in JOB_CATS)
 
 
 def is_vibe(category: str) -> bool:

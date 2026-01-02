@@ -31,7 +31,7 @@ import database
 from config import TIMEZONE, DAY_BOUNDARY_HOUR
 from categories import (
     PRODUCTIVE_CATS, WASTED_CATS, JOB_CATS, VIBE_CATS,
-    CATEGORY_ALIASES, is_productive, is_wasted, aggregate_stats
+    CATEGORY_ALIASES, is_productive, is_wasted, is_job_related, aggregate_stats
 )
 
 # Try to import Gemini coach
@@ -470,7 +470,8 @@ class ProductivityAgent:
             return None
         
         vibe_minutes = sum(stats.get(cat, 0) for cat in VIBE_CATS)
-        job_minutes = sum(stats.get(cat, 0) for cat in JOB_CATS)
+        # Use is_job_related for substring matching (handles "job search ... linkedin" etc)
+        job_minutes = sum(dur for cat, dur in stats.items() if is_job_related(cat))
         
         self.state.vibe_minutes_today = vibe_minutes
         self.state.job_minutes_today = job_minutes
@@ -926,7 +927,7 @@ class ProductivityAgent:
         # Job Balance (skip display on rest days)
         if not is_rest:
             vibe = sum(stats.get(cat, 0) for cat in VIBE_CATS)
-            job = sum(stats.get(cat, 0) for cat in JOB_CATS)
+            job = sum(dur for cat, dur in stats.items() if is_job_related(cat))
             required = vibe / VIBE_TO_JOB_RATIO
             status = "✅" if job >= required else "⚠️"
             lines.append(f"  {status} Job Balance: {job:.0f}/{required:.0f} min needed")
@@ -977,7 +978,7 @@ class ProductivityAgent:
         total_active = self.get_total_active_minutes(stats)
         wasted = sum(stats.get(cat, 0) for cat in WASTED_CATS)
         vibe = sum(stats.get(cat, 0) for cat in VIBE_CATS)
-        job = sum(stats.get(cat, 0) for cat in JOB_CATS)
+        job = sum(dur for cat, dur in stats.items() if is_job_related(cat))
         
         # Calculate job required with rest day awareness
         job_ratio = thresholds['vibe_to_job_ratio']
