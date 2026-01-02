@@ -36,6 +36,7 @@ personal_projects: vibe_coding
 # Add more vibe repos here as needed
 
 # Regular categories
+google ai studio: learning
 productivity alert: learning
 learn.nvidia.com: learning
 developer.nvidia.com: learning
@@ -207,7 +208,20 @@ amazon.com: wasted
 family dentistry: family                                                                                  
 heinefamilydental: family                                                                                 
 payerexpress.com: family                                                                                  
-linkedin.com: learning                                                                                    
+linkedin.com: job search                                                            linkedin: job search
+dice.com: job search
+dice: job search
+indeed.com: job search
+indeed: job search
+glassdoor.com: job search
+glassdoor: job search
+ziprecruiter.com: job search
+ziprecruiter: job search
+monster.com: job search
+monster: job search
+hired.com: job search
+wellfound.com: job search
+levels.fyi: job search
 news.google: wasted                                                                                       
 www.cnbc.com: wasted                                                                                      
 (idle): idle                                                                                              
@@ -445,7 +459,7 @@ zoom: mail
 qaz: no_cat                                                                                               
 meditation: think                                                                                         
 jira: think                                                                                               
-linkedin: learning                                                                                        
+                         
 avl: work                                                                                               
 chidecode: work                                                                                         
 camera calibration: work                                                                                
@@ -584,6 +598,7 @@ www.google.com/maps: family
 google maps: family                                                                                       
 jogging: family
 [COLORS]                                                                                                  
+work: #4954EA                                                                                           
 coding: #4954EA                                                                                           
 vibe_coding: #9B59B6
 learning: #F2F767                                                                                         
@@ -594,6 +609,7 @@ wasted: #F64438
 mail: #72ACF1                                                                                             
 think: #83F7F0                                                                                            
 family: #83F7F0                                                                                           
+job search: #FF69B4
 no_cat: #387FF7                                                                                           
 idle: #837F7F                                                                                             
 not categorized: #2E8B57  
