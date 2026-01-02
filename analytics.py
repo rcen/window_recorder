@@ -804,7 +804,7 @@ test:
                 row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
                 
                 # Categories to show ratio for
-                ratio_cats = {'family', 'gaming', 'work', 'wasted', 'learning', 'church', 'mail'}
+                ratio_cats = {'family', 'gaming', 'work', 'wasted', 'learning', 'church', 'mail', 'job search'}
                 
                 # Calculate total_time from ALL non-idle categories in the log (not just all_u_cats)
                 total_time = 0
@@ -878,7 +878,7 @@ window.addEventListener("load", function() {
             current_category = self._get_current_activity_category(log_list, date_list)
             
             # Define productive and non-productive categories
-            productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think"}
+            productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search"}
             non_productive_cats = {"wasted", "wasted time", "gaming"}
             
             # Check if current activity is non-productive
@@ -1982,7 +1982,7 @@ if (chartsBtn) {
             ).tz_localize(tz)
 
         # Define productive and non-productive categories
-        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "not categorized"}
+        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search", "not categorized"}
         non_productive_cats = {"wasted", "wasted time", "gaming"}
         # Idle and mail are neutral - we skip them when looking for current activity
 
@@ -2099,7 +2099,7 @@ if (chartsBtn) {
         # Sort by start time
         df = df.sort_values('start_time').reset_index(drop=True)
         
-        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "not categorized"}
+        productive_cats = {"work", "coding", "programming", "learning", "church", "documents", "docs", "think", "job search", "not categorized"}
         non_productive_cats = {"wasted", "wasted time", "gaming"}
         
         # Get max idle break threshold from config (default 30 minutes)
@@ -2328,7 +2328,7 @@ if (chartsBtn) {
         if df.empty:
             return ''
 
-        productive_cats = ["work", "coding", "programming", "learning", "church", "documents", "mail"]
+        productive_cats = ["work", "coding", "programming", "learning", "church", "documents", "mail", "job search"]
         distracted_cats = ["wasted", "wasted time", "gaming", "no_cat", "not categorized"]
 
         rows = []

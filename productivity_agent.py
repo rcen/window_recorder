@@ -42,7 +42,7 @@ GOALS_CONFIG_FILE = 'data/productivity_goals.json'
 AGENT_STATE_FILE = 'data/agent_state.json'
 
 # --- Category Classifications ---
-PRODUCTIVE_CATS = {"work", "coding", "vibe_coding", "programming", "learning", "church", "documents", "docs", "think", "mail"}
+PRODUCTIVE_CATS = {"work", "coding", "vibe_coding", "programming", "learning", "church", "documents", "docs", "think", "mail", "job search"}
 WASTED_CATS = {"wasted", "wasted time", "gaming", "facebook", "shopping", "youtube", "reddit", "twitter"}
 JOB_CATS = {"job search", "current job", "interview", "job", "career"}
 VIBE_CATS = {"work", "coding", "vibe_coding", "programming", "learning"}  # Categories that require job balance
