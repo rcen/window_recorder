@@ -504,8 +504,8 @@ virgin pulse: work
 program manager: work                                                                                   
 pingid: work                                                                                            
 onenote: think                                                                                            
-NY21: docs                                                                                                
-docx: docs                                                                                                
+NY21: work                                                                                                
+docx: work                                                                                                
 spyder: work                                                                                            
 stackoverflow: learning                                                                                   
 stackexchange: learning                                                                                   
@@ -515,11 +515,11 @@ python: work
 python35: work                                                                                          
 high focus: work                                                                                        
 binaural beats: work                                                                                    
-texstudio: docs                                                                                           
-documentation: docs                                                                                       
-xls : docs                                                                                                
-word: docs                                                                                                
-adobe acrobat reader: docs                                                                                
+texstudio: work                                                                                           
+documentation: work                                                                                       
+xls : work                                                                                                
+word: work                                                                                                
+adobe acrobat reader: work                                                                                
 thunderbird: mail                                                                                         
 mingw64: work                                                                                           
 vs2017: work                                                                                            
@@ -546,7 +546,7 @@ task manager: work
 npm: work                                                                                               
 voice -: mail                                                                                             
 virginpulse: mail                                                                                         
-powerpoint: docs                                                                                          
+powerpoint: work                                                                                          
 fidelity: gaming                                                                                          
 portfolio: gaming                                                                                         
 airbnb: gaming                                                                                            
@@ -608,7 +608,6 @@ vibe_coding: #9B59B6
 learning: #F2F767                                                                                         
 gaming: #F68D15                                                                                           
 church: #00A000                                                                                           
-docs:#32448B                                                                                              
 wasted: #F64438                                                                                           
 mail: #72ACF1                                                                                             
 think: #83F7F0                                                                                            

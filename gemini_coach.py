@@ -556,17 +556,15 @@ if __name__ == "__main__":
     
     # Test stats
     test_stats = {
-        'work': 45,
+        'work': 55,
         'learning': 30,
         'wasted': 20,
-        'docs': 10,
     }
     
     test_goals = {
         'work': 240,
         'learning': 60,
         'wasted time': 60,
-        'documents': 30,
     }
     
     if len(sys.argv) > 1 and sys.argv[1] == "ask":

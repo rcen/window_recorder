@@ -121,7 +121,7 @@ BASELINE_METRICS = {
     'days_count': 7,
     
     # Expected category classifications
-    'productive_categories': {'work', 'learning', 'vibe_coding', 'mail', 'church', 'docs', 'think', 'job_search'},
+    'productive_categories': {'work', 'learning', 'vibe_coding', 'mail', 'church', 'think', 'job_search'},
     'wasted_categories': {'wasted', 'gaming'},
     'neutral_categories': {'idle', 'family'},
     
@@ -227,8 +227,8 @@ class TestAggregateStats:
     
     def test_aggregate_learning(self):
         """Test learning category aggregation."""
-        stats = {'learning': 60, 'docs': 30}
-        # Learning should include learning and docs
+        stats = {'learning': 60, 'work': 30}
+        # Learning should aggregate learning value
         total = aggregate_stats(stats, 'learning')
         assert total >= 60  # At minimum the learning value
 
