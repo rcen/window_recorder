@@ -21,8 +21,6 @@ PRODUCTIVE_CATS = frozenset({
     "vibe_coding",
     "learning",
     "church",
-    "documents",
-    "docs",
     "think",
     "job_search",
     "mail",  # Work communication
@@ -91,7 +89,6 @@ CATEGORY_PRIORITY = {
     'programming': 1,
     'coding': 1,
     'job_search': 1,
-    'documents': 1,
     'learning': 2,
     'mail': 2,
     'church': 2,
@@ -109,9 +106,8 @@ CATEGORY_PRIORITY = {
 
 # Maps goal categories to actual database categories for aggregation
 CATEGORY_ALIASES = {
-    'work': ['work', 'coding', 'programming'],
+    'work': ['work', 'coding', 'programming', 'docs', 'documents'],
     'programming': ['work', 'coding', 'programming'],  # Legacy support
-    'documents': ['docs', 'documents'],
     'wasted time': ['wasted', 'wasted time', 'gaming'],
     'job_search': ['job_search', 'job', 'career', 'current_job', 'interview'],
     'learning': ['learning'],
