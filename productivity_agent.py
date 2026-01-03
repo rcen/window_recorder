@@ -750,42 +750,46 @@ class ProductivityAgent:
             last_updated=time.time()
         )
         
+        cat_name = goal.category.replace('_', ' ').title()
+        
         if goal.is_positive:
             if current_minutes >= effective_target:
                 progress.status = GoalStatus.ACHIEVED
-                progress.message = f"🎉 Goal achieved! {current_minutes:.0f}/{effective_target:.0f} min"
+                progress.message = f"🎉 {cat_name} goal achieved! {current_minutes:.0f}/{effective_target:.0f} min done today"
             elif expected_minutes > 0:
                 ratio = current_minutes / expected_minutes
                 if ratio >= goal.warning_threshold:
                     progress.status = GoalStatus.ON_TRACK
-                    progress.message = f"✅ On track: {current_minutes:.0f}/{effective_target:.0f} min"
+                    progress.message = f"✅ {cat_name} on track: {current_minutes:.0f} of {effective_target:.0f} min daily goal"
                 elif ratio >= goal.critical_threshold:
                     progress.status = GoalStatus.WARNING
                     behind = expected_minutes - current_minutes
-                    progress.message = f"⚠️ Behind: {current_minutes:.0f}/{effective_target:.0f} min ({behind:.0f} min behind)"
+                    progress.message = f"⚠️ {cat_name}: {current_minutes:.0f}/{effective_target:.0f} min — {behind:.0f} min behind schedule for today's goal"
                 else:
                     progress.status = GoalStatus.CRITICAL
                     behind = expected_minutes - current_minutes
-                    progress.message = f"🚨 Critical! {current_minutes:.0f}/{effective_target:.0f} min ({behind:.0f} min behind)"
+                    progress.message = f"🚨 {cat_name}: Only {current_minutes:.0f} of {effective_target:.0f} min goal — {behind:.0f} min behind where you should be by now"
             else:
                 progress.status = GoalStatus.ON_TRACK
-                progress.message = f"Day started: {current_minutes:.0f}/{effective_target:.0f} min"
+                progress.message = f"Day started: {current_minutes:.0f}/{effective_target:.0f} min {cat_name}"
         else:
+            # Negative goal (limit, e.g. wasted time)
             if current_minutes >= effective_target:
                 progress.status = GoalStatus.FAILED
-                progress.message = f"🚨 Limit exceeded! {current_minutes:.0f}/{effective_target:.0f} min"
+                over = current_minutes - effective_target
+                progress.message = f"🚨 {cat_name} limit exceeded! {current_minutes:.0f} min spent — {over:.0f} min over your {effective_target:.0f} min limit"
             elif current_minutes / effective_target >= goal.critical_threshold:
                 progress.status = GoalStatus.CRITICAL
                 remaining = effective_target - current_minutes
-                progress.message = f"🚨 Near limit! {remaining:.0f} min remaining"
+                progress.message = f"🚨 {cat_name} near limit! {current_minutes:.0f}/{effective_target:.0f} min — only {remaining:.0f} min left"
             elif current_minutes / effective_target >= goal.warning_threshold:
                 progress.status = GoalStatus.WARNING
                 remaining = effective_target - current_minutes
-                progress.message = f"⚠️ Approaching limit: {remaining:.0f} min remaining"
+                progress.message = f"⚠️ {cat_name} approaching limit: {current_minutes:.0f}/{effective_target:.0f} min — {remaining:.0f} min remaining"
             else:
                 progress.status = GoalStatus.ON_TRACK
                 remaining = effective_target - current_minutes
-                progress.message = f"✅ Under limit: {current_minutes:.0f}/{effective_target:.0f} min"
+                progress.message = f"✅ {cat_name} under control: {current_minutes:.0f} of {effective_target:.0f} min limit used"
         
         return progress
     

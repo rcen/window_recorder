@@ -87,6 +87,8 @@ www.msn.com/en-us/money: gaming
 ultracopier: work
 fastcopy: work
 projects-build: work
+regex__\btk\b: idle
+regex__\bwindows input experience\b: work
 regex__\bpaste window\b: work
 regex__\bselect an account\b: work
 regex__\bfolder in use\b: work
