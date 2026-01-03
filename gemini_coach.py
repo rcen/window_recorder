@@ -232,8 +232,8 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
             situations.append("It's a rest day - balance is important, be gentle.")
         
         # Late in day, behind on goals
-        if context.hours_remaining < 3 and coding_mins < coding_goal * 0.5:
-            situations.append("Limited time remaining and behind on coding goals.")
+        if context.hours_remaining < 3 and work_mins < work_goal * 0.5:
+            situations.append("Limited time remaining and behind on work goals.")
         
         # Learning achievement
         if learning_mins > 30:
