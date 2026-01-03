@@ -392,6 +392,61 @@ class TestCategoryAliases:
 
 
 # =============================================================================
+# AI COACH TESTS
+# =============================================================================
+
+class TestGeminiCoach:
+    """Test AI coaching functionality to prevent regressions."""
+    
+    def test_coaching_context_no_undefined_variables(self):
+        """
+        Regression test: AI coach crashed with NameError: 'coding_mins' undefined.
+        The _get_situation_specific_context method must use work_mins/work_goal,
+        not coding_mins/coding_goal.
+        """
+        from gemini_coach import GeminiCoach, CoachingContext
+        
+        coach = GeminiCoach()
+        
+        # Create a context that would trigger the late-day check
+        context = CoachingContext(
+            current_stats={'work': 50, 'wasted': 10, 'learning': 20},
+            goals={'work': 240, 'learning': 60},
+            time_of_day='evening',
+            day_type='weekday',
+            waste_ratio=10.0,
+            focus_streak=15.0,
+            best_streak=30.0,
+            hours_remaining=2.0,  # Less than 3 hours - triggers the buggy code path
+        )
+        
+        # This should not raise NameError
+        result = coach._get_situation_specific_context(context)
+        assert isinstance(result, str)
+    
+    def test_build_context_prompt_works(self):
+        """Test that _build_context_prompt doesn't crash."""
+        from gemini_coach import GeminiCoach, CoachingContext
+        
+        coach = GeminiCoach()
+        
+        context = CoachingContext(
+            current_stats={'work': 100, 'learning': 30},
+            goals={'work': 240},
+            time_of_day='afternoon',
+            day_type='weekday',
+            waste_ratio=5.0,
+            focus_streak=45.0,
+            best_streak=60.0,
+            hours_remaining=4.0,
+        )
+        
+        prompt = coach._build_context_prompt(context)
+        assert isinstance(prompt, str)
+        assert len(prompt) > 0
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
