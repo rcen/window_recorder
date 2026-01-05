@@ -2711,9 +2711,10 @@ document.addEventListener('DOMContentLoaded', function() {
         # AI Coach advice section
         ai_advice = dashboard_data.get('ai_coach_advice')
         if ai_advice:
+            coach_timestamp = datetime.datetime.now().strftime("%H:%M")
             html_parts.append(f'''
             <div style="margin-top:15px; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:8px; color:white;">
-                <div style="font-weight:bold; margin-bottom:8px;">🤖 AI Coach Says:</div>
+                <div style="font-weight:bold; margin-bottom:8px;">🤖 AI Coach Says <span style="font-weight:normal; font-size:0.85em; opacity:0.8;">({coach_timestamp})</span>:</div>
                 <div style="font-size:1.05em; line-height:1.5;">{html.escape(ai_advice)}</div>
             </div>
             ''')
