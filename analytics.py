@@ -1047,6 +1047,8 @@ function scheduleRefresh() {
     
     window.__refreshTimeoutId = setTimeout(() => {
         if (window.__refreshEnabled) {
+            // Save scroll position before reload
+            sessionStorage.setItem('scrollPos', window.scrollY.toString());
             location.reload();
         } else {
             // Re-schedule if refresh is disabled
@@ -1055,8 +1057,15 @@ function scheduleRefresh() {
     }, refreshInterval);
 }
 
-// Start refresh timer after page loads
-document.addEventListener('DOMContentLoaded', scheduleRefresh);
+// Restore scroll position after page loads
+document.addEventListener('DOMContentLoaded', () => {
+    const savedPos = sessionStorage.getItem('scrollPos');
+    if (savedPos !== null) {
+        window.scrollTo(0, parseInt(savedPos));
+        sessionStorage.removeItem('scrollPos');
+    }
+    scheduleRefresh();
+});
 
 // Make Save button yellow when typing, and guard against losing unsaved text
 (() => {
