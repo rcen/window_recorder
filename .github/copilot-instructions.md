@@ -131,6 +131,15 @@ At day boundary (default 3 AM), the system generates a morning briefing via `get
 - **Today's focus**: One specific actionable improvement based on yesterday's data
 - **Rest day awareness**: Adjusts expectations for weekends/holidays
 
+### Streak Notes with Tags
+Users can add notes during productive streaks with hashtags for AI coaching context:
+- `#done` - Completed tasks (e.g., "Fixed login bug #done")
+- `#todo` / `#task` - Pending items
+- `#blocked` / `#stuck` - Items needing help
+- `#focus` / `#priority` - Current focus areas
+
+The AI coach reads these via `database.get_notes_summary_for_coaching()` and incorporates them into advice.
+
 ## Common Gotchas
 
 1. **Teams tracking**: Unreliable window titles due to Edge PWA. See `script.py` header comment.

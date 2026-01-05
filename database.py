@@ -225,6 +225,90 @@ def get_recent_streak_notes(limit: int = 5) -> list[tuple[str, float]]:
         return [(r[0], r[1]) for r in rows]
 
 
+def parse_note_tags(note: str) -> tuple[list[str], str]:
+    """Parse hashtags from a note.
+    
+    Returns (tags, clean_note) where:
+    - tags: list of tags found (without # prefix), e.g. ['done', 'todo', 'blocked']
+    - clean_note: the note text with tags removed
+    
+    Example:
+        parse_note_tags("Fixed the bug #done #coding")
+        -> (['done', 'coding'], "Fixed the bug")
+    """
+    import re
+    tags = re.findall(r'#(\w+)', note)
+    clean_note = re.sub(r'\s*#\w+', '', note).strip()
+    return tags, clean_note
+
+
+def get_today_notes_with_tags(limit: int = 10) -> list[dict]:
+    """Fetch today's notes parsed with their tags.
+    
+    Returns list of dicts with keys:
+    - 'note': original note text
+    - 'clean_note': note without tags
+    - 'tags': list of tags found
+    - 'timestamp': unix timestamp
+    - 'time_str': formatted time string (HH:MM)
+    """
+    notes = get_today_streak_notes(limit)
+    tz = pytz.timezone(TIMEZONE)
+    
+    result = []
+    for note_id, note, ts in notes:
+        tags, clean_note = parse_note_tags(note)
+        dt = datetime.datetime.fromtimestamp(ts, tz)
+        result.append({
+            'id': note_id,
+            'note': note,
+            'clean_note': clean_note,
+            'tags': tags,
+            'timestamp': ts,
+            'time_str': dt.strftime('%H:%M'),
+        })
+    return result
+
+
+def get_notes_summary_for_coaching() -> dict:
+    """Get a summary of today's notes organized by tags for AI coaching.
+    
+    Returns dict with:
+    - 'all_notes': list of all note dicts
+    - 'done_items': notes tagged #done
+    - 'todo_items': notes tagged #todo
+    - 'blocked_items': notes tagged #blocked
+    - 'focus_items': notes tagged #focus
+    - 'tags_count': dict of tag -> count
+    """
+    notes = get_today_notes_with_tags(limit=20)
+    
+    summary = {
+        'all_notes': notes,
+        'done_items': [],
+        'todo_items': [],
+        'blocked_items': [],
+        'focus_items': [],
+        'tags_count': {},
+    }
+    
+    for note in notes:
+        for tag in note['tags']:
+            tag_lower = tag.lower()
+            summary['tags_count'][tag_lower] = summary['tags_count'].get(tag_lower, 0) + 1
+            
+            if tag_lower == 'done':
+                summary['done_items'].append(note)
+            elif tag_lower in ('todo', 'task'):
+                summary['todo_items'].append(note)
+            elif tag_lower in ('blocked', 'stuck'):
+                summary['blocked_items'].append(note)
+            elif tag_lower in ('focus', 'priority'):
+                summary['focus_items'].append(note)
+    
+    return summary
+
+
 
     # Initialize remote PostgreSQL database
     if remote_engine:

@@ -57,6 +57,7 @@ class CoachingContext:
     best_streak: float = 0.0
     hours_remaining: float = 0.0
     historical_insights: Optional[Dict] = None
+    notes_summary: Optional[Dict] = None  # Today's notes with tags for coaching
 
 
 class GeminiCoach:
@@ -197,6 +198,9 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
             for cat, target in context.goals.items()
         ])
         
+        # Format notes with tags
+        notes_section = self._format_notes_for_prompt(context.notes_summary)
+        
         prompt = f"""Current Situation:
 Time: {datetime.datetime.now().strftime('%H:%M')} ({context.time_of_day})
 Day Type: {context.day_type}
@@ -214,11 +218,55 @@ Metrics:
 - Best Streak Today: {context.best_streak:.0f} min
 - Hours Remaining in Workday: {context.hours_remaining:.1f}h
 
+{notes_section}
+
 {self._get_situation_specific_context(context)}
 
 Based on this context, provide brief, encouraging coaching advice (2-3 sentences max)."""
         
         return prompt
+    
+    def _format_notes_for_prompt(self, notes_summary: Optional[Dict]) -> str:
+        """Format user's notes with tags for the coaching prompt."""
+        if not notes_summary:
+            return ""
+        
+        sections = []
+        
+        # Show completed items (#done)
+        done_items = notes_summary.get('done_items', [])
+        if done_items:
+            done_list = "\n".join([f"  ✓ {n['clean_note']} ({n['time_str']})" for n in done_items[:5]])
+            sections.append(f"Completed Today (#done):\n{done_list}")
+        
+        # Show todo items (#todo)
+        todo_items = notes_summary.get('todo_items', [])
+        if todo_items:
+            todo_list = "\n".join([f"  • {n['clean_note']}" for n in todo_items[:5]])
+            sections.append(f"Todo Items (#todo):\n{todo_list}")
+        
+        # Show blocked items (#blocked, #stuck)
+        blocked_items = notes_summary.get('blocked_items', [])
+        if blocked_items:
+            blocked_list = "\n".join([f"  ⚠ {n['clean_note']}" for n in blocked_items[:3]])
+            sections.append(f"Blocked/Stuck (#blocked):\n{blocked_list}")
+        
+        # Show focus items (#focus, #priority)
+        focus_items = notes_summary.get('focus_items', [])
+        if focus_items:
+            focus_list = "\n".join([f"  🎯 {n['clean_note']}" for n in focus_items[:3]])
+            sections.append(f"Priority Focus (#focus):\n{focus_list}")
+        
+        # Show recent untagged notes
+        all_notes = notes_summary.get('all_notes', [])
+        untagged = [n for n in all_notes if not n['tags']][:3]
+        if untagged:
+            untagged_list = "\n".join([f"  - {n['note']} ({n['time_str']})" for n in untagged])
+            sections.append(f"Recent Notes:\n{untagged_list}")
+        
+        if sections:
+            return "User's Notes Today:\n" + "\n\n".join(sections)
+        return ""
     
     def _get_situation_specific_context(self, context: CoachingContext) -> str:
         """Add situation-specific context based on patterns."""
@@ -317,6 +365,14 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         work_end = 23  # 11 PM
         hours_remaining = max(0, work_end - now.hour - now.minute / 60)
         
+        # Fetch today's notes with tags for context
+        try:
+            import database
+            notes_summary = database.get_notes_summary_for_coaching()
+        except Exception as e:
+            print(f"[GeminiCoach] Could not fetch notes: {e}")
+            notes_summary = None
+        
         context = CoachingContext(
             current_stats=stats,
             goals=goals,
@@ -327,6 +383,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
             focus_streak=focus_streak,
             best_streak=best_streak,
             hours_remaining=hours_remaining,
+            notes_summary=notes_summary,
         )
         
         # Check if we can use cached advice
