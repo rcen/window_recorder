@@ -399,6 +399,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
                 # Check if situation changed significantly
                 if self._is_similar_context(context_hash, cached_hash):
                     print(f"[GeminiCoach] Using cached advice ({cache_age/60:.0f} min old)")
+                    self._last_advice_time = cached.get('timestamp', time.time())
                     return cached.get('advice', self._get_fallback_advice(stats, goals, is_rest_day))
                 else:
                     print(f"[GeminiCoach] Context changed significantly, will refresh")
@@ -431,6 +432,9 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
                 self._save_cached_advice(advice, context_hash)
                 self._cache_advice(context, advice)
                 
+                # Store the generation timestamp
+                self._last_advice_time = time.time()
+                
                 return advice
                 
             except Exception as e:
@@ -449,8 +453,35 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         # Try to return stale cache if available
         if cached and cached.get('advice'):
             print("[GeminiCoach] Returning stale cached advice")
+            self._last_advice_time = cached.get('timestamp', time.time())
             return cached['advice']
         return self._get_fallback_advice(stats, goals, is_rest_day)
+    
+    def get_coaching_with_timestamp(
+        self,
+        stats: Dict[str, float],
+        goals: Dict[str, float],
+        is_rest_day: bool = False,
+        rest_reason: str = "",
+        waste_ratio: float = 0.0,
+        focus_streak: float = 0.0,
+        best_streak: float = 0.0,
+    ) -> tuple:
+        """Get AI coaching advice with generation timestamp.
+        
+        Returns:
+            Tuple of (advice_string, timestamp_unix)
+        """
+        advice = self.get_coaching(
+            stats=stats,
+            goals=goals,
+            is_rest_day=is_rest_day,
+            rest_reason=rest_reason,
+            waste_ratio=waste_ratio,
+            focus_streak=focus_streak,
+            best_streak=best_streak,
+        )
+        return advice, self._last_advice_time
     
     def _get_context_hash(self, context: CoachingContext) -> str:
         """Create a hash representing the current context situation."""

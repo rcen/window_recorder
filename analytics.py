@@ -2720,7 +2720,12 @@ document.addEventListener('DOMContentLoaded', function() {
         # AI Coach advice section
         ai_advice = dashboard_data.get('ai_coach_advice')
         if ai_advice:
-            coach_timestamp = datetime.datetime.now().strftime("%H:%M")
+            # Use the timestamp from when advice was generated, not current time
+            advice_ts = dashboard_data.get('ai_coach_advice_timestamp')
+            if advice_ts:
+                coach_timestamp = datetime.datetime.fromtimestamp(advice_ts).strftime("%H:%M")
+            else:
+                coach_timestamp = datetime.datetime.now().strftime("%H:%M")
             html_parts.append(f'''
             <div style="margin-top:15px; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:8px; color:white;">
                 <div style="font-weight:bold; margin-bottom:8px;">🤖 AI Coach Says <span style="font-weight:normal; font-size:0.85em; opacity:0.8;">({coach_timestamp})</span>:</div>

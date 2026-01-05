@@ -1186,7 +1186,7 @@ class ProductivityAgent:
         # Add AI coach advice
         if self.coach and self.coach.enabled:
             goals_dict = {cat: g.daily_target_minutes for cat, g in self.goals.items()}
-            advice = self.coach.get_coaching(
+            advice, advice_timestamp = self.coach.get_coaching_with_timestamp(
                 stats=stats,
                 goals=goals_dict,
                 is_rest_day=thresholds['is_rest_day'],
@@ -1196,6 +1196,7 @@ class ProductivityAgent:
                 best_streak=self.state.longest_streak_today,
             )
             data['ai_coach_advice'] = advice
+            data['ai_coach_advice_timestamp'] = advice_timestamp
         
         for category, progress in self.progress.items():
             goal_data = {
