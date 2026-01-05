@@ -35,7 +35,25 @@ tennis_game_log: vibe_coding
 personal_projects: vibe_coding
 # Add more vibe repos here as needed
 
+# Job search sites - MUST be early to avoid "search" regex matching first
+linkedin.com: job_search
+linkedin: job_search
+dice.com: job_search
+dice: job_search
+indeed.com: job_search
+indeed: job_search
+glassdoor.com: job_search
+glassdoor: job_search
+ziprecruiter.com: job_search
+ziprecruiter: job_search
+monster.com: job_search
+monster: job_search
+hired.com: job_search
+wellfound.com: job_search
+levels.fyi: job_search
+
 # Regular categories
+microsoft pc manager: vibe_coding
 rename file: work
 linear_algebra: learning
 job balance needed: learning
@@ -53,7 +71,7 @@ separators_tables: work
 streamyard.com: family
 smore.com: family
 smartsocial.com: family
-neon.com: work
+neon.com: vibe_coding
 flychina.com: family
 127.0.0.1: work
 google keep: family
@@ -87,25 +105,26 @@ www.msn.com/en-us/money: gaming
 ultracopier: work
 fastcopy: work
 projects-build: work
+regex__\bmicrosoft pc manager\b:vibe_coding
 regex__\btk\b: idle
 regex__\bwindows input experience\b: work
 regex__\bpaste window\b: work
 regex__\bselect an account\b: work
 regex__\bfolder in use\b: work
-regex__\bfind\b: learning
+regex__^find$: learning
 regex__\bwarning\b: learning
-regex__\b7-zip\b: work
+regex__^7-zip$: work
 regex__^online barcode decoder: work
-regex__\bsearch\b: work
-regex__\bsave as\b: work
-regex__\bsave configuration\b: work
-regex__\bprint\b: work
+regex__^search$: work
+regex__^save as$: work
+regex__^save configuration$: work
+regex__^print$: work
 regex__\bopen project/solution\b: work
-regex__\bline\b: church
-regex__\bsave file as\b: work
-regex__\bconfirm save as\b: work
-regex__\bencoding\b: work
-regex__\bopen file\b: work
+regex__^line$: church
+regex__^save file as$: work
+regex__^confirm save as$: work
+regex__^encoding$: work
+regex__^open file$: work
 typedown: work
 iso 15438: work
 hsa bank: family
@@ -214,20 +233,7 @@ amazon.com: wasted
 family dentistry: family                                                                                  
 heinefamilydental: family                                                                                 
 payerexpress.com: family                                                                                  
-linkedin.com: job_search
-dice.com: job_search
-dice: job_search
-indeed.com: job_search
-indeed: job_search
-glassdoor.com: job_search
-glassdoor: job_search
-ziprecruiter.com: job_search
-ziprecruiter: job_search
-monster.com: job_search
-monster: job_search
-hired.com: job_search
-wellfound.com: job_search
-levels.fyi: job_search
+# Job search sites moved to top of CATEGORIES section
 news.google: wasted                                                                                       
 www.cnbc.com: wasted                                                                                      
 (idle): idle                                                                                              
@@ -603,6 +609,7 @@ fiscal.ai: gaming
 www.google.com/maps: family                                                                               
 google maps: family                                                                                       
 jogging: family
+新雅团契: church
 [COLORS]                                                                                                  
 work: #4954EA                                                                                           
 coding: #4954EA                                                                                           

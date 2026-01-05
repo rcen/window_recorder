@@ -59,6 +59,22 @@ WEEKEND_VIBE_TO_JOB_RATIO = 0  # No job balance required on weekends
 WEEKEND_MORNING_SHIELD_ENABLED = False  # Sleep in on weekends
 WEEKEND_GIT_COMMIT_ENABLED = False  # No coding pressure on weekends
 
+# --- Saturday Special Mode (busy with kids) ---
+SATURDAY_GOAL_MULTIPLIER = 0.25  # 25% of normal target (e.g., 240 min -> 60 min)
+SUNDAY_GOAL_MULTIPLIER = 0.50  # 50% of normal target (e.g., 240 min -> 120 min)
+
+# Saturday-specific overrides (category -> absolute target in minutes)
+# These override the multiplier for specific categories
+SATURDAY_GOAL_OVERRIDES = {
+    "learning": 30,      # Keep learning at 30 min on Saturdays
+    "wasted time": 60,   # Keep wasted time limit at 60 min on Saturdays
+}
+
+SUNDAY_GOAL_OVERRIDES = {
+    "learning": 30,      # Keep learning at 30 min on Sundays
+    "wasted time": 60,   # Keep wasted time limit at 60 min on Sundays
+}
+
 # Holiday dates (add your holidays here in MM-DD format)
 HOLIDAYS = {
     "01-01",  # New Year's Day
@@ -733,13 +749,35 @@ class ProductivityAgent:
         # Adjust targets on rest days (weekends/holidays)
         is_rest_day, rest_reason = self.is_rest_day()
         
-        # On rest days: halve positive goals, double negative goals (more lenient)
+        # On rest days: reduce positive goals, increase negative goal limits (more lenient)
+        # Saturday gets extra reduction since user is busy with kids
         if is_rest_day:
-            if goal.is_positive:
-                effective_target = goal.daily_target_minutes * 0.5  # Half the requirement
-                expected_minutes = expected_minutes * 0.5
+            # Check for day-specific overrides first
+            if rest_reason == "Saturday" and goal.category.lower() in SATURDAY_GOAL_OVERRIDES:
+                effective_target = SATURDAY_GOAL_OVERRIDES[goal.category.lower()]
+                # Adjust expected minutes proportionally
+                if goal.daily_target_minutes > 0:
+                    expected_minutes = expected_minutes * (effective_target / goal.daily_target_minutes)
+            elif rest_reason == "Sunday" and goal.category.lower() in SUNDAY_GOAL_OVERRIDES:
+                effective_target = SUNDAY_GOAL_OVERRIDES[goal.category.lower()]
+                # Adjust expected minutes proportionally
+                if goal.daily_target_minutes > 0:
+                    expected_minutes = expected_minutes * (effective_target / goal.daily_target_minutes)
             else:
-                effective_target = goal.daily_target_minutes * 2.0  # Double the limit (more lenient)
+                # Use multiplier-based calculation
+                if rest_reason == "Saturday":
+                    multiplier = SATURDAY_GOAL_MULTIPLIER  # 25% - busy with kids
+                elif rest_reason == "Sunday":
+                    multiplier = SUNDAY_GOAL_MULTIPLIER  # 50%
+                else:
+                    multiplier = 0.5  # Holidays: 50%
+                
+                if goal.is_positive:
+                    effective_target = goal.daily_target_minutes * multiplier
+                    expected_minutes = expected_minutes * multiplier
+                else:
+                    # Inverse: more lenient for negative goals (wasted time limit)
+                    effective_target = goal.daily_target_minutes * (2.0 / multiplier) if multiplier > 0 else goal.daily_target_minutes * 4.0
         else:
             effective_target = goal.daily_target_minutes
         
