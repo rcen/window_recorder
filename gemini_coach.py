@@ -89,10 +89,30 @@ Key principles you follow:
 7. Energy management > time management
 8. Idle time is normal - it represents time away from the computer, NOT lost productivity
 
+CRITICAL ANTI-PROCRASTINATION RULES:
+The user struggles with procrastination that leads to late nights and miserable mornings. Your #1 job is breaking this cycle:
+
+1. **Before midnight deadline**: The day ENDS at midnight. If it's evening (after 8 PM) and goals aren't met, create URGENCY:
+   - Calculate exactly how much time remains until midnight
+   - Suggest ONE specific task they can complete in the remaining time
+   - Remind them: "Finishing now = better sleep = better tomorrow"
+
+2. **Evening procrastination detection**: If after 8 PM with high waste ratio or no productive work:
+   - Call it out directly: "You're procrastinating. The cost is tomorrow morning's energy."
+   - Suggest the smallest possible start: "Just open the file. 5 minutes."
+   
+3. **Sleep-productivity connection**: Always link current behavior to next-day outcomes:
+   - Late work = late sleep = groggy morning = harder to focus = more procrastination
+   - Early completion = on-time sleep = fresh morning = easier focus = momentum
+
+4. **Minimum viable progress**: When time is short, help them achieve SOMETHING:
+   - "You have 90 minutes until midnight. One completed task > zero tasks."
+   - "Even 20 minutes of real work beats 3 hours of anxious avoidance."
+
 IMPORTANT: Never criticize idle time. Users are not expected to be at their computer continuously.
 Focus your coaching on the ACTIVE time distribution, not total time.
 
-Remember: You're a professional coach, not a cheerleader. Be direct, helpful, and respect the developer's intelligence."""
+Remember: You're a professional coach, not a cheerleader. Be direct, helpful, and respect the developer's intelligence. Your goal is to help them sleep on time with a sense of accomplishment."""
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the Gemini coach."""
@@ -211,6 +231,28 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         
         work_goal = context.goals.get('work', 240)
         
+        # Get current hour for time-based urgency
+        current_hour = datetime.datetime.now().hour
+        minutes_until_midnight = (24 - current_hour) * 60 - datetime.datetime.now().minute
+        
+        # CRITICAL: Evening/Night procrastination detection (after 8 PM)
+        if current_hour >= 20:  # 8 PM or later
+            situations.append(f"⚠️ EVENING ALERT: Only {minutes_until_midnight} minutes until midnight!")
+            
+            productive_mins = work_mins + learning_mins
+            if productive_mins < 30:
+                situations.append("PROCRASTINATION DETECTED: Almost no productive work today. The cost is tomorrow's energy.")
+                situations.append("Suggest: Pick ONE small task. Even 20 minutes beats anxious avoidance.")
+            elif work_mins < work_goal * 0.5:
+                situations.append(f"Behind on goals with limited time. Focus on ONE completable task before bed.")
+            
+            if context.waste_ratio > 25:
+                situations.append("High waste ratio in evening - classic procrastination pattern. Breaking this = better sleep tonight.")
+        
+        # Late night warning (after 10 PM)
+        if current_hour >= 22:
+            situations.append("🌙 LATE NIGHT: Every minute past midnight costs double tomorrow. Wrap up or commit to sleep.")
+        
         # Morning with no work yet
         if context.time_of_day == "morning" and work_mins < 30:
             situations.append("Developer hasn't started deep work yet this morning.")
@@ -231,8 +273,8 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         if context.day_type in ("weekend", "holiday"):
             situations.append("It's a rest day - balance is important, be gentle.")
         
-        # Late in day, behind on goals
-        if context.hours_remaining < 3 and work_mins < work_goal * 0.5:
+        # Late in day, behind on goals (but not yet evening)
+        if context.hours_remaining < 3 and work_mins < work_goal * 0.5 and current_hour < 20:
             situations.append("Limited time remaining and behind on work goals.")
         
         # Learning achievement
@@ -449,6 +491,139 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
             return f"💪 Great progress at {progress*100:.0f}%! You're in the home stretch - keep the momentum!"
         
         return "🚀 Every line of code counts. What's the smallest useful thing you can build right now?"
+    
+    def get_new_day_briefing(
+        self,
+        yesterday_stats: Dict[str, float],
+        yesterday_goals: Dict[str, float],
+        today_goals: Dict[str, float],
+        is_rest_day: bool = False,
+        rest_reason: str = "",
+    ) -> str:
+        """Generate a new day briefing summarizing yesterday and setting intentions for today.
+        
+        Args:
+            yesterday_stats: Yesterday's activity statistics (category -> minutes)
+            yesterday_goals: Yesterday's goals (category -> target minutes)
+            today_goals: Today's goals (category -> target minutes)
+            is_rest_day: Whether today is a weekend/holiday
+            rest_reason: Why it's a rest day
+            
+        Returns:
+            Morning briefing string with yesterday's summary and today's focus
+        """
+        if not self.enabled:
+            return self._get_fallback_briefing(yesterday_stats, yesterday_goals, is_rest_day)
+        
+        # Calculate yesterday's performance
+        excluded_cats = {'idle', 'sperrbildschirm'}
+        
+        # Build yesterday summary
+        achievements = []
+        missed = []
+        
+        for cat, target in yesterday_goals.items():
+            actual = yesterday_stats.get(cat, 0)
+            if cat.lower() in ('wasted', 'wasted time'):
+                # For negative goals, under is good
+                if actual <= target:
+                    achievements.append(f"{cat}: {actual:.0f}/{target:.0f} min ✅")
+                else:
+                    missed.append(f"{cat}: {actual:.0f}/{target:.0f} min (over by {actual-target:.0f} min)")
+            else:
+                # For positive goals, meeting target is good
+                if actual >= target:
+                    achievements.append(f"{cat}: {actual:.0f}/{target:.0f} min ✅")
+                else:
+                    pct = (actual / target * 100) if target > 0 else 0
+                    missed.append(f"{cat}: {actual:.0f}/{target:.0f} min ({pct:.0f}%)")
+        
+        # Calculate waste ratio
+        total_active = sum(v for k, v in yesterday_stats.items() if k.lower() not in excluded_cats)
+        wasted = yesterday_stats.get('wasted', 0) + yesterday_stats.get('wasted time', 0)
+        waste_ratio = (wasted / total_active * 100) if total_active > 0 else 0
+        
+        yesterday_summary = []
+        if achievements:
+            yesterday_summary.append("Goals achieved: " + ", ".join(achievements))
+        if missed:
+            yesterday_summary.append("Missed: " + ", ".join(missed))
+        yesterday_summary.append(f"Waste ratio: {waste_ratio:.0f}%")
+        
+        # Day type context
+        day_type = "holiday" if "Holiday" in rest_reason else ("weekend" if is_rest_day else "workday")
+        
+        prompt = f"""NEW DAY BRIEFING REQUEST
+
+Yesterday's Performance:
+{chr(10).join('  - ' + s for s in yesterday_summary)}
+
+Today's Goals:
+{chr(10).join(f'  - {cat}: {target:.0f} min' for cat, target in today_goals.items())}
+
+Day Type: {day_type}
+{f'Rest Reason: {rest_reason}' if is_rest_day else ''}
+
+Based on yesterday's results, provide a morning briefing (3-4 sentences max) that:
+1. Acknowledges what went well or poorly yesterday (be honest but not harsh)
+2. Identifies ONE key area to improve today
+3. Gives a specific, actionable focus for the morning
+
+Remember the user's challenge: procrastination leads to late nights which ruins the next morning.
+If yesterday had late-night work or high waste ratio, address the sleep-productivity cycle."""
+        
+        # Try to get AI response
+        for model in self._model_fallbacks:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=f"{self.SYSTEM_PROMPT}\n\n---\n\n{prompt}",
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        max_output_tokens=300,
+                    )
+                )
+                advice = response.text.strip()
+                if advice:
+                    print(f"[GeminiCoach] New day briefing generated with {model}")
+                    return advice
+            except Exception as e:
+                print(f"[GeminiCoach] {model} failed for briefing: {e}")
+                continue
+        
+        return self._get_fallback_briefing(yesterday_stats, yesterday_goals, is_rest_day)
+    
+    def _get_fallback_briefing(
+        self,
+        yesterday_stats: Dict[str, float],
+        yesterday_goals: Dict[str, float],
+        is_rest_day: bool
+    ) -> str:
+        """Fallback briefing when Gemini is unavailable."""
+        work = aggregate_stats(yesterday_stats, 'work')
+        wasted = yesterday_stats.get('wasted', 0) + yesterday_stats.get('wasted time', 0)
+        work_goal = yesterday_goals.get('work', 240)
+        
+        lines = ["☀️ Good morning! Here's your daily briefing:\n"]
+        
+        # Yesterday summary
+        if work >= work_goal:
+            lines.append(f"✅ Yesterday: Great job! You hit your work goal ({work:.0f}/{work_goal:.0f} min).")
+        elif work >= work_goal * 0.7:
+            lines.append(f"📊 Yesterday: Solid effort at {work:.0f}/{work_goal:.0f} min ({work/work_goal*100:.0f}%).")
+        else:
+            lines.append(f"⚠️ Yesterday: Missed work goal - only {work:.0f}/{work_goal:.0f} min ({work/work_goal*100:.0f}%).")
+        
+        if wasted > 90:
+            lines.append(f"🔄 Waste time was high ({wasted:.0f} min). Today, try blocking distractions early.")
+        
+        # Today focus
+        if is_rest_day:
+            lines.append("\n🌴 It's a rest day - recharge, but consider one small productive win!")
+        else:
+            lines.append("\n🎯 Today's focus: Start with 25 minutes of deep work before checking anything else.")
+        
+        return "\n".join(lines)
     
     def _cache_advice(self, context: CoachingContext, advice: str) -> None:
         """Cache advice for analytics/improvement."""

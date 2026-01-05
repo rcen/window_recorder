@@ -162,6 +162,7 @@ class AgentState:
     last_mvd_suggestion: float = 0.0
     job_minutes_today: float = 0.0
     vibe_minutes_today: float = 0.0
+    last_day_reset: str = ""  # YYYY-MM-DD of last day reset (for morning briefing)
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -242,15 +243,62 @@ class ProductivityAgent:
         tz = pytz.timezone(TIMEZONE)
         now = datetime.datetime.now(tz)
         
-        # Reset at day boundary
-        if now.hour == DAY_BOUNDARY_HOUR and now.minute < 5:
+        # Check if we already did a reset today
+        today_str = now.strftime('%Y-%m-%d')
+        last_reset = getattr(self.state, 'last_day_reset', None)
+        
+        # Reset at day boundary OR if this is a new day we haven't reset for
+        should_reset = (now.hour == DAY_BOUNDARY_HOUR and now.minute < 5) or (last_reset != today_str and now.hour >= DAY_BOUNDARY_HOUR)
+        
+        if should_reset and last_reset != today_str:
+            # Generate morning briefing before reset (uses yesterday's data)
+            self._generate_morning_briefing()
+            
+            # Reset counters
             self.state.longest_streak_today = 0
             self.state.morning_productive_minutes = 0.0
             self.state.morning_wasted_triggered = False
             self.state.waste_spike_count = 0
             self.state.job_minutes_today = 0.0
             self.state.vibe_minutes_today = 0.0
+            self.state.last_day_reset = today_str
             self._save_state()
+            print(f"[ProductivityAgent] Day reset complete for {today_str}")
+    
+    def _generate_morning_briefing(self) -> None:
+        """Generate and display morning briefing with yesterday's summary."""
+        if not self.coach or not self.coach.enabled:
+            return
+        
+        try:
+            # Get yesterday's data
+            yesterday_stats = self.get_yesterday_stats()
+            if not yesterday_stats:
+                print("[ProductivityAgent] No yesterday data for briefing")
+                return
+            
+            # Build yesterday's goals (use current goals as reference)
+            yesterday_goals = {cat: g.daily_target_minutes for cat, g in self.goals.items()}
+            today_goals = {cat: g.daily_target_minutes for cat, g in self.goals.items()}
+            
+            # Check if today is a rest day
+            is_rest, rest_reason = self.is_rest_day()
+            
+            # Get briefing from AI coach
+            briefing = self.coach.get_new_day_briefing(
+                yesterday_stats=yesterday_stats,
+                yesterday_goals=yesterday_goals,
+                today_goals=today_goals,
+                is_rest_day=is_rest,
+                rest_reason=rest_reason,
+            )
+            
+            if briefing and self.callback_warn:
+                self.callback_warn("☀️ Good Morning!", briefing, "info")
+                print(f"[ProductivityAgent] Morning briefing displayed")
+            
+        except Exception as e:
+            print(f"[ProductivityAgent] Error generating morning briefing: {e}")
     
     def is_rest_day(self) -> Tuple[bool, str]:
         """
@@ -448,6 +496,45 @@ class ProductivityAgent:
         """
         excluded = {'idle', 'sperrbildschirm'}
         return sum(v for k, v in stats.items() if k.lower() not in excluded)
+    
+    def get_yesterday_stats(self) -> Dict[str, float]:
+        """Get yesterday's activity statistics by category (in minutes)."""
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.datetime.now(tz)
+        
+        # Yesterday relative to current adjusted date
+        if now.hour < DAY_BOUNDARY_HOUR:
+            # Currently in "yesterday" still, so yesterday is 2 days ago
+            yesterday = (now - datetime.timedelta(days=2)).date()
+        else:
+            yesterday = (now - datetime.timedelta(days=1)).date()
+        
+        date_str = yesterday.strftime('%Y-%m-%d')
+        df = database.fetch_log_for_day(date_str)
+        
+        if df is None or df.empty:
+            return {}
+        
+        stats = {}
+        for _, row in df.iterrows():
+            category = row.get('category', 'unknown').lower()
+            duration_sec = row.get('duration', 0)
+            duration_min = duration_sec / 60.0
+            stats[category] = stats.get(category, 0) + duration_min
+        
+        return stats
+    
+    def get_yesterday_date_str(self) -> str:
+        """Get yesterday's date string in YYYY-MM-DD format."""
+        tz = pytz.timezone(TIMEZONE)
+        now = datetime.datetime.now(tz)
+        
+        if now.hour < DAY_BOUNDARY_HOUR:
+            yesterday = (now - datetime.timedelta(days=2)).date()
+        else:
+            yesterday = (now - datetime.timedelta(days=1)).date()
+        
+        return yesterday.strftime('%Y-%m-%d')
     
     # ==================== BEHAVIORAL CHECKS ====================
     
@@ -898,6 +985,8 @@ class ProductivityAgent:
         
         Suppresses ALL warnings when user is currently doing productive work,
         since interrupting a productive session is counterproductive.
+        
+        Shows BOTH achievements (good news) and warnings (bad news) together.
         """
         self.evaluate_all_goals()
         warnings_triggered = []
@@ -918,16 +1007,47 @@ class ProductivityAgent:
                 if self.callback_warn:
                     self.callback_warn(title, message, "warning")
         
+        # Collect achievements and warnings separately
+        achievements = []
+        warnings = []
+        
         for category, progress in self.progress.items():
-            if progress.status in (GoalStatus.WARNING, GoalStatus.CRITICAL, GoalStatus.FAILED):
+            if progress.status == GoalStatus.ACHIEVED:
+                achievements.append(progress)
+            elif progress.status in (GoalStatus.WARNING, GoalStatus.CRITICAL, GoalStatus.FAILED):
                 if self._should_warn(f"goal_{category}"):
                     self._last_warning_times[f"goal_{category}"] = time.time()
+                    warnings.append(progress)
                     warnings_triggered.append(progress)
-                    
-                    if self.callback_warn:
-                        level = "critical" if progress.status in (GoalStatus.CRITICAL, GoalStatus.FAILED) else "warning"
-                        title = f"Productivity Alert: {category.title()}"
-                        self.callback_warn(title, progress.message, level)
+        
+        # Build combined message with both good and bad news
+        if (achievements or warnings) and self.callback_warn:
+            message_parts = []
+            
+            # Warnings first - areas needing attention
+            if warnings:
+                message_parts.append("⚠️ NEEDS ATTENTION:")
+                for prog in warnings:
+                    message_parts.append(f"  {prog.message}")
+            
+            # Then celebrate achievements (good news!)
+            if achievements:
+                if warnings:
+                    message_parts.append("")  # Blank line separator
+                message_parts.append("✅ ACHIEVEMENTS:")
+                for prog in achievements:
+                    message_parts.append(f"  {prog.message}")
+            
+            combined_message = "\n".join(message_parts)
+            
+            # Determine overall level based on worst status
+            has_critical = any(p.status in (GoalStatus.CRITICAL, GoalStatus.FAILED) for p in warnings)
+            level = "critical" if has_critical else ("warning" if warnings else "info")
+            
+            # Only show if there's something new to warn about (achievements alone don't need popup)
+            if warnings:
+                title = "Productivity Status"
+                self.callback_warn(title, combined_message, level)
         
         return warnings_triggered
     
