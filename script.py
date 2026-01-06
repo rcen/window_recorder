@@ -216,8 +216,13 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
 
         if current_alert['active'] and current_alert['start_time']:
             elapsed_seconds = max(time.time() - current_alert['start_time'], 0.0)
-            minutes, seconds = divmod(int(elapsed_seconds), 60)
-            timer_var.set(f"Time elapsed: {minutes:02d}:{seconds:02d}")
+            
+            # Auto-close after 5 minutes to allow system sleep if user is away
+            if elapsed_seconds > 300:
+                finalize_alert(result='timeout')
+            else:
+                minutes, seconds = divmod(int(elapsed_seconds), 60)
+                timer_var.set(f"Time elapsed: {minutes:02d}:{seconds:02d}")
         else:
             timer_var.set('')
 
@@ -482,8 +487,10 @@ TRACK YOUR TIME - DON'T WASTE IT!
         # A jump of more than 5s is considered a sleep/off event.
         if time_jump > 5.0:
             # System sleep/off detected. End the event that was active before the jump.
-            duration_before_jump = last_loop_time - start_of_event
-            if last_event:
+            # Calculate duration as time from event start to just BEFORE sleep (not after!)
+            time_before_sleep = current_loop_time - time_jump
+            duration_before_jump = time_before_sleep - start_of_event
+            if last_event and duration_before_jump > 0:
                 category = 'idle' if last_event == 'idle' else analytic.get_cat(last_window, last_window_url)
 
                 bRecord = False
@@ -492,7 +499,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 if duration_before_jump > 2 and category != 'idle':
                     bRecord = True
                 if bRecord:
-                    save_data([last_loop_time, category, int(duration_before_jump), last_window], hostname, last_window_url)
+                    save_data([time_before_sleep, category, int(duration_before_jump), last_window], hostname, last_window_url)
                     try:
                         mins = int(np.floor(duration_before_jump/60))
                         secs = int(np.floor(duration_before_jump - mins*60))
