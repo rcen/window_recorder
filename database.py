@@ -426,12 +426,53 @@ def get_headers():
 
 def insert_activity(timestamp, category, duration, window_title, source, window_url=None, window_url_short=None):
     """
-    Inserts an activity record. It first tries to send it to the remote API.
-    If that fails, it saves the record locally.
+    Inserts an activity record, splitting it if it spans the day boundary.
+    
+    If an activity started before DAY_BOUNDARY_HOUR and ended after it,
+    we split it into two records - one for each logical day.
     """
-    # Remote functionality is disabled, always save locally.
-    _insert_local_activity(timestamp, category, duration, window_title, source, synced=False, window_url=window_url, window_url_short=window_url_short)
-    return True # Assuming local save is successful.
+    tz = pytz.timezone(TIMEZONE)
+    
+    # Calculate start and end times
+    end_time = datetime.datetime.fromtimestamp(timestamp, tz)
+    start_time = end_time - datetime.timedelta(seconds=duration)
+    
+    # Calculate the day boundary time for the end time's date
+    # Day boundary is at DAY_BOUNDARY_HOUR on the calendar date
+    boundary_date = end_time.date()
+    if end_time.hour < DAY_BOUNDARY_HOUR:
+        # If we're before boundary hour, the boundary we care about is today's
+        boundary_datetime = tz.localize(datetime.datetime.combine(boundary_date, datetime.time(DAY_BOUNDARY_HOUR)))
+    else:
+        # If we're after boundary hour, check if activity started before today's boundary
+        boundary_datetime = tz.localize(datetime.datetime.combine(boundary_date, datetime.time(DAY_BOUNDARY_HOUR)))
+    
+    # Check if activity spans the boundary
+    if start_time < boundary_datetime <= end_time:
+        # Split the activity at the boundary
+        # Part 1: from start_time to boundary (belongs to previous logical day)
+        duration_before = (boundary_datetime - start_time).total_seconds()
+        timestamp_before = boundary_datetime.timestamp()  # End timestamp for part 1
+        
+        # Part 2: from boundary to end_time (belongs to current logical day)
+        duration_after = (end_time - boundary_datetime).total_seconds()
+        timestamp_after = timestamp  # Original end timestamp
+        
+        # Insert both parts (only if they have meaningful duration)
+        if duration_before >= 1:  # At least 1 second
+            _insert_local_activity(timestamp_before, category, int(duration_before), 
+                                   window_title, source, synced=False, 
+                                   window_url=window_url, window_url_short=window_url_short)
+        if duration_after >= 1:  # At least 1 second
+            _insert_local_activity(timestamp_after, category, int(duration_after), 
+                                   window_title, source, synced=False, 
+                                   window_url=window_url, window_url_short=window_url_short)
+    else:
+        # No split needed - insert as normal
+        _insert_local_activity(timestamp, category, duration, window_title, source, 
+                               synced=False, window_url=window_url, window_url_short=window_url_short)
+    
+    return True
 
 def fetch_available_days():
     """

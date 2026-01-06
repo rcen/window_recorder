@@ -125,7 +125,8 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         self._last_advice_time = 0
         self._cached_advice = None
         self._cached_context_hash = None
-        self._advice_cooldown = 1800  # 30 minutes between API calls (was 5 min)
+        self._advice_cooldown = 1800  # 30 minutes between API calls (default)
+        self._morning_advice_cooldown = 900  # 15 minutes in the morning (before 11 AM)
         
         # Model fallback chain - try each in order if quota exhausted
         self._model_fallbacks = [
@@ -394,8 +395,12 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
             cache_age = time.time() - cached.get('timestamp', 0)
             cached_hash = cached.get('context_hash', '')
             
-            # Use cache if: less than 30 min old AND situation hasn't changed drastically
-            if cache_age < self._advice_cooldown:
+            # Use shorter cooldown in the morning (before 11 AM) for more frequent coaching
+            current_hour = datetime.datetime.now().hour
+            cooldown = self._morning_advice_cooldown if current_hour < 11 else self._advice_cooldown
+            
+            # Use cache if: less than cooldown AND situation hasn't changed drastically
+            if cache_age < cooldown:
                 # Check if situation changed significantly
                 if self._is_similar_context(context_hash, cached_hash):
                     print(f"[GeminiCoach] Using cached advice ({cache_age/60:.0f} min old)")

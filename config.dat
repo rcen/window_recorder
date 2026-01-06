@@ -53,6 +53,7 @@ wellfound.com: job_search
 levels.fyi: job_search
 
 # Regular categories
+transformers: learning
 microsoft pc manager: vibe_coding
 rename file: work
 linear_algebra: learning
@@ -105,6 +106,7 @@ www.msn.com/en-us/money: gaming
 ultracopier: work
 fastcopy: work
 projects-build: work
+regex__^start$: work
 regex__\bmicrosoft pc manager\b:vibe_coding
 regex__\btk\b: idle
 regex__\bwindows input experience\b: work
@@ -125,6 +127,8 @@ regex__^save file as$: work
 regex__^confirm save as$: work
 regex__^encoding$: work
 regex__^open file$: work
+the verge: wasted
+reuters: wasted
 typedown: work
 iso 15438: work
 hsa bank: family

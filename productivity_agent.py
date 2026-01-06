@@ -592,7 +592,9 @@ class ProductivityAgent:
             return (
                 "⚖️ Job Balance Needed",
                 f"You've done {vibe_minutes:.0f} min of coding/learning. "
-                f"Time to spend {deficit:.0f} min on job_search or work tasks!"
+                f"Time to spend {deficit:.0f} min on job_search or work tasks!\n\n"
+                f"Rule: {ratio:.0f}:1 ratio — for every {ratio:.0f} min of coding/learning, "
+                f"spend 1 min on job search. (Currently: {job_minutes:.0f}/{required_job_minutes:.0f} min done)"
             )
         return None
     
