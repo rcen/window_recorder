@@ -116,6 +116,7 @@ class ProductivityGoal:
     critical_threshold: float = 0.5
     is_positive: bool = True
     enabled: bool = True
+    minimum_behind_threshold: float = 15.0  # Minutes behind before warning triggers (buffer for ramp-up)
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -885,16 +886,20 @@ class ProductivityAgent:
                 progress.message = f"🎉 {cat_name} goal achieved! {current_minutes:.0f}/{effective_target:.0f} min done today"
             elif expected_minutes > 0:
                 ratio = current_minutes / expected_minutes
+                behind = expected_minutes - current_minutes
+                
                 if ratio >= goal.warning_threshold:
                     progress.status = GoalStatus.ON_TRACK
                     progress.message = f"✅ {cat_name} on track: {current_minutes:.0f} of {effective_target:.0f} min daily goal"
+                elif behind < goal.minimum_behind_threshold:
+                    # Suppress warnings if we are only slightly behind (e.g. morning ramp-up)
+                    progress.status = GoalStatus.ON_TRACK
+                    progress.message = f"✅ {cat_name} ramping up: {current_minutes:.0f} of {effective_target:.0f} min goal — {behind:.0f} min behind (in {goal.minimum_behind_threshold:.0f} min buffer)"
                 elif ratio >= goal.critical_threshold:
                     progress.status = GoalStatus.WARNING
-                    behind = expected_minutes - current_minutes
                     progress.message = f"⚠️ {cat_name}: {current_minutes:.0f}/{effective_target:.0f} min — {behind:.0f} min behind schedule for today's goal"
                 else:
                     progress.status = GoalStatus.CRITICAL
-                    behind = expected_minutes - current_minutes
                     progress.message = f"🚨 {cat_name}: Only {current_minutes:.0f} of {effective_target:.0f} min goal — {behind:.0f} min behind where you should be by now"
             else:
                 progress.status = GoalStatus.ON_TRACK
