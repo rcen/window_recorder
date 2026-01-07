@@ -2732,6 +2732,74 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="font-size:1.05em; line-height:1.5;">{html.escape(ai_advice)}</div>
             </div>
             ''')
+
+        # Recent AI coach briefings/summaries (last few days)
+        digest_path = Path("data/coach_briefings.json")
+        if digest_path.exists():
+            try:
+                with open(digest_path, "r", encoding="utf-8") as f:
+                    digest_entries = json.load(f)
+            except Exception:
+                digest_entries = []
+        else:
+            digest_entries = []
+
+        if digest_entries:
+            # Sort newest-first by date then timestamp
+            digest_entries = sorted(
+                digest_entries,
+                key=lambda d: (d.get("date", ""), d.get("timestamp", "")),
+                reverse=True
+            )
+
+            # Group by date preserving order
+            grouped = {}
+            ordered_dates = []
+            for entry in digest_entries:
+                date_key = entry.get("date")
+                kind = entry.get("kind")
+                if not date_key or not kind:
+                    continue
+                if date_key not in grouped:
+                    grouped[date_key] = {}
+                    ordered_dates.append(date_key)
+                grouped[date_key][kind] = entry
+
+            html_parts.append('<div style="margin-top:15px; padding:12px; background:white; border-radius:8px; border:1px solid #dfe3f3;">')
+            html_parts.append('<div style="font-weight:bold; color:#283593; margin-bottom:6px;">📅 Recent AI Coach Briefings</div>')
+            html_parts.append('<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">')
+
+            max_cards = 4
+            for idx, date_key in enumerate(ordered_dates):
+                if idx >= max_cards:
+                    break
+                day_entries = grouped.get(date_key, {})
+                morning_entry = day_entries.get("morning_briefing")
+                summary_entry = day_entries.get("daily_summary")
+
+                rest_badge = ""
+                rest_flag = morning_entry.get("is_rest_day") if morning_entry else summary_entry.get("is_rest_day") if summary_entry else False
+                rest_reason = morning_entry.get("rest_reason") if morning_entry else summary_entry.get("rest_reason") if summary_entry else ""
+                if rest_flag:
+                    rest_badge = f" <span style=\"font-size:0.85em; color:#4caf50;\">(Rest: {html.escape(rest_reason or 'Weekend')})</span>"
+
+                morning_text = morning_entry.get("text") if morning_entry else "(No morning briefing recorded)"
+                summary_text = summary_entry.get("text") if summary_entry else "(No end-of-day summary recorded)"
+
+                html_parts.append(f'''
+                <div style="padding:10px; background:#f8f9ff; border-radius:6px; border:1px solid #e0e3f7;">
+                    <div style="font-weight:bold; color:#1f2a44; margin-bottom:6px;">{date_key}{rest_badge}</div>
+                    <div style="font-size:0.92em; color:#111;">
+                        <div style="font-weight:600; color:#555; margin-bottom:3px;">☀️ Morning Briefing</div>
+                        <div style="margin-bottom:8px; line-height:1.45;">{html.escape(morning_text)}</div>
+                        <div style="font-weight:600; color:#555; margin-bottom:3px;">🌙 Daily Summary</div>
+                        <div style="line-height:1.45;">{html.escape(summary_text)}</div>
+                    </div>
+                </div>
+                ''')
+
+            html_parts.append('</div>')  # grid
+            html_parts.append('</div>')  # container
         
         # Add last updated timestamp
         html_parts.append(f'<div style="text-align:right; font-size:0.8em; color:#666; margin-top:10px;">Updated: {datetime.datetime.now().strftime("%H:%M:%S")}</div>')

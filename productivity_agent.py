@@ -284,6 +284,7 @@ class ProductivityAgent:
             
             # Check if today is a rest day
             is_rest, rest_reason = self.is_rest_day()
+            yesterday_date = self.get_yesterday_date_str()
             
             # Get briefing from AI coach
             briefing = self.coach.get_new_day_briefing(
@@ -293,6 +294,32 @@ class ProductivityAgent:
                 is_rest_day=is_rest,
                 rest_reason=rest_reason,
             )
+
+            # Get an end-of-day style summary for the day we just finished
+            daily_summary = self.coach.get_daily_summary(
+                stats=yesterday_stats,
+                goals=yesterday_goals,
+            )
+
+            # Persist both texts for analytics history
+            if briefing:
+                self.coach._save_digest(
+                    date_str=yesterday_date,
+                    kind="morning_briefing",
+                    text=briefing,
+                    is_rest_day=is_rest,
+                    rest_reason=rest_reason,
+                    source="ai",
+                )
+            if daily_summary:
+                self.coach._save_digest(
+                    date_str=yesterday_date,
+                    kind="daily_summary",
+                    text=daily_summary,
+                    is_rest_day=is_rest,
+                    rest_reason=rest_reason,
+                    source="ai",
+                )
             
             if briefing and self.callback_warn:
                 self.callback_warn("☀️ Good Morning!", briefing, "info")

@@ -120,3 +120,6 @@ HABITS = [
 # todo
 - adding "projects" as a separate measure next to categories
 - read the parent process and not only the window title
+- move AI coach briefings/summaries from JSON to database tables for multi-device access
+- migrate existing coach_briefings.json into the new DB tables and update analytics to read from DB
+- optionally expose digest data via API for multi-computer usage; keep only minimal local caches

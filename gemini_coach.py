@@ -122,6 +122,7 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         self.enabled = False
         self.cache_file = Path("data/coach_cache.json")
         self._advice_cache_file = Path("data/coach_advice_cache.json")
+        self._digest_file = Path("data/coach_briefings.json")
         self._last_advice_time = 0
         self._cached_advice = None
         self._cached_context_hash = None
@@ -744,6 +745,48 @@ If yesterday had late-night work or high waste ratio, address the sleep-producti
                 
         except Exception as e:
             print(f"[GeminiCoach] Cache error: {e}")
+
+    def _save_digest(
+        self,
+        *,
+        date_str: str,
+        kind: str,
+        text: str,
+        is_rest_day: bool = False,
+        rest_reason: str = "",
+        source: str = "ai",
+    ) -> None:
+        """Persist morning briefings or daily summaries for later display."""
+        try:
+            digest = []
+            if self._digest_file.exists():
+                with open(self._digest_file, "r", encoding="utf-8") as f:
+                    digest = json.load(f)
+
+            # Replace any existing entry for the same date/kind
+            digest = [d for d in digest if not (d.get("date") == date_str and d.get("kind") == kind)]
+
+            digest.append({
+                "date": date_str,
+                "kind": kind,
+                "text": text,
+                "is_rest_day": is_rest_day,
+                "rest_reason": rest_reason,
+                "source": source,
+                "timestamp": datetime.datetime.now().isoformat(),
+            })
+
+            # Keep the most recent 14 entries (roughly two weeks)
+            digest = sorted(
+                digest,
+                key=lambda d: (d.get("date", ""), d.get("timestamp", ""))
+            )[-14:]
+
+            self._digest_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._digest_file, "w", encoding="utf-8") as f:
+                json.dump(digest, f, indent=2)
+        except Exception as e:
+            print(f"[GeminiCoach] Digest cache error: {e}")
     
     def get_daily_summary(self, stats: Dict[str, float], goals: Dict[str, float]) -> str:
         """Get an end-of-day summary and reflection."""
@@ -752,18 +795,20 @@ If yesterday had late-night work or high waste ratio, address the sleep-producti
         
         prompt = f"""Generate a brief end-of-day productivity summary for a software developer.
 
-Today's Results:
+UNITS: All durations below are in MINUTES (not hours).
+
+Today's Results (minutes):
 {json.dumps(stats, indent=2)}
 
-Goals Were:
+Today's Goals (minutes):
 {json.dumps(goals, indent=2)}
 
 Provide:
 1. One thing to celebrate (1 sentence)
-2. One insight about today (1 sentence)  
+2. One insight about today (1 sentence)
 3. One suggestion for tomorrow (1 sentence)
 
-Keep it warm, encouraging, and specific to their actual numbers."""
+Keep it warm, encouraging, and specific to their actual numbers. Do not re-interpret units as hours."""
 
         try:
             response = self.client.models.generate_content(
