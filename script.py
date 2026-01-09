@@ -67,6 +67,19 @@ if platform.system() == "Windows":
     import pythoncom
     from pywinauto import Application, Desktop
     from pywinauto.findwindows import ElementNotFoundError
+    import ctypes
+    from ctypes import Structure, windll, c_uint, sizeof, byref
+
+    class LASTINPUTINFO(Structure):
+        _fields_ = [('cbSize', c_uint), ('dwTime', c_uint)]
+
+    def get_idle_duration_seconds() -> float:
+        """Get seconds since last user input (keyboard or mouse) using Windows API."""
+        lii = LASTINPUTINFO()
+        lii.cbSize = sizeof(LASTINPUTINFO)
+        windll.user32.GetLastInputInfo(byref(lii))
+        millis = windll.kernel32.GetTickCount() - lii.dwTime
+        return millis / 1000.0
 else:
     import Xlib
     from Xlib import display
@@ -85,6 +98,7 @@ inspirational_html_update_time = time.time() + 600 # 10 minutes
 ram_check_time = time.time() + 10
 wasted_time_start = None
 last_warning_minute = 0
+idle_warning_suppressed_until = 0
 previous_category_state = None  # Track if previous state was 'wasting' or 'productive'
 activity_page_reminder_time = time.time() + 1800  # 30 minutes = 1800 seconds
 productivity_check_time = time.time() + 300  # Check productivity goals every 5 minutes
@@ -114,6 +128,7 @@ alert_queue = None
 alert_process = None
 alert_result_queue = None
 WARNING_RESPONSE_THRESHOLD = 60
+IDLE_WARNING_SNOOZE_SECONDS = 300
 
 def alert_process_func(message_queue: Any, result_queue: Any) -> None:
     current_alert: Dict[str, Any] = {
@@ -124,6 +139,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         'created_at': None,
         'active': False,
         'buttons': [],
+        'category': None,
     }
 
     def reset_display() -> None:
@@ -135,6 +151,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
             'created_at': None,
             'active': False,
             'buttons': [],
+            'category': None,
         })
         message_var.set('')
         timer_var.set('')
@@ -158,6 +175,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
             'created_at': current_alert['created_at'],
             'message': current_alert['message'],
             'title': current_alert['title'],
+            'category': current_alert['category'],
         }
         try:
             result_queue.put(payload)
@@ -177,6 +195,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         current_alert['created_at'] = payload.get('created_at', current_alert['start_time'])
         current_alert['active'] = True
         current_alert['buttons'] = payload.get('buttons', [])
+        current_alert['category'] = payload.get('category')
 
         message_var.set(current_alert['message'])
         root.title(current_alert['title'])
@@ -247,10 +266,13 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
     root.after(100, poll_events)
     root.mainloop()
 
-def show_non_blocking_alert(message, title, buttons=None):
+def show_non_blocking_alert(message, title, buttons=None, category=None):
     global last_notification_time
+    global idle_warning_suppressed_until
     global alert_queue
     if time.time() - last_notification_time < notification_cooldown:
+        return
+    if category == 'idle' and time.time() < idle_warning_suppressed_until:
         return
     last_notification_time = time.time()
     if platform.system() == "Linux":
@@ -262,13 +284,15 @@ def show_non_blocking_alert(message, title, buttons=None):
                 'message': message,
                 'title': title,
                 'created_at': time.time(),
-                'buttons': buttons or []
+                'buttons': buttons or [],
+                'category': category,
             }
             alert_queue.put(event_payload)
 
 
 def process_alert_results() -> None:
     global alert_result_queue
+    global idle_warning_suppressed_until
     if not alert_result_queue:
         return
 
@@ -284,6 +308,7 @@ def process_alert_results() -> None:
             timestamp = float(payload.get('timestamp', time.time()))
             message = payload.get('message')
             title = payload.get('title')
+            category = payload.get('category')
 
             if not event_id or not result:
                 continue
@@ -324,6 +349,9 @@ def process_alert_results() -> None:
                 logging.info(
                     "Recorded warning response: %s in %.1fs", result, elapsed_seconds
                 )
+                if category == 'idle':
+                    # Avoid relaunching the same idle warning immediately after an auto-timeout or dismissal
+                    idle_warning_suppressed_until = time.time() + IDLE_WARNING_SNOOZE_SECONDS
             except Exception:
                 logging.exception("Failed to persist warning flag result")
     except queue.Empty:
@@ -421,6 +449,7 @@ def main():
     global alert_queue
     global alert_process
     global alert_result_queue
+    global idle_warning_suppressed_until
     global previous_category_state
     global activity_page_reminder_time
     global productivity_check_time
@@ -544,10 +573,13 @@ TRACK YOUR TIME - DON'T WASTE IT!
             last_window_url = None
 
 
-        mouse_idle = is_mouse_idle()
-        keyboard_idle = is_keyboard_idle(0.01)
+        if platform.system() == "Windows":
+            idle = get_idle_duration_seconds() >= idle_time
+        else:
+            mouse_idle = is_mouse_idle()
+            keyboard_idle = is_keyboard_idle(0.01)
+            idle = mouse_idle and keyboard_idle
         current_window, current_url = get_window_name()
-        idle = mouse_idle and keyboard_idle
 
         # --- New: Treat 'start page' as idle if focused > 5 min ---
         start_page_idle_threshold = 300  # 5 minutes
@@ -680,7 +712,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 else:
                     message = f"You have been on a 'wasted' task for {current_wasted_minutes} minute(s)."
                 
-                show_non_blocking_alert(message, "Wasted Time Warning", buttons=buttons)
+                show_non_blocking_alert(message, "Wasted Time Warning", buttons=buttons, category=current_category)
                 last_warning_minute = current_wasted_minutes # Update the last warning time
         else:
             if wasted_time_start is not None:

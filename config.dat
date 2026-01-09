@@ -36,6 +36,8 @@ personal_projects: vibe_coding
 # Add more vibe repos here as needed
 
 # Job search sites - MUST be early to avoid "search" regex matching first
+google translate: work
+Separators_Tables.md: work
 linkedin.com: job_search
 linkedin: job_search
 dice.com: job_search

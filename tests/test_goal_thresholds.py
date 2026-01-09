@@ -397,12 +397,18 @@ class TestThresholdEdgeCases:
         
         # Simulate very early in the day: expected = 5 min, current = 0 min
         # Behind = 5 minutes (< 15 minute threshold), should show "ramping up"
-        progress = agent.evaluate_goal(goal, current_minutes=0.0)
+        # Mock get_expected_progress to return a small value (early morning)
+        original_get_expected = agent.get_expected_progress
+        agent.get_expected_progress = lambda g: 5.0  # Mock: 5 min expected (early in day)
         
-        # The actual message depends on the time of day calculation, but with
-        # a small expected amount and 0 current, we should be in ramping up mode
-        # if behind < minimum_behind_threshold
-        assert progress.status == GoalStatus.ON_TRACK
+        try:
+            progress = agent.evaluate_goal(goal, current_minutes=0.0)
+            
+            # Behind = 5 - 0 = 5 minutes (< 15 minute threshold)
+            # Should be in ramping up mode since behind < minimum_behind_threshold
+            assert progress.status == GoalStatus.ON_TRACK
+        finally:
+            agent.get_expected_progress = original_get_expected
     
     def test_zero_daily_target_minutes(self, agent):
         """Goal with 0 target should always show as achieved."""
