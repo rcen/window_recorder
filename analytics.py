@@ -337,6 +337,10 @@ test:
                     in_categories_section = False
                     continue
                 
+                # Skip comment lines and empty lines
+                if not line or line.startswith('#'):
+                    continue
+                
                 if in_categories_section and ':' in line:
                     key, value = line.split(':', 1)
                     key = key.strip()

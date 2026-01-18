@@ -19,7 +19,8 @@ repos = window_recorder, tennis_game_log, personal_projects
 paths = c:\projects\window_recorder, C:\projects\tennis_game_log
 
 [SETTINGS]                                                                                                
-timezone = America/New_York                                                                               
+timezone = America/New_York
+notification_cooldown_seconds = 200                                                                               
 day_boundary_hour = 3                                                                                     
 image_folder = figs/pictures                                                                              
 md_folder = ../crlog_laptop                                                                               
@@ -36,8 +37,7 @@ personal_projects: vibe_coding
 # Add more vibe repos here as needed
 
 # Job search sites - MUST be early to avoid "search" regex matching first
-google translate: work
-Separators_Tables.md: work
+hoopladigital.com: learning
 linkedin.com: job_search
 linkedin: job_search
 dice.com: job_search
@@ -55,6 +55,8 @@ wellfound.com: job_search
 levels.fyi: job_search
 
 # Regular categories
+google translate: work
+Separators_Tables.md: work
 docker desktop: learning
 transformers: learning
 microsoft pc manager: vibe_coding
@@ -130,6 +132,8 @@ regex__^save file as$: work
 regex__^confirm save as$: work
 regex__^encoding$: work
 regex__^open file$: work
+regex__^default location$: work
+regex__^go to line$: work
 the verge: wasted
 reuters: wasted
 typedown: work
@@ -152,6 +156,55 @@ wd.bible: church
 add existing project: work
 symbologies: work
 www.youtube.com/shorts: wasted
+
+# YouTube Learning Videos - These patterns catch educational content BEFORE generic "youtube: wasted"
+# Add video titles, channel names, or keywords that indicate learning content
+# Pattern: "video title - youtube" (case-insensitive)
+#
+# HOW TO ADD MORE YOUTUBE CATEGORIES:
+# 1. Use format: regex__\bKEYWORD\b.*youtube: CATEGORY
+# 2. \b means word boundary (prevents partial matches)
+# 3. Available categories: learning, work, church, family, job_search
+# 4. Examples:
+#    regex__\bveritasium\b.*youtube: learning     (channel name)
+#    regex__\bresume tips\b.*youtube: job_search  (topic keywords)
+#    regex__\bcooking\b.*youtube: family          (hobby content)
+# 5. Rules are processed top-to-bottom; first match wins
+#
+regex__\btutorial\b.*youtube: learning
+regex__\bpython\b.*youtube: learning
+regex__\bprogramming\b.*youtube: learning
+regex__\bcoding\b.*youtube: learning
+regex__\blecture\b.*youtube: learning
+regex__\bcourse\b.*youtube: learning
+regex__\bexplained\b.*youtube: learning
+regex__\bhow to\b.*youtube: learning
+regex__\blearn\b.*youtube: learning
+regex__\bmachine learning\b.*youtube: learning
+regex__\bdeep learning\b.*youtube: learning
+regex__\bai\b.*youtube: learning
+regex__\bdata science\b.*youtube: learning
+regex__\balgorithm\b.*youtube: learning
+regex__\binterview prep\b.*youtube: learning
+regex__\bsystem design\b.*youtube: learning
+regex__\bleetcode\b.*youtube: learning
+regex__\bneetcode\b.*youtube: learning
+regex__\b3blue1brown\b.*youtube: learning
+regex__\bsentdex\b.*youtube: learning
+regex__\btech with tim\b.*youtube: learning
+regex__\btraversy media\b.*youtube: learning
+regex__\bfireship\b.*youtube: learning
+regex__\bcs50\b.*youtube: learning
+regex__\bmit opencourseware\b.*youtube: learning
+regex__\bfreecodecamp\b.*youtube: learning
+regex__\bthe coding train\b.*youtube: learning
+# YouTube Church/Family content
+regex__\bsermon\b.*youtube: church
+regex__\bworship\b.*youtube: church
+regex__\bbible\b.*youtube: church
+regex__\bgospel\b.*youtube: church
+# Add more educational YouTube channels/topics above this line
+
 www.cvs.com/photo: family                                        
 app.utrsports.net: family                                                                                
 ANSI: work                                                                                             
