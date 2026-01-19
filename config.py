@@ -185,6 +185,90 @@ def get_day_boundary_hour():
     except Exception:
         return 3
 
+
+def get_notification_cooldown():
+    """
+    Reads the notification cooldown from the [SETTINGS] section of config.dat.
+    Returns the number of seconds to wait between warning dialogs.
+    Defaults to 60 seconds if not specified.
+    """
+    try:
+        config = get_config_parser()
+        cooldown = config.getint('SETTINGS', 'notification_cooldown_seconds', fallback=60)
+        # Validate the cooldown is positive
+        if cooldown >= 0:
+            return cooldown
+        else:
+            print(f"Warning: notification_cooldown_seconds must be >= 0. Using default of 60.")
+            return 60
+    except Exception:
+        return 60
+
+
+def get_warning_ui() -> str:
+    """Choose warning UI backend: 'dialog' or 'toast'. Defaults to 'dialog'."""
+    try:
+        config = get_config_parser()
+        ui = (config.get('SETTINGS', 'warning_ui', fallback='dialog') or '').strip().lower()
+        if ui in {'dialog', 'toast'}:
+            return ui
+    except Exception:
+        pass
+    return 'dialog'
+
+
+def get_warning_dialog_topmost() -> bool:
+    """Whether the warning dialog should force itself topmost."""
+    try:
+        config = get_config_parser()
+        return config.getboolean('SETTINGS', 'warning_dialog_topmost', fallback=True)
+    except Exception:
+        return True
+
+
+def _get_positive_int_setting(key: str, fallback: int) -> int:
+    try:
+        config = get_config_parser()
+        value = config.getint('SETTINGS', key, fallback=fallback)
+        return value if value >= 0 else fallback
+    except Exception:
+        return fallback
+
+
+def get_warning_dialog_autoclose_seconds_default() -> int:
+    return _get_positive_int_setting('warning_dialog_autoclose_seconds_default', 300)
+
+
+def get_warning_dialog_autoclose_seconds_wasted() -> int:
+    return _get_positive_int_setting('warning_dialog_autoclose_seconds_wasted', 30)
+
+
+def get_warning_dialog_autoclose_seconds_idle() -> int:
+    return _get_positive_int_setting('warning_dialog_autoclose_seconds_idle', 30)
+
+
+def get_warning_dialog_autoclose_seconds_productivity() -> int:
+    return _get_positive_int_setting('warning_dialog_autoclose_seconds_productivity', 30)
+
+
+def get_warning_dialog_autoclose_seconds_system() -> int:
+    return _get_positive_int_setting('warning_dialog_autoclose_seconds_system', 30)
+
+
+def get_wasted_warning_snooze_seconds() -> int:
+    """How long to suppress repeated wasted warnings after dismiss/timeout."""
+    return _get_positive_int_setting('wasted_warning_snooze_seconds', 3600)
+
+
+def get_productivity_warning_snooze_seconds() -> int:
+    """How long to suppress repeated productivity warnings after dismiss/timeout."""
+    return _get_positive_int_setting('productivity_warning_snooze_seconds', 3600)
+
+
+def get_system_warning_snooze_seconds() -> int:
+    """How long to suppress repeated system warnings after dismiss/timeout."""
+    return _get_positive_int_setting('system_warning_snooze_seconds', 3600)
+
 TIMEZONE = get_app_timezone()
 # API_KEY = get_api_key()
 API_KEY = None
@@ -192,3 +276,15 @@ FOCUS_SLOTS = get_focus_slots()
 DAY_BOUNDARY_HOUR = get_day_boundary_hour()
 HABITS = get_habits()
 VIBE_REPOS = get_vibe_repos()
+NOTIFICATION_COOLDOWN = get_notification_cooldown()
+
+WARNING_UI = get_warning_ui()
+WARNING_DIALOG_TOPMOST = get_warning_dialog_topmost()
+WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT = get_warning_dialog_autoclose_seconds_default()
+WARNING_DIALOG_AUTOCLOSE_SECONDS_WASTED = get_warning_dialog_autoclose_seconds_wasted()
+WARNING_DIALOG_AUTOCLOSE_SECONDS_IDLE = get_warning_dialog_autoclose_seconds_idle()
+WARNING_DIALOG_AUTOCLOSE_SECONDS_PRODUCTIVITY = get_warning_dialog_autoclose_seconds_productivity()
+WARNING_DIALOG_AUTOCLOSE_SECONDS_SYSTEM = get_warning_dialog_autoclose_seconds_system()
+WASTED_WARNING_SNOOZE_SECONDS = get_wasted_warning_snooze_seconds()
+PRODUCTIVITY_WARNING_SNOOZE_SECONDS = get_productivity_warning_snooze_seconds()
+SYSTEM_WARNING_SNOOZE_SECONDS = get_system_warning_snooze_seconds()

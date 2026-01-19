@@ -28,6 +28,30 @@ recent_activity_minutes = 10
 productivity_streak_threshold = 25
 max_idle_break_minutes = 5
 target_waste_ratio = 0.18                                                                              
+
+# Warning UI backend (Windows):
+# - dialog: current Tk dialog (supports buttons like "Close Page")
+# - toast: Windows toast notification (less intrusive; better for sleep)
+# If toast isn't available, it automatically falls back to dialog.
+warning_ui = dialog
+
+# Dialog behavior (only used when warning_ui=dialog, or when buttons are needed)
+# If your PC won't sleep, try setting this to false.
+warning_dialog_topmost = true
+warning_dialog_autoclose_seconds_default = 300
+warning_dialog_autoclose_seconds_wasted = 30
+warning_dialog_autoclose_seconds_idle = 30
+warning_dialog_autoclose_seconds_productivity = 30
+warning_dialog_autoclose_seconds_system = 30
+
+# After dismiss/timeout of a wasted warning, suppress repeats for this long
+wasted_warning_snooze_seconds = 3600
+
+# After dismiss/timeout of a productivity warning, suppress repeats for this long
+productivity_warning_snooze_seconds = 3600
+
+# After dismiss/timeout of a system warning (e.g. low RAM), suppress repeats for this long
+system_warning_snooze_seconds = 3600
                                                                                                           
 [CATEGORIES]
 # Vibe coding repos - MUST be before generic coding patterns to match first

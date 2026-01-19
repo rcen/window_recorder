@@ -17,3 +17,4 @@ alembic
 browser-history
 pywinauto
 SQLAlchemy 
+win10toast ; sys_platform == 'win32'

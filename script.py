@@ -54,7 +54,20 @@ import psutil
 from multiprocessing import Process, Queue
 import tkinter as tk
 import database
-from config import FOCUS_SLOTS
+from config import (
+    FOCUS_SLOTS,
+    NOTIFICATION_COOLDOWN,
+    WARNING_UI,
+    WARNING_DIALOG_TOPMOST,
+    WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT,
+    WARNING_DIALOG_AUTOCLOSE_SECONDS_WASTED,
+    WARNING_DIALOG_AUTOCLOSE_SECONDS_IDLE,
+    WARNING_DIALOG_AUTOCLOSE_SECONDS_PRODUCTIVITY,
+    WARNING_DIALOG_AUTOCLOSE_SECONDS_SYSTEM,
+    WASTED_WARNING_SNOOZE_SECONDS,
+    PRODUCTIVITY_WARNING_SNOOZE_SECONDS,
+    SYSTEM_WARNING_SNOOZE_SECONDS,
+)
 import socket
 from urllib.parse import urlparse
 from threading import Thread
@@ -99,6 +112,9 @@ ram_check_time = time.time() + 10
 wasted_time_start = None
 last_warning_minute = 0
 idle_warning_suppressed_until = 0
+wasted_warning_suppressed_until = 0
+productivity_warning_suppressed_until = 0
+system_warning_suppressed_until = 0
 previous_category_state = None  # Track if previous state was 'wasting' or 'productive'
 activity_page_reminder_time = time.time() + 1800  # 30 minutes = 1800 seconds
 productivity_check_time = time.time() + 300  # Check productivity goals every 5 minutes
@@ -123,7 +139,7 @@ def format_url(url):
     return ''
 
 last_notification_time = 0
-notification_cooldown = 60  # seconds
+notification_cooldown = NOTIFICATION_COOLDOWN  # configurable in config.dat [SETTINGS] section
 alert_queue = None
 alert_process = None
 alert_result_queue = None
@@ -140,6 +156,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         'active': False,
         'buttons': [],
         'category': None,
+        'auto_close_seconds': WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT,
     }
 
     def reset_display() -> None:
@@ -152,6 +169,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
             'active': False,
             'buttons': [],
             'category': None,
+            'auto_close_seconds': WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT,
         })
         message_var.set('')
         timer_var.set('')
@@ -196,6 +214,7 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         current_alert['active'] = True
         current_alert['buttons'] = payload.get('buttons', [])
         current_alert['category'] = payload.get('category')
+        current_alert['auto_close_seconds'] = payload.get('auto_close_seconds', WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT)
 
         message_var.set(current_alert['message'])
         root.title(current_alert['title'])
@@ -217,8 +236,9 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         tk.Button(button_frame, text='OK', command=on_ok).pack(side=tk.LEFT, padx=5)
 
         root.deiconify()
-        root.attributes('-topmost', True)
-        root.after(250, lambda: root.attributes('-topmost', False))
+        if WARNING_DIALOG_TOPMOST:
+            root.attributes('-topmost', True)
+            root.after(250, lambda: root.attributes('-topmost', False))
 
     def on_ok() -> None:
         finalize_alert()
@@ -236,8 +256,14 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
         if current_alert['active'] and current_alert['start_time']:
             elapsed_seconds = max(time.time() - current_alert['start_time'], 0.0)
             
-            # Auto-close after 5 minutes to allow system sleep if user is away
-            if elapsed_seconds > 300:
+            # Auto-close after configured duration to allow system sleep if user is away
+            auto_close_seconds = current_alert.get('auto_close_seconds', WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT)
+            try:
+                auto_close_seconds = float(auto_close_seconds)
+            except Exception:
+                auto_close_seconds = float(WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT)
+
+            if elapsed_seconds > auto_close_seconds:
                 finalize_alert(result='timeout')
             else:
                 minutes, seconds = divmod(int(elapsed_seconds), 60)
@@ -269,16 +295,70 @@ def alert_process_func(message_queue: Any, result_queue: Any) -> None:
 def show_non_blocking_alert(message, title, buttons=None, category=None):
     global last_notification_time
     global idle_warning_suppressed_until
+    global wasted_warning_suppressed_until
+    global productivity_warning_suppressed_until
+    global system_warning_suppressed_until
     global alert_queue
+
+    def get_user_idle_seconds() -> float:
+        if platform.system() == "Windows":
+            try:
+                return float(get_idle_duration_seconds())
+            except Exception:
+                return 0.0
+        try:
+            return max(0.0, time.time() - max(last_time_key_pressed, last_time_mouse_moved))
+        except Exception:
+            return 0.0
+
     if time.time() - last_notification_time < notification_cooldown:
         return
     if category == 'idle' and time.time() < idle_warning_suppressed_until:
         return
+    if category == 'wasted' and time.time() < wasted_warning_suppressed_until:
+        return
+    if category == 'system' and time.time() < system_warning_suppressed_until:
+        return
+    if category == 'productivity':
+        if time.time() < productivity_warning_suppressed_until:
+            return
+        # If the user is away, don't show productivity nags that prevent sleep.
+        if get_user_idle_seconds() >= idle_time:
+            return
+    if category == 'system':
+        # If the user is away, don't keep the machine awake with system dialogs.
+        if get_user_idle_seconds() >= idle_time:
+            return
     last_notification_time = time.time()
     if platform.system() == "Linux":
         os.system(f'notify-send "{title}" "{message}"')
     else:
+        def try_show_toast() -> bool:
+            try:
+                from win10toast import ToastNotifier  # type: ignore
+                toaster = ToastNotifier()
+                toaster.show_toast(title, message, duration=10, threaded=True)
+                return True
+            except Exception as e:
+                logging.debug(f"Toast notification failed: {e}")
+                return False
+
+        # Toast UI only supports simple messages (no buttons). Fallback to dialog.
+        if WARNING_UI == 'toast' and not (buttons or []):
+            if try_show_toast():
+                return
+
         if alert_queue:
+            auto_close_seconds = WARNING_DIALOG_AUTOCLOSE_SECONDS_DEFAULT
+            if category == 'wasted':
+                auto_close_seconds = WARNING_DIALOG_AUTOCLOSE_SECONDS_WASTED
+            elif category == 'idle':
+                auto_close_seconds = WARNING_DIALOG_AUTOCLOSE_SECONDS_IDLE
+            elif category == 'productivity':
+                auto_close_seconds = WARNING_DIALOG_AUTOCLOSE_SECONDS_PRODUCTIVITY
+            elif category == 'system':
+                auto_close_seconds = WARNING_DIALOG_AUTOCLOSE_SECONDS_SYSTEM
+
             event_payload = {
                 'id': str(uuid.uuid4()),
                 'message': message,
@@ -286,6 +366,7 @@ def show_non_blocking_alert(message, title, buttons=None, category=None):
                 'created_at': time.time(),
                 'buttons': buttons or [],
                 'category': category,
+                'auto_close_seconds': auto_close_seconds,
             }
             alert_queue.put(event_payload)
 
@@ -293,6 +374,10 @@ def show_non_blocking_alert(message, title, buttons=None, category=None):
 def process_alert_results() -> None:
     global alert_result_queue
     global idle_warning_suppressed_until
+    global wasted_warning_suppressed_until
+    global productivity_warning_suppressed_until
+    global system_warning_suppressed_until
+    global last_notification_time
     if not alert_result_queue:
         return
 
@@ -309,6 +394,10 @@ def process_alert_results() -> None:
             message = payload.get('message')
             title = payload.get('title')
             category = payload.get('category')
+            
+            # Update last_notification_time when any alert closes (timeout, OK, or button click)
+            # This prevents a new alert from appearing immediately after one closes
+            last_notification_time = time.time()
 
             if not event_id or not result:
                 continue
@@ -352,6 +441,15 @@ def process_alert_results() -> None:
                 if category == 'idle':
                     # Avoid relaunching the same idle warning immediately after an auto-timeout or dismissal
                     idle_warning_suppressed_until = time.time() + IDLE_WARNING_SNOOZE_SECONDS
+                if category == 'wasted':
+                    # Prevent repeated close->reopen loops that keep the machine awake.
+                    wasted_warning_suppressed_until = time.time() + WASTED_WARNING_SNOOZE_SECONDS
+                if category == 'productivity':
+                    # Avoid spamming (especially if you're behind on goals).
+                    productivity_warning_suppressed_until = time.time() + PRODUCTIVITY_WARNING_SNOOZE_SECONDS
+                if category == 'system':
+                    # Avoid repeated popups for ongoing system conditions (e.g., low RAM).
+                    system_warning_suppressed_until = time.time() + SYSTEM_WARNING_SNOOZE_SECONDS
             except Exception:
                 logging.exception("Failed to persist warning flag result")
     except queue.Empty:
@@ -363,7 +461,11 @@ def check_ram():
         free_ram_gb = psutil.virtual_memory().free / (1024.0 * 1024 * 1024)
         # print(f"Debug: Free RAM: {free_ram_gb:.2f} GB")
         if free_ram_gb < 0.6:
-            show_non_blocking_alert(f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)", "Low RAM Warning")
+            show_non_blocking_alert(
+                f"Warning: Free RAM is less than 1GB ({free_ram_gb:.2f}GB)",
+                "Low RAM Warning",
+                category='system',
+            )
         ram_check_time = time.time() + 10
 
 def get_current_focus_slot():
@@ -461,7 +563,7 @@ def main():
     # Initialize Productivity Agent with warning callback
     def productivity_warning_callback(title: str, message: str, level: str):
         """Callback to display productivity warnings."""
-        show_non_blocking_alert(message, title)
+        show_non_blocking_alert(message, title, category='productivity')
         print(f"[ProductivityAgent] {level.upper()}: {message}")
     
     productivity_agent = ProductivityAgent(callback_warn=productivity_warning_callback)
@@ -678,7 +780,8 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 print("30-min reminder: You're wasting time on browser, check your activity page!")
                 show_non_blocking_alert(
                     "You've been wasting time! Please check your productivity dashboard.",
-                    "Activity Page Reminder"
+                    "Activity Page Reminder",
+                    category='wasted',
                 )
             
             # Rule 3: If productive, no interruption (just silently reset timer)
@@ -712,7 +815,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
                 else:
                     message = f"You have been on a 'wasted' task for {current_wasted_minutes} minute(s)."
                 
-                show_non_blocking_alert(message, "Wasted Time Warning", buttons=buttons, category=current_category)
+                show_non_blocking_alert(message, "Wasted Time Warning", buttons=buttons, category='wasted')
                 last_warning_minute = current_wasted_minutes # Update the last warning time
         else:
             if wasted_time_start is not None:
@@ -815,7 +918,7 @@ import psutil
 from multiprocessing import Process, Queue
 import tkinter as tk
 import database
-from config import FOCUS_SLOTS
+from config import FOCUS_SLOTS, NOTIFICATION_COOLDOWN
 import socket
 from urllib.parse import urlparse
 
