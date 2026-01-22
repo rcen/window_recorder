@@ -268,6 +268,50 @@ class Analytics():
         df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
         return df
 
+    def _calculate_context_switching(self, date_str: str, *, ignore_idle: bool = True) -> tuple[int, float, float]:
+        """Return (switch_count, switches_per_hour, active_seconds) for a given logical day.
+
+        Definition: a switch occurs when consecutive activity rows (sorted by time)
+        have different categories. By default, idle rows are excluded.
+        """
+        df = self._get_and_prepare_day_df(date_str)
+        if df is None or df.empty:
+            return 0, 0.0, 0.0
+
+        df = resolve_conflicts(df)
+
+        if 'category' not in df.columns or 'duration' not in df.columns:
+            return 0, 0.0, 0.0
+
+        df = df.copy()
+        df['category'] = df['category'].fillna('').astype(str)
+
+        if ignore_idle:
+            df = df[df['category'].str.strip().str.lower() != 'idle']
+
+        if df.empty:
+            return 0, 0.0, 0.0
+
+        if 'start_time' in df.columns:
+            df = df.sort_values('start_time')
+        else:
+            df = df.sort_values('timestamp')
+
+        cats = df['category'].tolist()
+        prev = None
+        switches = 0
+        for cat in cats:
+            if prev is None:
+                prev = cat
+                continue
+            if cat != prev:
+                switches += 1
+                prev = cat
+
+        active_seconds = float(df['duration'].sum()) if not df['duration'].empty else 0.0
+        switches_per_hour = (switches / (active_seconds / 3600.0)) if active_seconds > 0 else 0.0
+        return switches, switches_per_hour, active_seconds
+
     def _load_config(self):
         path_config = 'config.dat'
         if not os.path.isfile(path_config):
@@ -791,7 +835,9 @@ test:
             for cat in all_u_cats:
                 color = color_map.get(cat, default_color)
                 header_row += f'<td style="background-color:{color}"><b>{cat}</b></td>\n'
-            header_row += '<td><b>Total Time</b></td></tr>\n'
+            header_row += '<td><b>Total Time</b></td>'
+            header_row += '<td><b>Ctx Switches</b></td>'
+            header_row += '<td><b>Switches/hr</b></td></tr>\n'
             table_html += header_row
 
             total_logs = len(log_list)
@@ -835,6 +881,11 @@ test:
                 
                 tot_hr, tot_min, tot_sec = Sec2hms(total_time)
                 row += '<td>{0:02}:{1:02}:{2:02}</td>'.format(tot_hr, tot_min, tot_sec)
+
+                day_str = date.strftime('%Y-%m-%d')
+                switch_count, switch_per_hour, _ = self._calculate_context_switching(day_str)
+                row += f'<td>{switch_count:d}</td>'
+                row += f'<td>{switch_per_hour:.1f}</td>'
                 row += '</tr>'
 
                 table_html += row
@@ -895,6 +946,10 @@ window.addEventListener("load", function() {
             today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
             longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
             longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
+
+            switch_count_today, switch_per_hour_today, _ = (0, 0.0, 0.0)
+            if today_date_str:
+                switch_count_today, switch_per_hour_today, _ = self._calculate_context_switching(today_date_str)
             
             # Get threshold from config
             streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
@@ -1256,6 +1311,13 @@ document.addEventListener('DOMContentLoaded', () => {
             file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
             longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')
+            file.write('</div>')
+
+            # Context Switching (today)
+            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#455a64;">Context Switches</h3>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#263238;">{switch_count_today:d}</p>')
+            file.write(f'<p style="margin:5px 0; color:#455a64; font-size:0.95em;">{switch_per_hour_today:.1f} per active hour (lower is better)</p>')
             file.write('</div>')
             
             # Waste Ratio
