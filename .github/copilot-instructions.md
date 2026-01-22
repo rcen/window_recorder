@@ -116,6 +116,26 @@ Weekend/holiday detection affects thresholds:
 - **Saturday**: 25% of normal goals (SATURDAY_GOAL_MULTIPLIER)
 - **Sunday**: 50% of normal goals (SUNDAY_GOAL_MULTIPLIER)
 
+### Agentic Productivity Dashboard Spec (User-Facing)
+
+User profile context:
+- Software Engineer specializing in Computer Vision and Agentic Systems.
+- Known challenges: “Second Week Slump”, high context-switching costs, “morning depression”.
+
+Core KPIs and enforcement logic (derived from activity logs):
+- **Waste Ratio**: target < 15% on weekdays. If wasted time exceeds this threshold, trigger a “Reset” alert.
+- **1:5 Vibe-to-Job Ratio**: for every 50 minutes in Coding/Learning, require 10 minutes in Job Search or Current Job.
+- **Focus Streaks**: track longest focus streak; notify when user is 5 minutes away from breaking today’s record.
+- **Morning Shield**: between 8:00–11:00 AM, flag any Wasted category activity before at least 10 minutes of Coding or Docs.
+
+Coach layer guardrails:
+- **Timesheet Guardrail**: on Fridays/Saturdays, prioritize “Must Done” tasks (e.g., timesheets, Noah’s Chinese homework) before allowing Gaming or Learning.
+- **Friction Hack**: when a wasted spike is detected, suggest an MVD (Minimum Viable Day) task (e.g., 10 pushups or 1 LeetCode problem).
+- **Version Control Check**: if Coding is active for > 60 minutes without a Git commit, remind the user that documentation generation requires version control.
+
+Rest-day rules:
+- Saturday, Sunday, and holidays should have separate (more forgiving) thresholds; prefer rest-aware coaching.
+
 ### Anti-Procrastination Coaching (Critical Feature)
 The AI coach in `gemini_coach.py` emphasizes breaking the procrastination → late sleep → miserable morning cycle:
 - **After 8 PM**: Triggers evening urgency alerts with minutes-until-midnight countdown

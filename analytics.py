@@ -729,9 +729,9 @@ test:
         
         # Skip update if:
         # 1. No new activities AND
-        # 2. We updated recently (within last 60 seconds)
+        # 2. We updated recently
         if (current_activity_count == self.last_activity_count and 
-            time_since_last_update < 60):
+            time_since_last_update < 300):
             # print(f"[SKIP] No new activities, last update was {time_since_last_update:.0f}s ago")
             return
         
@@ -771,10 +771,12 @@ test:
             current_category = self._get_current_activity_category(log_list, date_list)
             is_currently_wasting = current_category and is_wasted(current_category)
             
-            # Fast refresh (15s) when wasting for immediate feedback, medium refresh (30s) when productive
-            refresh_interval = 15 if is_currently_wasting else 30
-            # Store refresh interval for JavaScript-based refresh (not using meta tag to avoid first-load conflict)
+            # Refresh defaults (seconds). JS will only reload if there is new activity.
+            refresh_interval = 30 if is_currently_wasting else 60
+            latest_activity_ts = database.get_latest_activity_timestamp() or 0
             file.write(f'<meta name="refresh-interval" content="{refresh_interval}">\n')
+            file.write(f'<meta name="activity-count" content="{current_activity_count}">\n')
+            file.write(f'<meta name="activity-last-ts" content="{latest_activity_ts}">\n')
 
             # Add stock prices at the top
             stock_html = stock_prices.get_stock_html()
@@ -1066,20 +1068,69 @@ function scheduleRefresh() {
     }
     
     const metaInterval = document.querySelector('meta[name="refresh-interval"]');
-    const refreshInterval = metaInterval ? parseInt(metaInterval.content) * 1000 : 30000;
-    
+    const metaMs = metaInterval ? parseInt(metaInterval.content) * 1000 : 60000;
+    const refreshInterval = Math.max(metaMs, 30000); // never poll faster than 30s
+
+    function getActivityStatusUrl() {
+        try {
+            if (window.location && window.location.protocol && window.location.protocol.indexOf('http') === 0) {
+                return window.location.origin + '/activity/status';
+            }
+        } catch (e) {}
+        return 'http://127.0.0.1:8042/activity/status';
+    }
+
+    function fetchWithTimeout(url, timeoutMs) {
+        if (!('AbortController' in window)) {
+            return fetch(url, { cache: 'no-store' });
+        }
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeoutMs);
+        return fetch(url, { cache: 'no-store', signal: controller.signal })
+            .finally(() => clearTimeout(id));
+    }
+
+    function shouldReload() {
+        const baseCountMeta = document.querySelector('meta[name="activity-count"]');
+        const baseCount = baseCountMeta ? parseInt(baseCountMeta.content) : NaN;
+        const baseTsMeta = document.querySelector('meta[name="activity-last-ts"]');
+        const baseTs = baseTsMeta ? parseFloat(baseTsMeta.content) : NaN;
+
+        return fetchWithTimeout(getActivityStatusUrl(), 2000)
+            .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+            .then(data => {
+                if (!data || data.status !== 'ok') return false;
+                const currentCount = parseInt(data.activity_count);
+                const currentTs = parseFloat(data.latest_activity_ts);
+                if (!isNaN(baseCount) && !isNaN(currentCount)) {
+                    return currentCount > baseCount;
+                }
+                if (!isNaN(baseTs) && !isNaN(currentTs)) {
+                    return currentTs > (baseTs + 0.0001);
+                }
+                return false;
+            })
+            .catch(() => false);
+    }
+
     window.__refreshTimeoutId = setTimeout(() => {
         const allowed = (typeof window.__isRefreshAllowed === 'function')
             ? window.__isRefreshAllowed()
             : window.__refreshEnabled;
-        if (allowed) {
-            // Save scroll position before reload
-            sessionStorage.setItem('scrollPos', window.scrollY.toString());
-            location.reload();
-        } else {
-            // Re-schedule if refresh is disabled
+        if (!allowed) {
             scheduleRefresh();
+            return;
         }
+
+        shouldReload().then(needsReload => {
+            if (needsReload) {
+                sessionStorage.setItem('scrollPos', window.scrollY.toString());
+                location.reload();
+            } else {
+                // No new data: don't reload, just keep polling.
+                scheduleRefresh();
+            }
+        });
     }, refreshInterval);
 }
 

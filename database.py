@@ -504,6 +504,19 @@ def get_activity_count():
         print(f"Error getting activity count: {e}")
         return 0
 
+
+def get_latest_activity_timestamp() -> float | None:
+    """Return the newest activity.timestamp in the local DB, or None if empty."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(timestamp) FROM activity")
+            value = cursor.fetchone()[0]
+            return float(value) if value is not None else None
+    except Exception as e:
+        print(f"Error getting latest activity timestamp: {e}")
+        return None
+
 def fetch_summary_for_day(date_str):
     """
     Fetches a summary for a specific day directly from the local_date column.

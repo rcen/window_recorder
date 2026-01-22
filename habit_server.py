@@ -158,6 +158,26 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
+
+        # Lightweight activity status for conditional dashboard refresh.
+        if parsed.path == '/activity/status':
+            try:
+                count = database.get_activity_count()
+                latest_ts = database.get_latest_activity_timestamp()
+                self._set_headers(200)
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            'status': 'ok',
+                            'activity_count': count,
+                            'latest_activity_ts': latest_ts,
+                        }
+                    ).encode('utf-8')
+                )
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            return
         
         if parsed.path != '/habits':
             self._set_headers(404)

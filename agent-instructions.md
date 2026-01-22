@@ -1,4 +1,5 @@
 Project Spec: Agentic Productivity Dashboard
+Note: Copilot uses `.github/copilot-instructions.md` as the source of truth for repo-wide instructions; keep this document in sync.
 1. Context & User Profile
 User Role: Software Engineer specializing in Computer Vision and Agentic Systems.
 
