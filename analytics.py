@@ -1040,6 +1040,25 @@ function saveNote() {
 // This allows us to prevent refresh while user is typing notes
 window.__refreshEnabled = true;
 window.__refreshTimeoutId = null;
+window.__refreshLocks = window.__refreshLocks || {};
+
+window.__setRefreshLock = function(key, locked) {
+    if (!key) return;
+    if (locked) {
+        window.__refreshLocks[key] = true;
+    } else {
+        delete window.__refreshLocks[key];
+    }
+};
+
+window.__isRefreshAllowed = function() {
+    if (!window.__refreshEnabled) return false;
+    try {
+        return Object.keys(window.__refreshLocks || {}).length === 0;
+    } catch (e) {
+        return window.__refreshEnabled;
+    }
+};
 
 function scheduleRefresh() {
     if (window.__refreshTimeoutId) {
@@ -1050,7 +1069,10 @@ function scheduleRefresh() {
     const refreshInterval = metaInterval ? parseInt(metaInterval.content) * 1000 : 30000;
     
     window.__refreshTimeoutId = setTimeout(() => {
-        if (window.__refreshEnabled) {
+        const allowed = (typeof window.__isRefreshAllowed === 'function')
+            ? window.__isRefreshAllowed()
+            : window.__refreshEnabled;
+        if (allowed) {
             // Save scroll position before reload
             sessionStorage.setItem('scrollPos', window.scrollY.toString());
             location.reload();
@@ -1083,6 +1105,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Disable refresh when there's unsaved text
         window.__refreshEnabled = !window.__streakNoteUnsaved;
+        if (typeof window.__setRefreshLock === 'function') {
+            window.__setRefreshLock('streak_note', window.__streakNoteUnsaved);
+        }
         
         if (window.__streakNoteUnsaved) {
             saveBtn.style.background = '#FBC02D'; // Yellow
@@ -2499,6 +2524,7 @@ if (chartsBtn) {
             '<div id="must-done-section" class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
             f'<h2 style="margin-top:0; color:#333;">📋 Must Done This Week</h2>',
             f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week {week_id} ({week_start.strftime("%b %d")} - {week_end.strftime("%b %d")}). Tasks reset on {next_week_start.strftime("%a, %b %d at 12:00 AM")}.</div>',
+            '<div id="must-done-sync-status" style="color:#666; font-size:0.85em; margin:-6px 0 10px 0;">Last synced: —</div>',
             '<div style="display:flex; flex-direction:column; gap:10px;">'
         ]
         
@@ -2569,6 +2595,52 @@ if (chartsBtn) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.must-done-checkbox');
+    const syncStatusEl = document.getElementById('must-done-sync-status');
+
+    function setSyncStatus(text, tone) {
+        if (!syncStatusEl) return;
+        syncStatusEl.textContent = text;
+        if (tone === 'error') {
+            syncStatusEl.style.color = '#b00020';
+        } else if (tone === 'success') {
+            syncStatusEl.style.color = '#2e7d32';
+        } else {
+            syncStatusEl.style.color = '#666';
+        }
+    }
+
+    // Keep Must Done state in sync with the habit server so periodic page reloads
+    // don't revert to stale HTML-exported checkbox values.
+    function syncMustDoneFromServer(weekId) {
+        if (!weekId) return;
+        setSyncStatus('Syncing…', 'info');
+        fetch('http://127.0.0.1:8042/must_done/status?week_id=' + encodeURIComponent(weekId))
+            .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+            .then(data => {
+                if (!data || data.status !== 'success' || !data.items) return;
+                checkboxes.forEach(cb => {
+                    if (cb.getAttribute('data-week-id') !== weekId) return;
+                    const taskId = cb.getAttribute('data-task-id');
+                    const item = data.items[String(taskId)];
+                    if (!item) return;
+                    cb.checked = !!item.completed;
+                });
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setSyncStatus('Last synced: ' + timeStr, 'success');
+            })
+            .catch(err => {
+                console.warn('Must Done sync failed:', err);
+                setSyncStatus('Last synced: failed (server unreachable)', 'error');
+            });
+    }
+
+    // On load, sync for the current week.
+    if (checkboxes.length > 0) {
+        const weekId = checkboxes[0].getAttribute('data-week-id');
+        syncMustDoneFromServer(weekId);
+    }
+
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function(e) {
             const taskId = this.getAttribute('data-task-id');
@@ -2584,6 +2656,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 item.style.opacity = '0.6';
                 item.style.border = '2px dashed #999';
             }
+
+            // Prevent periodic auto-refresh from reloading stale HTML mid-save.
+            if (typeof window.__setRefreshLock === 'function') {
+                window.__setRefreshLock('must_done:' + taskId, true);
+            }
+
+            setSyncStatus('Saving…', 'info');
             
             // Send update to server immediately
             fetch('http://127.0.0.1:8042/must_done/update', {
@@ -2611,6 +2690,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     console.log('✓ Checkbox state saved to database');
                     // No page reload - state is already correct!
+
+                    // Also re-sync from server to guarantee state matches persisted DB.
+                    syncMustDoneFromServer(weekId);
                 } else {
                     console.error('Server error:', data);
                     // Revert on error
@@ -2620,6 +2702,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         item.style.border = '';
                     }
                     alert('Failed to save. Please try again.');
+                    setSyncStatus('Last synced: failed to save', 'error');
                 }
             })
             .catch(error => {
@@ -2631,6 +2714,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     item.style.border = '';
                 }
                 alert('Connection failed. Please check if the server is running.');
+                setSyncStatus('Last synced: failed (server unreachable)', 'error');
+            })
+            .finally(() => {
+                if (typeof window.__setRefreshLock === 'function') {
+                    window.__setRefreshLock('must_done:' + taskId, false);
+                }
             });
         });
     });

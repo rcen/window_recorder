@@ -122,6 +122,42 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
         elif parsed.path == '/productivity/goals':
             self._handle_goals_get()
             return
+
+        # Handle must_done status queries
+        if parsed.path == '/must_done/status':
+            params = parse_qs(parsed.query)
+            week_id = params.get('week_id', [None])[0]
+            if not week_id:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing week_id'}).encode('utf-8'))
+                return
+
+            import sqlite3
+            try:
+                conn = sqlite3.connect('data/activity.sqlite')
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT task_id, completed, completed_at FROM must_done_items WHERE week_id = ?',
+                    (week_id,),
+                )
+                rows = cursor.fetchall()
+                conn.close()
+                items = {
+                    str(task_id): {
+                        'completed': bool(completed),
+                        'completed_at': completed_at,
+                    }
+                    for task_id, completed, completed_at in rows
+                }
+                self._set_headers(200)
+                self.wfile.write(
+                    json.dumps({'status': 'success', 'week_id': week_id, 'items': items}).encode('utf-8')
+                )
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
         
         if parsed.path != '/habits':
             self._set_headers(404)

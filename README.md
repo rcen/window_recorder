@@ -108,13 +108,13 @@ Or manually:
 
 The server runs on `http://127.0.0.1:8042/habits` and must be running for checkboxes to persist.
 
-**Configure your habits** in `config.py`:
-```python
-HABITS = [
-    ("Exercise", "#4ade80"),
-    ("Read", "#60a5fa"),
-    ("Meditate", "#a78bfa"),
-]
+**Configure your habits** in `config.dat` under the `[HABITS]` section:
+```ini
+[HABITS]
+1 job action = #4caf50
+25m deep work = #4d96ff
+10m movement = #ff6b6b
+shutdown + tomorrow plan = #f6c344
 ```
 
 # todo

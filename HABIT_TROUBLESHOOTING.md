@@ -115,7 +115,7 @@ Open your browser's developer tools (F12) and check the Console tab for:
 ## Workflow Summary
 
 ```
-1. Configure habits in config.py
+1. Configure habits in config.dat ([HABITS] section)
 2. Run: analytics.py (generates HTML with calendar)
 3. Start: habit_server.py (enables checkbox persistence)
 4. Open: html/index.html (interact with calendar)
@@ -132,7 +132,7 @@ Open your browser's developer tools (F12) and check the Console tab for:
 ls data/activity.sqlite
 
 # Check database contents`
-3. Check config.py has HABITS defined
+3. Check config.dat has a [HABITS] section with at least 1 habit
 4. Regenerate HTML: `python analytics.py`
 5. Restart habit server
 6. Clear browser cache and hard refresh

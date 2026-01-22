@@ -4,7 +4,7 @@ tickers = VOO, SOXL, AMZN
 [HABITS]
 read bible = #4caf50
 exercises = #ff6b6b
-eat_the_frog = #4d96ff
+1 job action = #4d96ff
 
 [FOCUS_SLOTS]                                                                                             
 morning_focus = 09:00-12:30                                                                               
@@ -73,12 +73,15 @@ glassdoor: job_search
 ziprecruiter.com: job_search
 ziprecruiter: job_search
 monster.com: job_search
-monster: job_search
 hired.com: job_search
 wellfound.com: job_search
 levels.fyi: job_search
+www.kaggle.com: learning
 
 # Regular categories
+markdown monster: work
+jupyter notebook: learning
+clang.llvm.org: learning
 google translate: work
 Separators_Tables.md: work
 docker desktop: learning

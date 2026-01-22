@@ -1,0 +1,22 @@
+[SETTINGS]
+# Your local timezone (used for day boundaries and reports)
+timezone = America/New_York
+# Treat activity before this hour as part of the previous “logical day” (default: 3 AM)
+day_boundary_hour = 3
+
+[HABITS]
+# Starter-friendly productivity habits (keep these easy enough to do daily)
+1 job action = #4caf50
+25m deep work = #4d96ff
+10m movement = #ff6b6b
+shutdown + tomorrow plan = #f6c344
+
+[FOCUS_SLOTS]
+# Optional: used for focus-slot highlighting in reports
+morning_focus = 09:00-12:00
+afternoon_focus = 13:00-16:00
+
+[CATEGORIES]
+# Optional: window-title matching rules (see config.dat.bak for a full example)
+# example.com: work
+# regex__\\bYouTube\\b: wasted
