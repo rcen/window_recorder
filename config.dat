@@ -79,6 +79,11 @@ levels.fyi: job_search
 www.kaggle.com: learning
 
 # Regular categories
+regex__^find text$: work
+regex__^rename$: work
+regex__^undo changes$: work
+regex__^inconsistent line endings$: work
+Camera Calibration: work
 markdown monster: work
 jupyter notebook: learning
 clang.llvm.org: learning
@@ -561,7 +566,6 @@ jira: think
                          
 avl: work                                                                                               
 chidecode: work                                                                                         
-camera calibration: work                                                                                
 opencv: work                                                                                            
 halcon: work                                                                                            
 espn: wasted                                                                                              

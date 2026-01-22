@@ -826,11 +826,17 @@ class ProductivityAgent:
         return None
     
     def _get_week_id(self) -> str:
-        """Get the current week ID for Must Done tracking."""
+        """Get the current week ID for Must Done tracking. Resets on Saturday at noon."""
         tz = pytz.timezone(TIMEZONE)
-        today = datetime.datetime.now(tz).date()
-        week_start = today - datetime.timedelta(days=today.weekday())
-        return week_start.strftime('%Y-%m-%d')
+        now = datetime.datetime.now(tz)
+        # Calculate Monday of this week (weekday is 0 for Monday)
+        monday = (now - datetime.timedelta(days=now.weekday())).date()
+        
+        # If it's Saturday >= 12:00 or Sunday, shift to next Monday
+        if (now.weekday() == 5 and now.hour >= 12) or now.weekday() == 6:
+            monday += datetime.timedelta(days=7)
+            
+        return monday.strftime('%Y-%m-%d')
     
     # ==================== GOAL EVALUATION ====================
     

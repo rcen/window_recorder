@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 import shutil
 import time
+import bisect
 import json
 import textwrap
 import pytz
@@ -32,7 +33,7 @@ import requests
 import html
 from urllib.parse import urlparse
 import stock_prices
-from productivity_agent import ProductivityAgent, GoalStatus
+from productivity_agent import ProductivityAgent, GoalStatus, HOLIDAYS
 
 def main():
     reanalyze_all()
@@ -222,6 +223,7 @@ class Analytics():
         self.proj_list = self.config.items('PROJECTS')
         self.cache_path = 'data/analysis_cache.json'
         self.analysis_cache = self._load_analysis_cache()
+        self._context_switch_cache = {}
         self.last_activity_count = 0  # Track activity count to detect changes
         self.last_update_timestamp = 0  # Track when we last updated
         database.initialize_database()
@@ -311,6 +313,151 @@ class Analytics():
         active_seconds = float(df['duration'].sum()) if not df['duration'].empty else 0.0
         switches_per_hour = (switches / (active_seconds / 3600.0)) if active_seconds > 0 else 0.0
         return switches, switches_per_hour, active_seconds
+
+    def _calculate_context_switching_window(
+        self,
+        date_str: str,
+        window_end: "datetime.datetime",
+        *,
+        window_seconds: int = 3600,
+        ignore_idle: bool = True,
+    ) -> tuple[int, float | None, float]:
+        """Return (switch_count, switches_per_active_hour, active_seconds) for a rolling time window.
+
+        Implementation note: this is performance-sensitive; it uses a cached per-day
+        time series (sorted by end_time) with prefix sums instead of re-resolving
+        conflicts for every window.
+        """
+        series = self._get_context_switch_series(date_str, ignore_idle=ignore_idle)
+        if series is None:
+            return 0, None, 0.0
+
+        end_ts = float(window_end.timestamp())
+        switches, active_seconds = self._window_switch_stats_from_series(series, end_ts, window_seconds)
+        per_active_hour = (switches / (active_seconds / 3600.0)) if active_seconds > 0 else None
+        return switches, per_active_hour, active_seconds
+
+    def _calculate_lowest_context_switching_rate(
+        self,
+        date_str: str,
+        *,
+        window_seconds: int = 3600,
+        min_active_seconds: int = 600,
+    ) -> float | None:
+        """Return the lowest rolling-window switches-per-active-hour for a day.
+
+        This uses a prefix-sum series with a 2-pointer window to avoid O(n^2) behavior.
+        """
+        series = self._get_context_switch_series(date_str, ignore_idle=True)
+        if series is None:
+            return None
+
+        end_times = series['end_ts']
+        prefix_dur = series['prefix_dur']
+        prefix_sw = series['prefix_sw']
+        n = len(end_times)
+        if n == 0:
+            return None
+
+        lo = 0
+        lowest = None
+        for hi_idx in range(n):
+            end_ts = end_times[hi_idx]
+            cutoff = end_ts - float(window_seconds)
+            while lo < n and end_times[lo] <= cutoff:
+                lo += 1
+
+            hi = hi_idx + 1
+            active_seconds = float(prefix_dur[hi] - prefix_dur[lo])
+            if active_seconds < float(min_active_seconds) or active_seconds <= 0:
+                continue
+
+            if hi - lo >= 2:
+                switches = int(prefix_sw[hi] - prefix_sw[lo + 1])
+            else:
+                switches = 0
+
+            # Ignore "warm-up" windows with zero switches. These are common early in the day
+            # (or during long single-category stretches) and would otherwise dominate the
+            # "Lowest" metric with 0/hr, which is usually not meaningful.
+            if switches <= 0:
+                continue
+
+            rate = switches / (active_seconds / 3600.0)
+            if lowest is None or rate < lowest:
+                lowest = rate
+
+        return lowest
+
+    def _get_context_switch_series(self, date_str: str, *, ignore_idle: bool = True):
+        key = (date_str, ignore_idle)
+        if key in self._context_switch_cache:
+            return self._context_switch_cache[key]
+
+        df = self._get_and_prepare_day_df(date_str)
+        if df is None or df.empty:
+            self._context_switch_cache[key] = None
+            return None
+
+        df = resolve_conflicts(df)
+        if df is None or df.empty:
+            self._context_switch_cache[key] = None
+            return None
+
+        if 'end_time' not in df.columns or 'duration' not in df.columns or 'category' not in df.columns:
+            self._context_switch_cache[key] = None
+            return None
+
+        df = df.copy()
+        df['category'] = df['category'].fillna('').astype(str)
+        if ignore_idle:
+            df = df[df['category'].str.strip().str.lower() != 'idle']
+        if df.empty:
+            self._context_switch_cache[key] = None
+            return None
+
+        df = df.sort_values('end_time')
+        end_ts = [float(dt.timestamp()) for dt in df['end_time'].tolist()]
+        durations = [max(0.0, float(x)) for x in df['duration'].tolist()]
+        cats = df['category'].tolist()
+
+        switch_flags = [0]
+        for i in range(1, len(cats)):
+            switch_flags.append(1 if cats[i] != cats[i - 1] else 0)
+
+        prefix_dur = [0.0]
+        prefix_sw = [0]
+        for d, s in zip(durations, switch_flags):
+            prefix_dur.append(prefix_dur[-1] + d)
+            prefix_sw.append(prefix_sw[-1] + int(s))
+
+        series = {
+            'end_ts': end_ts,
+            'dur': durations,
+            'switch': switch_flags,
+            'prefix_dur': prefix_dur,
+            'prefix_sw': prefix_sw,
+        }
+        self._context_switch_cache[key] = series
+        return series
+
+    @staticmethod
+    def _window_switch_stats_from_series(series, window_end_ts: float, window_seconds: int) -> tuple[int, float]:
+        end_ts = series['end_ts']
+        prefix_dur = series['prefix_dur']
+        prefix_sw = series['prefix_sw']
+
+        hi = bisect.bisect_right(end_ts, window_end_ts)
+        lo = bisect.bisect_right(end_ts, window_end_ts - float(window_seconds))
+        if hi <= lo:
+            return 0, 0.0
+
+        active_seconds = float(prefix_dur[hi] - prefix_dur[lo])
+        if hi - lo >= 2:
+            switches = int(prefix_sw[hi] - prefix_sw[lo + 1])
+        else:
+            switches = 0
+        return switches, active_seconds
 
     def _load_config(self):
         path_config = 'config.dat'
@@ -947,9 +1094,55 @@ window.addEventListener("load", function() {
             longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
             longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
 
-            switch_count_today, switch_per_hour_today, _ = (0, 0.0, 0.0)
+            # Context switching metrics
+            tz = pytz.timezone(TIMEZONE)
+            now_local = datetime.datetime.now(tz)
+
+            total_switches_today = 0
+            switches_last_hour = 0
+            switch_per_active_hour_last_hour = None
             if today_date_str:
-                switch_count_today, switch_per_hour_today, _ = self._calculate_context_switching(today_date_str)
+                total_switches_today, _, _ = self._calculate_context_switching(today_date_str)
+                switches_last_hour, switch_per_active_hour_last_hour, _ = self._calculate_context_switching_window(
+                    today_date_str,
+                    now_local,
+                    window_seconds=3600,
+                )
+
+            lowest_switch_per_hour_today = self._calculate_lowest_context_switching_rate(today_date_str) if today_date_str else None
+
+            lowest_switch_per_hour_7d = None
+            lowest_switch_per_hour_7d_date = None
+            if date_list:
+                seen_days = []
+                for dt in date_list:
+                    if dt is None:
+                        continue
+
+                    # Skip rest days for the 7-day comparison.
+                    # Weekends and configured holidays behave differently and would distort this baseline.
+                    try:
+                        if dt.weekday() >= 5:
+                            continue
+                        if dt.strftime('%m-%d') in HOLIDAYS:
+                            continue
+                    except Exception:
+                        # If dt isn't a date-like object for some reason, fall back to including it.
+                        pass
+
+                    day_str = dt.strftime('%Y-%m-%d')
+                    if day_str in seen_days:
+                        continue
+                    seen_days.append(day_str)
+                    if len(seen_days) > 7:
+                        break
+
+                    per_hr_low = self._calculate_lowest_context_switching_rate(day_str)
+                    if per_hr_low is None:
+                        continue
+                    if lowest_switch_per_hour_7d is None or per_hr_low < lowest_switch_per_hour_7d:
+                        lowest_switch_per_hour_7d = per_hr_low
+                        lowest_switch_per_hour_7d_date = dt.strftime('%a, %b %d')
             
             # Get threshold from config
             streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
@@ -983,7 +1176,8 @@ window.addEventListener("load", function() {
             # Productive Streak
             file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center;">')
             file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Productive Streak</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
+            # Add a stable element id so other UI (e.g., Focus Timer popup) can stay consistent.
+            file.write(f'<p id="productive-streak-value" style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
             
             # Add note-taking section
@@ -1276,8 +1470,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             # Longest Today
             file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest Today</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_today_display}</p>')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest (Today / 7 Days)</h3>')
+            longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
+            file.write(
+                f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20; white-space:nowrap;">'
+                f'{longest_today_display} / {longest_7days_display} '
+                f'<span style="font-size:0.60em; font-weight:normal; white-space:nowrap;">({longest_7days_info})</span>'
+                f'</p>'
+            )
             
             # Get current time
             tz = pytz.timezone(TIMEZONE)
@@ -1304,20 +1504,32 @@ document.addEventListener('DOMContentLoaded', () => {
             else:
                 file.write('<div id="recent-notes" style="display:none;"></div>')
             file.write('</div>')
-            
-            # Longest 7 Days
-            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">⭐ Longest in 7 Days</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{longest_7days_display}</p>')
-            longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
-            file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_7days_info}</p>')
-            file.write('</div>')
 
             # Context Switching (today)
             file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
             file.write('<h3 style="margin:0 0 10px 0; color:#455a64;">Context Switches</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#263238;">{switch_count_today:d}</p>')
-            file.write(f'<p style="margin:5px 0; color:#455a64; font-size:0.95em;">{switch_per_hour_today:.1f} per active hour (lower is better)</p>')
+            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#263238;">{switches_last_hour:d}</p>')
+            if switch_per_active_hour_last_hour is None:
+                file.write('<p style="margin:5px 0; color:#455a64; font-size:0.95em;">No active time in last hour</p>')
+            else:
+                file.write(f'<p style="margin:5px 0; color:#455a64; font-size:0.95em;">{switch_per_active_hour_last_hour:.1f} per active hour (last 60 min)</p>')
+            file.write(f'<p style="margin:4px 0 0 0; color:#607d8b; font-size:0.90em;">Today total: {total_switches_today:d} switches</p>')
+
+            if lowest_switch_per_hour_today is not None or lowest_switch_per_hour_7d is not None:
+                parts = []
+                if lowest_switch_per_hour_today is not None:
+                    parts.append(f'Lowest today: {lowest_switch_per_hour_today:.1f}/hr')
+                if lowest_switch_per_hour_7d is not None:
+                    date_label = f' ({lowest_switch_per_hour_7d_date})' if lowest_switch_per_hour_7d_date else ''
+                    parts.append(f'Lowest 7 days: {lowest_switch_per_hour_7d:.1f}/hr{date_label}')
+                joined = ' · '.join(parts)
+                file.write(
+                    f'<p style="margin:8px 0 0 0; font-size:0.98em;">'
+                    f'<span style="display:inline-block; padding:4px 10px; border-radius:999px; '
+                    f'background:rgba(69, 90, 100, 0.10); border:1px solid rgba(69, 90, 100, 0.22); '
+                    f'color:#263238; font-weight:600; letter-spacing:0.1px;">{joined}</span>'
+                    f'</p>'
+                )
             file.write('</div>')
             
             # Waste Ratio
@@ -1350,6 +1562,164 @@ document.addEventListener('DOMContentLoaded', () => {
             
             file.write('</div>')
             file.write('</div>')
+
+            # Work focus timer popup (uses the same threshold as the productivity streak)
+            work_focus_cats = {
+                'work',
+                'coding',
+                'programming',
+                'job_search',
+                'current_job',
+            }
+            current_category_lower = (current_category or '').strip().lower()
+            is_work_focus = bool(
+                current_category_lower
+                and (
+                    current_category_lower in work_focus_cats
+                    or current_category_lower.startswith('job_search')
+                    or current_category_lower.startswith('current_job')
+                )
+            )
+
+            # Streak minutes is a float; clamp to >= 0 for display/timer.
+            try:
+                streak_minutes_value = float(streak_minutes)
+            except Exception:
+                streak_minutes_value = 0.0
+            if streak_minutes_value < 0:
+                streak_minutes_value = 0.0
+
+            file.write(
+                f'\n<div id="work-timer-popup" '
+                f'data-enabled="{1 if is_work_focus else 0}" '
+                f'data-streak-min="{streak_minutes_value:.4f}" '
+                f'data-threshold-min="{int(streak_threshold)}" '
+                f'data-category="{html.escape(current_category_lower)}" '
+                f'style="display:none; position:fixed; right:18px; bottom:18px; z-index:9999; '
+                f'max-width:360px; width:calc(100vw - 36px); '
+                f'background:rgba(255,255,255,0.96); backdrop-filter: blur(8px); '
+                f'border:1px solid rgba(76,175,80,0.35); border-left:6px solid #4caf50; '
+                f'border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.18); '
+                f'padding:12px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;">\n'
+                f'  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">\n'
+                f'    <div style="font-weight:800; color:#1b5e20; font-size:1.02em;">Focus Timer</div>\n'
+                f'    <button id="work-timer-close" type="button" '
+                f'      style="cursor:pointer; border:0; background:transparent; color:#607d8b; '
+                f'      font-size:1.25em; line-height:1; padding:2px 6px;" '
+                f'      aria-label="Dismiss">×</button>\n'
+                f'  </div>\n'
+                f'  <div style="margin-top:6px; color:#37474f; font-size:0.92em;">Category: <span id="work-timer-cat" style="font-weight:700;"></span></div>\n'
+                f'  <div style="margin-top:8px; font-size:1.18em; font-weight:800; color:#263238;">'
+                f'    <span id="work-timer-elapsed"></span> / <span id="work-timer-target"></span>'
+                f'  </div>\n'
+                f'  <div style="margin-top:4px; color:#546e7a; font-size:0.92em;">Remaining: <span id="work-timer-remaining" style="font-weight:700;"></span></div>\n'
+                f'  <div style="height:9px; background:rgba(76,175,80,0.12); border-radius:999px; overflow:hidden; margin-top:10px;">\n'
+                f'    <div id="work-timer-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #66bb6a, #2e7d32);"></div>\n'
+                f'  </div>\n'
+                f'  <div id="work-timer-done" style="display:none; margin-top:10px; color:#1b5e20; font-weight:800;">Threshold reached — keep going.</div>\n'
+                f'</div>\n'
+                f'<button id="work-timer-fab" type="button" '
+                f'  style="display:none; position:fixed; right:18px; bottom:18px; z-index:9998; '
+                f'  width:46px; height:46px; border-radius:999px; border:1px solid rgba(76,175,80,0.35); '
+                f'  background:rgba(255,255,255,0.92); backdrop-filter: blur(8px); '
+                f'  box-shadow:0 10px 24px rgba(0,0,0,0.18); cursor:pointer; '
+                f'  color:#1b5e20; font-size:20px; font-weight:800;" '
+                f'  aria-label="Show focus timer" title="Show focus timer">⏱</button>\n'
+                f'<script>\n'
+                f'(function() {{\n'
+                f'  const popup = document.getElementById("work-timer-popup");\n'
+                f'  const fab = document.getElementById("work-timer-fab");\n'
+                f'  if (!popup) return;\n'
+                f'  const enabled = popup.dataset.enabled === "1";\n'
+                f'  const dismissed = sessionStorage.getItem("workTimerDismissed") === "1";\n'
+                f'  const thresholdMin = parseInt(popup.dataset.thresholdMin || "25", 10);\n'
+                f'  const thresholdSec = Math.max(0, thresholdMin) * 60;\n'
+                f'  let streakSec = Math.max(0, Math.floor(parseFloat(popup.dataset.streakMin || "0") * 60));\n'
+                f'  const category = (popup.dataset.category || "").trim();\n'
+                f'\n'
+                f'  // If you leave work-focus (e.g. switch to wasted/non-work), reset dismiss state so it can show again next time.\n'
+                f'  if (!enabled) {{\n'
+                f'    sessionStorage.removeItem("workTimerDismissed");\n'
+                f'    popup.style.display = "none";\n'
+                f'    if (fab) fab.style.display = "none";\n'
+                f'    return;\n'
+                f'  }}\n'
+                f'\n'
+                f'  const closeBtn = document.getElementById("work-timer-close");\n'
+                f'  if (closeBtn) closeBtn.addEventListener("click", () => {{\n'
+                f'    sessionStorage.setItem("workTimerDismissed", "1");\n'
+                f'    popup.style.display = "none";\n'
+                f'    if (fab && enabled && thresholdSec > 0 && streakSec < thresholdSec) fab.style.display = "block";\n'
+                f'  }});\n'
+
+                f'  function showPopup() {{\n'
+                f'    sessionStorage.removeItem("workTimerDismissed");\n'
+                f'    popup.style.display = "block";\n'
+                f'    if (fab) fab.style.display = "none";\n'
+                f'  }}\n'
+
+                f'  // Allow manual re-open from console or a button.\n'
+                f'  window.__showWorkTimerPopup = showPopup;\n'
+
+                f'  if (fab) fab.addEventListener("click", () => {{\n'
+                f'    showPopup();\n'
+                f'    render();\n'
+                f'  }});\n'
+                f'\n'
+                f'  const catEl = document.getElementById("work-timer-cat");\n'
+                f'  const elapsedEl = document.getElementById("work-timer-elapsed");\n'
+                f'  const targetEl = document.getElementById("work-timer-target");\n'
+                f'  const remainingEl = document.getElementById("work-timer-remaining");\n'
+                f'  const barEl = document.getElementById("work-timer-bar");\n'
+                f'  const doneEl = document.getElementById("work-timer-done");\n'
+                f'\n'
+                f'  function fmtMmss(sec) {{\n'
+                f'    sec = Math.max(0, sec|0);\n'
+                f'    const m = Math.floor(sec / 60);\n'
+                f'    const s = sec % 60;\n'
+                f'    return m.toString() + ":" + s.toString().padStart(2, "0");\n'
+                f'  }}\n'
+                f'\n'
+                f'  function render() {{\n'
+                f'    if (catEl) catEl.textContent = category || "(unknown)";\n'
+                f'    if (elapsedEl) elapsedEl.textContent = fmtMmss(streakSec);\n'
+                f'    if (targetEl) targetEl.textContent = fmtMmss(thresholdSec);\n'
+                f'    const remainingSec = Math.max(0, thresholdSec - streakSec);\n'
+                f'    if (remainingEl) remainingEl.textContent = fmtMmss(remainingSec);\n'
+                f'    const pct = thresholdSec > 0 ? Math.min(100, Math.floor((streakSec / thresholdSec) * 100)) : 0;\n'
+                f'    if (barEl) barEl.style.width = pct.toString() + "%";\n'
+                f'  }}\n'
+                f'\n'
+                f'  // Only show while you are in a work-focus category and still below the streak threshold.\n'
+                f'  if (!enabled || dismissed || thresholdSec <= 0 || streakSec >= thresholdSec) {{\n'
+                f'    popup.style.display = "none";\n'
+                f'    if (fab) {{\n'
+                f'      // If dismissed but eligible, show a small button to reopen.\n'
+                f'      if (enabled && dismissed && thresholdSec > 0 && streakSec < thresholdSec) fab.style.display = "block";\n'
+                f'      else fab.style.display = "none";\n'
+                f'    }}\n'
+                f'    return;\n'
+                f'  }}\n'
+                f'\n'
+                f'  popup.style.display = "block";\n'
+                f'  if (fab) fab.style.display = "none";\n'
+                f'  render();\n'
+                f'\n'
+                f'  const timerId = window.setInterval(() => {{\n'
+                f'    streakSec += 1;\n'
+                f'    if (streakSec >= thresholdSec) {{\n'
+                f'      render();\n'
+                f'      if (doneEl) doneEl.style.display = "block";\n'
+                f'      sessionStorage.removeItem("workTimerDismissed");\n'
+                f'      window.clearInterval(timerId);\n'
+                f'      window.setTimeout(() => {{ popup.style.display = "none"; }}, 4000);\n'
+                f'      return;\n'
+                f'    }}\n'
+                f'    render();\n'
+                f'  }}, 1000);\n'
+                f'}})();\n'
+                f'</script>\n'
+            )
 
             recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
             recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
@@ -2546,10 +2916,23 @@ if (chartsBtn) {
         return header + '\n' + '\n'.join(table)
 
     def _get_week_id(self, dt=None):
-        """Get week identifier (year-week format) for a given datetime."""
+        """Get week identifier (Monday date format) for a given datetime. Resets on Saturday at noon."""
+        tz = pytz.timezone(TIMEZONE)
         if dt is None:
-            dt = datetime.datetime.now(pytz.timezone(TIMEZONE))
-        return dt.strftime('%Y-W%U')  # e.g., "2025-W45"
+            dt = datetime.datetime.now(tz)
+        
+        # Ensure dt is timezone aware for consistency
+        if dt.tzinfo is None:
+            dt = tz.localize(dt)
+
+        # Calculate Monday of this week (weekday is 0 for Monday)
+        monday = (dt - datetime.timedelta(days=dt.weekday())).date()
+        
+        # If it's Saturday >= 12:00 or Sunday, shift to next Monday
+        if (dt.weekday() == 5 and dt.hour >= 12) or dt.weekday() == 6:
+            monday += datetime.timedelta(days=7)
+            
+        return monday.strftime('%Y-%m-%d')
     
     def _parse_must_done_config(self):
         """Parse MUST_DONE section from config.dat."""
@@ -2572,12 +2955,14 @@ if (chartsBtn) {
     
     def _get_must_done_deadline(self, task, week_start=None):
         """Calculate the deadline datetime for a task in the current week."""
+        tz = pytz.timezone(TIMEZONE)
         if week_start is None:
-            tz = pytz.timezone(TIMEZONE)
             now = datetime.datetime.now(tz)
-            # Find the start of the current week (Sunday)
-            week_start = now - datetime.timedelta(days=now.weekday() + 1)
-            week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Use unified week_id logic
+            week_id = self._get_week_id(now)
+            target_monday = datetime.datetime.strptime(week_id, '%Y-%m-%d').date()
+            # Sunday 00:00 before the target Monday
+            week_start = tz.localize(datetime.datetime.combine(target_monday - datetime.timedelta(days=1), datetime.time(0, 0)))
         
         # Map day names to weekday numbers (Sunday=0)
         day_map = {
@@ -2627,16 +3012,20 @@ if (chartsBtn) {
         now = datetime.datetime.now(tz)
         week_id = self._get_week_id(now)
         
-        # Calculate week start and end for display
-        week_start = now - datetime.timedelta(days=now.weekday() + 1)
-        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_end = week_start + datetime.timedelta(days=6, hours=23, minutes=59, seconds=59)
-        next_week_start = week_start + datetime.timedelta(days=7)
+        # Calculate logical boundaries for display
+        target_monday = datetime.datetime.strptime(week_id, '%Y-%m-%d').date()
+        # display_week_start: Previous Saturday 12:00 (when this week's tasks appeared)
+        display_week_start = datetime.datetime.combine(target_monday - datetime.timedelta(days=2), datetime.time(12, 0))
+        display_week_start = tz.localize(display_week_start)
+        # display_week_end: Following Saturday 11:59:59 (when they reset)
+        display_week_end = datetime.datetime.combine(target_monday + datetime.timedelta(days=5), datetime.time(11, 59, 59))
+        display_week_end = tz.localize(display_week_end)
+        next_reset = display_week_end + datetime.timedelta(seconds=1)
         
         html_parts = [
             '<div id="must-done-section" class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
             f'<h2 style="margin-top:0; color:#333;">📋 Must Done This Week</h2>',
-            f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week {week_id} ({week_start.strftime("%b %d")} - {week_end.strftime("%b %d")}). Tasks reset on {next_week_start.strftime("%a, %b %d at 12:00 AM")}.</div>',
+            f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week of {target_monday.strftime("%b %d")} (Reset on {next_reset.strftime("%a %I:%M %p")}).</div>',
             '<div id="must-done-sync-status" style="color:#666; font-size:0.85em; margin:-6px 0 10px 0;">Last synced: —</div>',
             '<div style="display:flex; flex-direction:column; gap:10px;">'
         ]
