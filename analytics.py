@@ -26,7 +26,8 @@ from config import TIMEZONE, DAY_BOUNDARY_HOUR, HABITS
 from categories import (
     PRODUCTIVE_CATS, WASTED_CATS, RATIO_DISPLAY_CATS, CATEGORY_PRIORITY,
     RECENT_ACTIVITY_PRODUCTIVE, RECENT_ACTIVITY_DISTRACTED,
-    is_productive, is_wasted
+    is_productive, is_wasted,
+    should_display_in_activity_summary,
 )
 import sqlite3
 import requests
@@ -219,7 +220,13 @@ class Analytics():
         self.path_data = 'data'
         self.config = self._load_config()
         self.string_cats = self.config.items('CATEGORIES')
-        self.color_list = self.config.items('COLORS')
+        self._raw_color_list = self.config.items('COLORS')
+        self.color_list, self._color_flags = self._parse_colors_with_flags(self._raw_color_list)
+        self._activity_summary_hidden_cats = {
+            cat
+            for cat, flags in (self._color_flags or {}).items()
+            if ('no_show_summary' in flags) or ('hide_summary' in flags) or ('hide_activity_summary' in flags)
+        }
         self.proj_list = self.config.items('PROJECTS')
         self.cache_path = 'data/analysis_cache.json'
         self.analysis_cache = self._load_analysis_cache()
@@ -227,6 +234,34 @@ class Analytics():
         self.last_activity_count = 0  # Track activity count to detect changes
         self.last_update_timestamp = 0  # Track when we last updated
         database.initialize_database()
+
+    @staticmethod
+    def _parse_colors_with_flags(color_items: list[tuple[str, str]]) -> tuple[list[tuple[str, str]], dict[str, set[str]]]:
+        """Parse [COLORS] items.
+
+        Supports values like:
+          work: #4954EA
+          no_cat: #387FF7, no_show_summary
+        """
+        parsed: list[tuple[str, str]] = []
+        flags_by_cat: dict[str, set[str]] = {}
+        for cat, raw in (color_items or []):
+            raw_str = (raw or '').strip()
+            parts = [p.strip() for p in raw_str.split(',') if p.strip()]
+            color = parts[0] if parts else raw_str
+            flags = {p.lower() for p in parts[1:]} if len(parts) > 1 else set()
+            parsed.append((cat, color))
+            flags_by_cat[str(cat).strip().lower()] = flags
+        return parsed, flags_by_cat
+
+    def _is_hidden_in_activity_summary(self, category: str) -> bool:
+        cat = (category or '').strip().lower()
+        if not cat:
+            return False
+        for hidden in (self._activity_summary_hidden_cats or set()):
+            if cat == hidden or cat.startswith(hidden + ':') or cat.startswith(hidden + ' '):
+                return True
+        return False
 
     @staticmethod
     def _ensure_url_columns(df):
@@ -945,7 +980,11 @@ test:
             log_list = log_list[:display_limit]
             date_list = date_list[:display_limit]
             
-        all_u_cats = self.get_unique_categories()
+        all_u_cats = [
+            cat
+            for cat in self.get_unique_categories()
+            if should_display_in_activity_summary(cat) and (not self._is_hidden_in_activity_summary(cat))
+        ]
         
         color_map = dict(self.color_list)
         default_color = color_map.get('idle', '#CCCCCC')
@@ -3687,6 +3726,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return '\n'.join(html_parts)
 
     def _build_warning_flag_summary(self):
+        # Hidden by request: this section isn't currently useful in the dashboard.
+        # Keeping the function so it can be re-enabled later without deleting code.
+        return ''
         try:
             counts = database.get_warning_flag_counts()
         except Exception:

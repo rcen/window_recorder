@@ -701,6 +701,7 @@ www.google.com/maps: family
 google maps: family                                                                                       
 jogging: family
 新雅团契: church
+
 [COLORS]                                                                                                  
 work: #4954EA                                                                                           
 coding: #4954EA                                                                                           
@@ -710,12 +711,12 @@ gaming: #F68D15
 church: #00A000                                                                                           
 wasted: #F64438                                                                                           
 mail: #72ACF1                                                                                             
-think: #83F7F0                                                                                            
+think: #83F7F0, no_show_summary                                                                                            
 family: #83F7F0                                                                                           
 job_search: #FF69B4
-no_cat: #387FF7                                                                                           
+no_cat: #387FF7, no_show_summary                                                                                           
 idle: #837F7F                                                                                             
-not categorized: #2E8B57  
+not categorized: #2E8B57, no_show_summary
 
 [MUST_DONE]
 timesheet: Saturday, 23:59, Submit timesheet

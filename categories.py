@@ -114,6 +114,39 @@ CATEGORY_ALIASES = {
 }
 
 # =============================================================================
+# CATEGORY DISPLAY PROPERTIES
+# =============================================================================
+
+# Optional per-category properties. Defaults apply when category isn't present.
+# Use this to hide categories from UI tables without changing classification.
+CATEGORY_PROPERTIES: dict[str, dict] = {
+    # Internal/utility categories that add noise in Activity Summary.
+    'no_cat': {'enable_display': False},
+    'think': {'enable_display': False},
+}
+
+
+def _match_category_key(category: str, key: str) -> bool:
+    """Return True if category matches key exactly or as a prefix like 'key: ...'."""
+    cat = (category or '').strip().lower()
+    key = (key or '').strip().lower()
+    if not cat or not key:
+        return False
+    return cat == key or cat.startswith(key + ':') or cat.startswith(key + ' ')
+
+
+def should_display_in_activity_summary(category: str) -> bool:
+    """Whether a category should appear as a column in the Activity Summary table."""
+    cat = (category or '').strip().lower()
+    if not cat:
+        return False
+
+    for key, props in CATEGORY_PROPERTIES.items():
+        if _match_category_key(cat, key):
+            return bool(props.get('enable_display', True))
+    return True
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
