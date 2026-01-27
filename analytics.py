@@ -3011,6 +3011,7 @@ if (chartsBtn) {
         tz = pytz.timezone(TIMEZONE)
         now = datetime.datetime.now(tz)
         week_id = self._get_week_id(now)
+        month_id = now.strftime('%Y-%m')
         
         # Calculate logical boundaries for display
         target_monday = datetime.datetime.strptime(week_id, '%Y-%m-%d').date()
@@ -3026,8 +3027,11 @@ if (chartsBtn) {
             '<div id="must-done-section" class="must-done-section" style="margin:20px 0; padding:15px; border:2px solid #333; border-radius:8px; background:#fff;">',
             f'<h2 style="margin-top:0; color:#333;">📋 Must Done This Week</h2>',
             f'<div style="color:#666; font-size:0.9em; margin-bottom:10px;">Week of {target_monday.strftime("%b %d")} (Reset on {next_reset.strftime("%a %I:%M %p")}).</div>',
+            '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:14px; align-items:start;">',
+            '<div id="must-done-weekly" style="min-width:0;">',
+            '<h3 style="margin:0 0 8px 0; color:#333;">This Week</h3>',
             '<div id="must-done-sync-status" style="color:#666; font-size:0.85em; margin:-6px 0 10px 0;">Last synced: —</div>',
-            '<div style="display:flex; flex-direction:column; gap:10px;">'
+            '<div id="must-done-weekly-items" style="display:flex; flex-direction:column; gap:10px;">'
         ]
         
         for task in tasks:
@@ -3089,7 +3093,38 @@ if (chartsBtn) {
                     </div>
                 </div>
             ''')
-        
+
+        # Close weekly list + weekly column
+        html_parts.append('</div>')
+        html_parts.append('</div>')
+
+        # --- Ad-hoc "Must be Done" items (user-created) ---
+        html_parts.append(f'''
+            <div id="must-be-done" style="min-width:0;">
+                <h3 style="margin:0 0 8px 0; color:#333;">🧾 Must be Done</h3>
+                <div style="color:#666; font-size:0.9em; margin-bottom:10px;">Quick add ad-hoc tasks (weekly / monthly / persistent).</div>
+                <div id="must-be-done-meta" data-week-id="{week_id}" data-month-id="{month_id}"></div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+                    <input id="must-be-done-input" type="text" placeholder="Add a task (e.g., pay taxes, take a shower)" 
+                        style="flex:1; min-width:220px; padding:10px 12px; border:1px solid #bbb; border-radius:8px; font-size:1em;">
+                    <select id="must-be-done-bucket" style="padding:10px 12px; border:1px solid #bbb; border-radius:8px; font-size:1em;">
+                        <option value="week" selected>This week</option>
+                        <option value="month">This month</option>
+                        <option value="persistent">Persistent</option>
+                    </select>
+                    <button id="must-be-done-add" type="button" 
+                        style="padding:10px 14px; border:0; border-radius:8px; background:#333; color:#fff; font-weight:700; cursor:pointer;">
+                        Add
+                    </button>
+                </div>
+
+                <div id="must-be-done-status" style="color:#666; font-size:0.85em; margin:-4px 0 10px 0;">—</div>
+                <div id="must-be-done-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+        ''')
+
+        # Close the two-column grid
         html_parts.append('</div>')
         
         # Add JavaScript for checkbox handling
@@ -3098,6 +3133,252 @@ if (chartsBtn) {
 document.addEventListener('DOMContentLoaded', function() {
     const checkboxes = document.querySelectorAll('.must-done-checkbox');
     const syncStatusEl = document.getElementById('must-done-sync-status');
+
+    // --- Must be Done (ad-hoc) ---
+    const mustBeDoneMeta = document.getElementById('must-be-done-meta');
+    const mustBeDoneInput = document.getElementById('must-be-done-input');
+    const mustBeDoneBucket = document.getElementById('must-be-done-bucket');
+    const mustBeDoneAddBtn = document.getElementById('must-be-done-add');
+    const mustBeDoneList = document.getElementById('must-be-done-list');
+    const mustBeDoneStatus = document.getElementById('must-be-done-status');
+
+    function setMustBeDoneStatus(text, tone) {
+        if (!mustBeDoneStatus) return;
+        mustBeDoneStatus.textContent = text;
+        if (tone === 'error') {
+            mustBeDoneStatus.style.color = '#b00020';
+        } else if (tone === 'success') {
+            mustBeDoneStatus.style.color = '#2e7d32';
+        } else {
+            mustBeDoneStatus.style.color = '#666';
+        }
+    }
+
+    function bucketLabel(bucketType) {
+        if (bucketType === 'month') return 'monthly';
+        if (bucketType === 'persistent') return 'persistent';
+        return 'weekly';
+    }
+
+    function renderMustBeDoneItems(items) {
+        if (!mustBeDoneList) return;
+        mustBeDoneList.innerHTML = '';
+        if (!items || items.length === 0) {
+            const empty = document.createElement('div');
+            empty.textContent = 'No ad-hoc items yet.';
+            empty.style.color = '#777';
+            empty.style.fontSize = '0.95em';
+            mustBeDoneList.appendChild(empty);
+            return;
+        }
+
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'must-be-done-item';
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.padding = '10px 12px';
+            const isExpired = !!item.expired;
+            row.style.background = item.completed ? '#f3f6f3' : (isExpired ? '#fde8e8' : '#ffffff');
+            row.style.border = '1px solid rgba(0,0,0,0.12)';
+            row.style.borderLeft = item.completed ? '6px solid #9e9e9e' : (isExpired ? '6px solid #d32f2f' : '6px solid #333');
+            row.style.borderRadius = '8px';
+            row.style.gap = '10px';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !!item.completed;
+            cb.style.width = '20px';
+            cb.style.height = '20px';
+            cb.style.cursor = 'pointer';
+            cb.addEventListener('change', () => {
+                const completed = cb.checked;
+                row.style.opacity = '0.6';
+                if (typeof window.__setRefreshLock === 'function') {
+                    window.__setRefreshLock('must_be_done:' + item.id, true);
+                }
+                setMustBeDoneStatus('Saving…', 'info');
+                fetch('http://127.0.0.1:8042/must_be_done/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: item.id, completed })
+                })
+                .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+                .then(data => {
+                    if (!data || data.status !== 'success') throw new Error('Save failed');
+                    loadMustBeDone();
+                })
+                .catch(err => {
+                    console.warn('Must be done update failed:', err);
+                    cb.checked = !completed;
+                    row.style.opacity = '1';
+                    setMustBeDoneStatus('Save failed (server unreachable)', 'error');
+                })
+                .finally(() => {
+                    if (typeof window.__setRefreshLock === 'function') {
+                        window.__setRefreshLock('must_be_done:' + item.id, false);
+                    }
+                });
+            });
+
+            const textWrap = document.createElement('div');
+            textWrap.style.flex = '1';
+            const title = document.createElement('div');
+            title.textContent = item.description || '(empty)';
+            title.style.fontWeight = '800';
+            title.style.color = '#222';
+            title.style.textDecoration = item.completed ? 'line-through' : 'none';
+
+            const meta = document.createElement('div');
+            meta.textContent = bucketLabel(item.bucket_type) + (isExpired ? ' • expired' : '');
+            meta.style.color = isExpired ? '#b00020' : '#666';
+            meta.style.fontSize = '0.85em';
+            meta.style.marginTop = '2px';
+
+            textWrap.appendChild(title);
+            textWrap.appendChild(meta);
+
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.textContent = 'Delete';
+            del.style.cursor = 'pointer';
+            del.style.border = '1px solid rgba(0,0,0,0.18)';
+            del.style.background = '#fff';
+            del.style.borderRadius = '8px';
+            del.style.padding = '6px 10px';
+            del.style.fontWeight = '700';
+            del.style.color = '#333';
+            del.addEventListener('click', () => {
+                if (!confirm('Delete this item?')) return;
+                row.style.opacity = '0.6';
+                if (typeof window.__setRefreshLock === 'function') {
+                    window.__setRefreshLock('must_be_done:' + item.id, true);
+                }
+                setMustBeDoneStatus('Deleting…', 'info');
+                fetch('http://127.0.0.1:8042/must_be_done/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: item.id })
+                })
+                .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+                .then(data => {
+                    if (!data || data.status !== 'success') throw new Error('Delete failed');
+                    loadMustBeDone();
+                })
+                .catch(err => {
+                    console.warn('Must be done delete failed:', err);
+                    row.style.opacity = '1';
+                    setMustBeDoneStatus('Delete failed (server unreachable)', 'error');
+                })
+                .finally(() => {
+                    if (typeof window.__setRefreshLock === 'function') {
+                        window.__setRefreshLock('must_be_done:' + item.id, false);
+                    }
+                });
+            });
+
+            row.appendChild(cb);
+            row.appendChild(textWrap);
+            row.appendChild(del);
+            mustBeDoneList.appendChild(row);
+        });
+    }
+
+    function getMustBeDoneBucketId(bucketType, weekId, monthId) {
+        if (bucketType === 'month') return monthId;
+        if (bucketType === 'persistent') return 'all';
+        return weekId;
+    }
+
+    function loadMustBeDone() {
+        if (!mustBeDoneMeta) return;
+        const weekId = mustBeDoneMeta.getAttribute('data-week-id');
+        const monthId = mustBeDoneMeta.getAttribute('data-month-id');
+        setMustBeDoneStatus('Syncing…', 'info');
+        fetch('http://127.0.0.1:8042/must_be_done/list?week_id=' + encodeURIComponent(weekId || '') + '&month_id=' + encodeURIComponent(monthId || '') + '&include_persistent=1&include_completed=1&include_expired=1&weeks_back=12&months_back=6')
+            .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+            .then(data => {
+                if (!data || data.status !== 'success') throw new Error('Bad payload');
+                renderMustBeDoneItems(data.items || []);
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setMustBeDoneStatus('Last synced: ' + timeStr, 'success');
+            })
+            .catch(err => {
+                console.warn('Must be done sync failed:', err);
+                const msg = (err && err.message) ? String(err.message) : '';
+                if (msg.startsWith('Status ')) {
+                    setMustBeDoneStatus('Last synced: failed (' + msg + ' — restart habit_server)', 'error');
+                } else {
+                    setMustBeDoneStatus('Last synced: failed (server unreachable)', 'error');
+                }
+            });
+    }
+
+    if (mustBeDoneAddBtn) {
+        mustBeDoneAddBtn.addEventListener('click', () => {
+            if (!mustBeDoneMeta || !mustBeDoneInput || !mustBeDoneBucket) return;
+            const weekId = mustBeDoneMeta.getAttribute('data-week-id');
+            const monthId = mustBeDoneMeta.getAttribute('data-month-id');
+            const description = (mustBeDoneInput.value || '').trim();
+            const bucketType = (mustBeDoneBucket.value || 'week').trim();
+            const bucketId = getMustBeDoneBucketId(bucketType, weekId, monthId);
+            if (!description) return;
+
+            if (typeof window.__setRefreshLock === 'function') {
+                window.__setRefreshLock('must_be_done:add', true);
+            }
+            setMustBeDoneStatus('Adding…', 'info');
+            fetch('http://127.0.0.1:8042/must_be_done/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket_type: bucketType, bucket_id: bucketId, description })
+            })
+            .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
+            .then(data => {
+                if (!data || data.status !== 'success') throw new Error('Add failed');
+                mustBeDoneInput.value = '';
+                // Clear typing lock once the draft is submitted.
+                if (typeof window.__setRefreshLock === 'function') {
+                    window.__setRefreshLock('must_be_done_typing', false);
+                }
+                loadMustBeDone();
+            })
+            .catch(err => {
+                console.warn('Must be done add failed:', err);
+                setMustBeDoneStatus('Add failed (server unreachable)', 'error');
+            })
+            .finally(() => {
+                if (typeof window.__setRefreshLock === 'function') {
+                    window.__setRefreshLock('must_be_done:add', false);
+                }
+            });
+        });
+    }
+
+    if (mustBeDoneInput) {
+        const updateMustBeDoneTypingLock = () => {
+            if (typeof window.__setRefreshLock !== 'function') return;
+            const hasDraft = (mustBeDoneInput.value || '').trim().length > 0;
+            const isFocused = (document.activeElement === mustBeDoneInput);
+            // Lock refresh while focused OR while there's an unsaved draft.
+            window.__setRefreshLock('must_be_done_typing', hasDraft || isFocused);
+        };
+
+        mustBeDoneInput.addEventListener('focus', updateMustBeDoneTypingLock);
+        mustBeDoneInput.addEventListener('blur', updateMustBeDoneTypingLock);
+        mustBeDoneInput.addEventListener('input', updateMustBeDoneTypingLock);
+
+        mustBeDoneInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (mustBeDoneAddBtn) mustBeDoneAddBtn.click();
+            }
+        });
+
+        // Initialize lock state on load.
+        updateMustBeDoneTypingLock();
+    }
 
     function setSyncStatus(text, tone) {
         if (!syncStatusEl) return;
@@ -3142,6 +3423,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const weekId = checkboxes[0].getAttribute('data-week-id');
         syncMustDoneFromServer(weekId);
     }
+
+    // On load, sync ad-hoc items.
+    loadMustBeDone();
 
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function(e) {
@@ -3228,7 +3512,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
         ''')
-        
+
         html_parts.append('</div>')
         return '\n'.join(html_parts)
 

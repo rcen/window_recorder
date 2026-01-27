@@ -159,6 +159,127 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
 
+        # Handle must_be_done list (ad-hoc todos)
+        if parsed.path == '/must_be_done/list':
+            params = parse_qs(parsed.query)
+            week_id = params.get('week_id', [None])[0]
+            month_id = params.get('month_id', [None])[0]
+            include_persistent = params.get('include_persistent', ['1'])[0] != '0'
+            include_completed = params.get('include_completed', ['1'])[0] != '0'
+            include_expired = params.get('include_expired', ['1'])[0] != '0'
+            try:
+                weeks_back = int(params.get('weeks_back', ['12'])[0])
+            except Exception:
+                weeks_back = 12
+            try:
+                months_back = int(params.get('months_back', ['6'])[0])
+            except Exception:
+                months_back = 6
+
+            weeks_back = max(1, min(104, weeks_back))
+            months_back = max(1, min(36, months_back))
+
+            def _week_ids_for_range(current_week_id: str, count: int) -> list[str]:
+                try:
+                    base = datetime.date.fromisoformat(current_week_id)
+                except Exception:
+                    return [current_week_id]
+                return [(base - datetime.timedelta(days=7 * i)).isoformat() for i in range(count)]
+
+            def _month_ids_for_range(current_month_id: str, count: int) -> list[str]:
+                try:
+                    year_str, month_str = current_month_id.split('-', 1)
+                    year = int(year_str)
+                    month = int(month_str)
+                    if not (1 <= month <= 12):
+                        raise ValueError('bad month')
+                except Exception:
+                    return [current_month_id]
+
+                result: list[str] = []
+                y, m = year, month
+                for _ in range(count):
+                    result.append(f"{y:04d}-{m:02d}")
+                    m -= 1
+                    if m == 0:
+                        m = 12
+                        y -= 1
+                return result
+
+            try:
+                items: list[dict] = []
+
+                if week_id:
+                    week_ids = [week_id] if not include_expired else _week_ids_for_range(week_id, weeks_back)
+                    items.extend(
+                        database.get_must_be_done_items_multi(
+                            bucket_type='week',
+                            bucket_ids=week_ids,
+                            include_completed=include_completed,
+                        )
+                    )
+
+                if month_id:
+                    month_ids = [month_id] if not include_expired else _month_ids_for_range(month_id, months_back)
+                    items.extend(
+                        database.get_must_be_done_items_multi(
+                            bucket_type='month',
+                            bucket_ids=month_ids,
+                            include_completed=include_completed,
+                        )
+                    )
+
+                if include_persistent:
+                    items.extend(
+                        database.get_must_be_done_items(
+                            bucket_type='persistent',
+                            bucket_id='all',
+                            include_completed=include_completed,
+                        )
+                    )
+
+                # Annotate expiration (items from prior week/month stay visible but are marked expired)
+                for item in items:
+                    bt = (item.get('bucket_type') or '').lower()
+                    bid = str(item.get('bucket_id') or '')
+                    if bt == 'week' and week_id:
+                        item['expired'] = bid != str(week_id)
+                    elif bt == 'month' and month_id:
+                        item['expired'] = bid != str(month_id)
+                    else:
+                        item['expired'] = False
+
+                # Sort: current buckets first, then expired; incomplete before complete
+                def _sort_key(it: dict):
+                    bt = (it.get('bucket_type') or '').lower()
+                    expired = 1 if it.get('expired') else 0
+                    completed = 1 if it.get('completed') else 0
+                    bt_rank = 0 if bt == 'week' else (1 if bt == 'month' else 2)
+                    created_at = it.get('created_at') or 0
+                    return (expired, completed, bt_rank, created_at)
+
+                items.sort(key=_sort_key)
+
+                self._set_headers(200)
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            'status': 'success',
+                            'week_id': week_id,
+                            'month_id': month_id,
+                            'include_expired': include_expired,
+                            'weeks_back': weeks_back,
+                            'months_back': months_back,
+                            'items': items,
+                        }
+                    ).encode('utf-8')
+                )
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
         # Lightweight activity status for conditional dashboard refresh.
         if parsed.path == '/activity/status':
             try:
@@ -336,6 +457,66 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(200)
                 self.wfile.write(json.dumps({'status': 'success', 'task_id': task_id, 'completed': completed}).encode('utf-8'))
                 return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
+        # Handle must_be_done add/update/delete (ad-hoc todos)
+        if parsed.path in ('/must_be_done/add', '/must_be_done/update', '/must_be_done/delete'):
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            try:
+                if parsed.path == '/must_be_done/add':
+                    bucket_type = payload.get('bucket_type')
+                    bucket_id = payload.get('bucket_id')
+                    description = payload.get('description')
+                    item = database.add_must_be_done_item(bucket_type, bucket_id, description)
+                    if not item:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Missing or invalid fields'}).encode('utf-8'))
+                        return
+                    self._set_headers(200)
+                    self.wfile.write(json.dumps({'status': 'success', 'item': item}).encode('utf-8'))
+                    return
+
+                if parsed.path == '/must_be_done/update':
+                    item_id = payload.get('id')
+                    completed = payload.get('completed')
+                    if item_id is None or completed is None:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Missing id or completed'}).encode('utf-8'))
+                        return
+                    ok = database.set_must_be_done_item_completed(item_id, bool(completed))
+                    if not ok:
+                        self._set_headers(404)
+                        self.wfile.write(json.dumps({'error': 'Item not found'}).encode('utf-8'))
+                        return
+                    self._set_headers(200)
+                    self.wfile.write(json.dumps({'status': 'success', 'id': item_id, 'completed': bool(completed)}).encode('utf-8'))
+                    return
+
+                if parsed.path == '/must_be_done/delete':
+                    item_id = payload.get('id')
+                    if item_id is None:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Missing id'}).encode('utf-8'))
+                        return
+                    ok = database.delete_must_be_done_item(item_id)
+                    if not ok:
+                        self._set_headers(404)
+                        self.wfile.write(json.dumps({'error': 'Item not found'}).encode('utf-8'))
+                        return
+                    self._set_headers(200)
+                    self.wfile.write(json.dumps({'status': 'success', 'id': item_id}).encode('utf-8'))
+                    return
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))

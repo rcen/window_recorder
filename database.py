@@ -103,6 +103,21 @@ def initialize_database():
                 UNIQUE(task_id, week_id)
             )
         ''')
+
+        # Ad-hoc "Must be Done" items (user-created). These are stored in buckets so
+        # they can be weekly, monthly, or persistent.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS must_be_done_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bucket_type TEXT NOT NULL,
+                bucket_id TEXT NOT NULL,
+                description TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                completed_at REAL,
+                UNIQUE(bucket_type, bucket_id, description)
+            )
+        ''')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS streak_notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,6 +153,186 @@ def add_streak_note(note: str, ts: float | None = None) -> int:
     if not note or not note.strip():
         return 0
     ts = ts if ts is not None else time.time()
+
+
+def get_must_be_done_items(
+    bucket_type: str,
+    bucket_id: str,
+    include_completed: bool = True,
+) -> list[dict]:
+    """Return ad-hoc Must-be-done items for a given bucket."""
+    bucket_type = (bucket_type or '').strip().lower()
+    bucket_id = (bucket_id or '').strip()
+    if not bucket_type or not bucket_id:
+        return []
+
+    query = (
+        "SELECT id, description, completed, completed_at, created_at "
+        "FROM must_be_done_items WHERE bucket_type = ? AND bucket_id = ?"
+    )
+    params: tuple = (bucket_type, bucket_id)
+    if not include_completed:
+        query += " AND completed = 0"
+
+    query += " ORDER BY completed ASC, created_at ASC, id ASC"
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cur = conn.cursor()
+            cur.execute(query, params)
+            rows = cur.fetchall()
+    except Exception:
+        return []
+
+    return [
+        {
+            'id': int(row[0]),
+            'description': row[1],
+            'completed': bool(row[2]),
+            'completed_at': row[3],
+            'created_at': row[4],
+            'bucket_type': bucket_type,
+            'bucket_id': bucket_id,
+        }
+        for row in rows
+    ]
+
+
+def get_must_be_done_items_multi(
+    bucket_type: str,
+    bucket_ids: list[str],
+    include_completed: bool = True,
+) -> list[dict]:
+    """Return ad-hoc Must-be-done items for a bucket_type across many bucket_ids."""
+    bucket_type = (bucket_type or '').strip().lower()
+    bucket_ids = [str(b).strip() for b in (bucket_ids or []) if str(b).strip()]
+    if not bucket_type or not bucket_ids:
+        return []
+
+    placeholders = ','.join(['?'] * len(bucket_ids))
+    query = (
+        "SELECT id, bucket_id, description, completed, completed_at, created_at "
+        "FROM must_be_done_items WHERE bucket_type = ? AND bucket_id IN ("
+        + placeholders
+        + ")"
+    )
+    params: list = [bucket_type] + bucket_ids
+    if not include_completed:
+        query += " AND completed = 0"
+    query += " ORDER BY completed ASC, created_at ASC, id ASC"
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cur = conn.cursor()
+            cur.execute(query, tuple(params))
+            rows = cur.fetchall()
+    except Exception:
+        return []
+
+    return [
+        {
+            'id': int(row[0]),
+            'bucket_type': bucket_type,
+            'bucket_id': row[1],
+            'description': row[2],
+            'completed': bool(row[3]),
+            'completed_at': row[4],
+            'created_at': row[5],
+        }
+        for row in rows
+    ]
+
+
+def add_must_be_done_item(bucket_type: str, bucket_id: str, description: str) -> dict | None:
+    """Create an ad-hoc Must-be-done item and return its record."""
+    bucket_type = (bucket_type or '').strip().lower()
+    bucket_id = (bucket_id or '').strip()
+    description = (description or '').strip()
+    if not bucket_type or not bucket_id or not description:
+        return None
+
+    now_ts = time.time()
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT OR IGNORE INTO must_be_done_items
+                    (bucket_type, bucket_id, description, created_at, completed, completed_at)
+                VALUES
+                    (?, ?, ?, ?, 0, NULL)
+                """,
+                (bucket_type, bucket_id, description, now_ts),
+            )
+            conn.commit()
+
+            # Fetch the existing/inserted row (unique on bucket+desc).
+            cur.execute(
+                """
+                SELECT id, description, completed, completed_at, created_at
+                FROM must_be_done_items
+                WHERE bucket_type = ? AND bucket_id = ? AND description = ?
+                """,
+                (bucket_type, bucket_id, description),
+            )
+            row = cur.fetchone()
+    except Exception:
+        return None
+
+    if not row:
+        return None
+    return {
+        'id': int(row[0]),
+        'description': row[1],
+        'completed': bool(row[2]),
+        'completed_at': row[3],
+        'created_at': row[4],
+        'bucket_type': bucket_type,
+        'bucket_id': bucket_id,
+    }
+
+
+def set_must_be_done_item_completed(item_id: int, completed: bool) -> bool:
+    """Update completion for a given ad-hoc item."""
+    try:
+        item_id_int = int(item_id)
+    except Exception:
+        return False
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cur = conn.cursor()
+            if completed:
+                cur.execute(
+                    "UPDATE must_be_done_items SET completed = 1, completed_at = ? WHERE id = ?",
+                    (time.time(), item_id_int),
+                )
+            else:
+                cur.execute(
+                    "UPDATE must_be_done_items SET completed = 0, completed_at = NULL WHERE id = ?",
+                    (item_id_int,),
+                )
+            conn.commit()
+            return cur.rowcount > 0
+    except Exception:
+        return False
+
+
+def delete_must_be_done_item(item_id: int) -> bool:
+    """Delete an ad-hoc Must-be-done item."""
+    try:
+        item_id_int = int(item_id)
+    except Exception:
+        return False
+
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM must_be_done_items WHERE id = ?", (item_id_int,))
+            conn.commit()
+            return cur.rowcount > 0
+    except Exception:
+        return False
     with sqlite3.connect(DB_FILE) as conn:
         cursor = conn.cursor()
         schema = _streak_notes_schema(cursor)
