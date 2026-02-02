@@ -153,6 +153,40 @@ def add_streak_note(note: str, ts: float | None = None) -> int:
     if not note or not note.strip():
         return 0
     ts = ts if ts is not None else time.time()
+    
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        schema = _streak_notes_schema(cursor)
+        # schema rows: (cid, name, type, notnull, dflt_value, pk)
+        insert_cols = []
+        insert_vals = []
+        for (_cid, name, _type, notnull, dflt, pk) in schema:
+            if pk == 1:
+                continue  # skip primary key
+            if name == 'note':
+                insert_cols.append('note')
+                insert_vals.append(note.strip())
+            elif name in ('timestamp', 'created_at', 'streak_start'):
+                # Use ts for any time-related required columns
+                insert_cols.append(name)
+                insert_vals.append(ts)
+            else:
+                # For other NOT NULL columns without default, put safe value
+                if notnull == 1 and dflt is None:
+                    # Try boolean/integer default 0
+                    insert_cols.append(name)
+                    insert_vals.append(0)
+                # else skip optional columns
+
+        if not insert_cols:
+            # No known columns; attempt minimal
+            cursor.execute("INSERT INTO streak_notes DEFAULT VALUES")
+        else:
+            placeholders = ', '.join(['?'] * len(insert_cols))
+            sql = f"INSERT INTO streak_notes ({', '.join(insert_cols)}) VALUES ({placeholders})"
+            cursor.execute(sql, insert_vals)
+        conn.commit()
+        return cursor.lastrowid
 
 
 def get_must_be_done_items(
@@ -333,39 +367,7 @@ def delete_must_be_done_item(item_id: int) -> bool:
             return cur.rowcount > 0
     except Exception:
         return False
-    with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.cursor()
-        schema = _streak_notes_schema(cursor)
-        # schema rows: (cid, name, type, notnull, dflt_value, pk)
-        insert_cols = []
-        insert_vals = []
-        for (_cid, name, _type, notnull, dflt, pk) in schema:
-            if pk == 1:
-                continue  # skip primary key
-            if name == 'note':
-                insert_cols.append('note')
-                insert_vals.append(note.strip())
-            elif name in ('timestamp', 'created_at', 'streak_start'):
-                # Use ts for any time-related required columns
-                insert_cols.append(name)
-                insert_vals.append(ts)
-            else:
-                # For other NOT NULL columns without default, put safe value
-                if notnull == 1 and dflt is None:
-                    # Try boolean/integer default 0
-                    insert_cols.append(name)
-                    insert_vals.append(0)
-                # else skip optional columns
 
-        if not insert_cols:
-            # No known columns; attempt minimal
-            cursor.execute("INSERT INTO streak_notes DEFAULT VALUES")
-        else:
-            placeholders = ', '.join(['?'] * len(insert_cols))
-            sql = f"INSERT INTO streak_notes ({', '.join(insert_cols)}) VALUES ({placeholders})"
-            cursor.execute(sql, insert_vals)
-        conn.commit()
-        return cursor.lastrowid
 
 def save_streak_note(note: str) -> bool:
     """Compatibility helper to save a note and return success boolean."""
@@ -1043,37 +1045,6 @@ def delete_activity(activity_id):
     except Exception as e:
         print(f"Error deleting activity with ID {activity_id}: {e}")
         return False
-
-
-def save_streak_note(note):
-    """Save a note with timestamp."""
-    try:
-        with sqlite3.connect(DB_FILE) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO streak_notes (note, timestamp) VALUES (?, ?)",
-                (note, time.time())
-            )
-            conn.commit()
-            return True
-    except Exception as e:
-        print(f"Error saving streak note: {e}")
-        return False
-
-
-def get_recent_streak_notes(limit=5):
-    """Get the most recent notes with timestamps."""
-    try:
-        with sqlite3.connect(DB_FILE) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT note, timestamp FROM streak_notes ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
-            )
-            return cursor.fetchall()
-    except Exception as e:
-        print(f"Error retrieving streak notes: {e}")
-        return []
 
 
 def get_must_done_status_for_week(week_id: str) -> dict:
