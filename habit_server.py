@@ -164,6 +164,7 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             week_id = params.get('week_id', [None])[0]
             month_id = params.get('month_id', [None])[0]
+            today_id = params.get('today_id', [None])[0]
             include_persistent = params.get('include_persistent', ['1'])[0] != '0'
             include_completed = params.get('include_completed', ['1'])[0] != '0'
             include_expired = params.get('include_expired', ['1'])[0] != '0'
@@ -175,9 +176,14 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 months_back = int(params.get('months_back', ['6'])[0])
             except Exception:
                 months_back = 6
+            try:
+                days_back = int(params.get('days_back', ['7'])[0])
+            except Exception:
+                days_back = 7
 
             weeks_back = max(1, min(104, weeks_back))
             months_back = max(1, min(36, months_back))
+            days_back = max(1, min(30, days_back))
 
             def _week_ids_for_range(current_week_id: str, count: int) -> list[str]:
                 try:
@@ -185,6 +191,13 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 except Exception:
                     return [current_week_id]
                 return [(base - datetime.timedelta(days=7 * i)).isoformat() for i in range(count)]
+
+            def _day_ids_for_range(current_day_id: str, count: int) -> list[str]:
+                try:
+                    base = datetime.date.fromisoformat(current_day_id)
+                except Exception:
+                    return [current_day_id]
+                return [(base - datetime.timedelta(days=i)).isoformat() for i in range(count)]
 
             def _month_ids_for_range(current_month_id: str, count: int) -> list[str]:
                 try:
@@ -208,6 +221,16 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
 
             try:
                 items: list[dict] = []
+
+                if today_id:
+                    day_ids = [today_id] if not include_expired else _day_ids_for_range(today_id, days_back)
+                    items.extend(
+                        database.get_must_be_done_items_multi(
+                            bucket_type='today',
+                            bucket_ids=day_ids,
+                            include_completed=include_completed,
+                        )
+                    )
 
                 if week_id:
                     week_ids = [week_id] if not include_expired else _week_ids_for_range(week_id, weeks_back)
@@ -238,11 +261,13 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                         )
                     )
 
-                # Annotate expiration (items from prior week/month stay visible but are marked expired)
+                # Annotate expiration (items from prior day/week/month stay visible but are marked expired)
                 for item in items:
                     bt = (item.get('bucket_type') or '').lower()
                     bid = str(item.get('bucket_id') or '')
-                    if bt == 'week' and week_id:
+                    if bt == 'today' and today_id:
+                        item['expired'] = bid != str(today_id)
+                    elif bt == 'week' and week_id:
                         item['expired'] = bid != str(week_id)
                     elif bt == 'month' and month_id:
                         item['expired'] = bid != str(month_id)
@@ -254,7 +279,7 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                     bt = (it.get('bucket_type') or '').lower()
                     expired = 1 if it.get('expired') else 0
                     completed = 1 if it.get('completed') else 0
-                    bt_rank = 0 if bt == 'week' else (1 if bt == 'month' else 2)
+                    bt_rank = 0 if bt == 'today' else (1 if bt == 'week' else (2 if bt == 'month' else 3))
                     created_at = it.get('created_at') or 0
                     return (expired, completed, bt_rank, created_at)
 
@@ -265,9 +290,11 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                     json.dumps(
                         {
                             'status': 'success',
+                            'today_id': today_id,
                             'week_id': week_id,
                             'month_id': month_id,
                             'include_expired': include_expired,
+                            'days_back': days_back,
                             'weeks_back': weeks_back,
                             'months_back': months_back,
                             'items': items,

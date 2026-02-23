@@ -4,7 +4,7 @@ tickers = VOO, SOXL, AMZN
 [HABITS]
 read bible = #4caf50
 exercises = #ff6b6b
-1 job action = #4d96ff
+1 job action learning = #4d96ff
 
 [FOCUS_SLOTS]                                                                                             
 morning_focus = 09:00-12:30                                                                               
@@ -79,6 +79,11 @@ levels.fyi: job_search
 www.kaggle.com: learning
 
 # Regular categories
+compressing...: work
+colab: learning
+fastAI: learning
+code39: work
+regex__^replace or skip files$: work
 regex__^find text$: work
 regex__^rename$: work
 regex__^undo changes$: work
@@ -132,7 +137,11 @@ device manager: work
 statics.teams.cdn.office.net: work
 www.minervaaction.com: family
 中华人民共和国: family
+微读圣经: church
 china-consulate.gov.cn: family
+meganslaw.psp.pa.gov: family
+thinkautonomous.ai: learning
+particle detection: family
 flex lng: gaming
 price forecast: gaming
 move to the recycle bin: work
@@ -176,6 +185,7 @@ webster: learning
 pdf417: work
 translate.google.com: work
 merriam-webster.com: learning
+dell.com/en-us: family
 changelog.txt: work
 inputking online ime: family
 buckslib.org: learning
@@ -722,7 +732,7 @@ not categorized: #2E8B57, no_show_summary
 timesheet: Saturday, 23:59, Submit timesheet
 noah_homework: Saturday, 20:00, Submit Noah's Chinese school homework
 approved_timesheet: Tuesday, 17:00, Submit approved timesheet to Saxon
-                                                                               
+learn_fastAI: sunday, 18:00, Learn FastAI for job hunting.                                                                               
                                                                                                           
 [PROJECTS]                                                                                                
 edgetool:                                                                                                 

@@ -140,9 +140,10 @@ Rest-day rules:
 The AI coach in `gemini_coach.py` emphasizes breaking the procrastination → late sleep → miserable morning cycle:
 - **After 8 PM**: Triggers evening urgency alerts with minutes-until-midnight countdown
 - **After 10 PM**: Late night warnings emphasizing sleep debt
-- **Procrastination detection**: Flags high waste ratio + low productive time in evening
+- **Procrastination detection**: Flags high waste ratio + low productive time. 
 - **Focus on completion**: Encourages ONE completable task over perfectionism
 - **Sleep-productivity link**: Always connects current behavior to next-day outcomes
+- **Positive reinforcement**: You are not lazy. You just haven't set a real deadline. Your brain loves comfort, but it respects structure. Start with a timeline, not just a todo list.
 
 ### Morning Briefing (New Day Feature)
 At day boundary (default 3 AM), the system generates a morning briefing via `get_new_day_briefing()`:

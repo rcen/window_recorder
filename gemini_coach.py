@@ -58,6 +58,7 @@ class CoachingContext:
     hours_remaining: float = 0.0
     historical_insights: Optional[Dict] = None
     notes_summary: Optional[Dict] = None  # Today's notes with tags for coaching
+    must_done_tasks: Optional[List[Dict]] = None  # Weekly must-done tasks with status
 
 
 class GeminiCoach:
@@ -73,12 +74,13 @@ Your personality:
 - Uses developer-friendly analogies (commits, refactoring, debugging)
 
 Your coaching style:
-- Keep responses concise (2-3 sentences max)
+- Format EVERY response as 2-3 short bullet points (use • character)
+- Each bullet: one clear thought, max 12 words
 - Be specific and data-driven based on the current metrics
 - Focus on the next actionable step
 - Avoid cheerleader phrases like "You got this!", "Amazing!", "Awesome!", "Great job!"
 - Use a calm, focused tone like a senior engineer giving advice
-- Use emojis very sparingly (max 1 per response, only if it adds clarity)
+- Use emojis very sparingly (max 1 per bullet, only if it adds clarity)
 
 Key principles you follow:
 1. Deep work blocks are precious - protect them
@@ -131,11 +133,11 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         
         # Model fallback chain - try each in order if quota exhausted
         self._model_fallbacks = [
-            'gemma-3-27b-it',   # Primary: largest Gemma, best quality
-            'gemma-3-12b-it',   # Fallback 1: good balance of speed/quality
-            'gemma-3-4b-it',    # Fallback 2: smaller, faster
-            'gemini-2.0-flash', # Fallback 3: try Gemini if Gemma exhausted
-            'gemini-2.5-flash', # Fallback 4: latest Gemini flash
+            'gemini-2.5-pro',   # Primary: best quality, free tier available
+            'gemini-2.5-flash', # Fallback 1: fast, good quality
+            'gemini-2.0-flash', # Fallback 2: stable Gemini flash
+            'gemma-3-27b-it',   # Fallback 3: free, largest Gemma
+            'gemma-3-12b-it',   # Fallback 4: free, good balance
         ]
         self._model_name = self._model_fallbacks[0]
         
@@ -165,7 +167,7 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         config_path = Path("config.dat")
         if config_path.exists():
             config = configparser.ConfigParser()
-            config.read(config_path)
+            config.read(config_path, encoding='utf-8')
             if config.has_option('GEMINI', 'api_key'):
                 return config.get('GEMINI', 'api_key')
         
@@ -200,8 +202,44 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
             for cat, target in context.goals.items()
         ])
         
+        # Build progress vs goal summary with actual/target numbers
+        now = datetime.datetime.now()
+        current_hour = now.hour
+        # Workday is 7 AM – 11 PM (16 h). Pro-rate positive goals so
+        # morning progress isn't measured against the full-day target.
+        day_start = 7   # 7 AM
+        day_end   = 23  # 11 PM
+        day_length = day_end - day_start  # 16 h
+        elapsed_hours = max(0, min(now.hour + now.minute / 60 - day_start, day_length))
+        day_fraction = elapsed_hours / day_length if day_length else 1.0
+
+        progress_lines = []
+        for cat, target in context.goals.items():
+            actual = context.current_stats.get(cat, 0)
+            pct = (actual / target * 100) if target > 0 else 0
+            if cat.lower() in ('wasted', 'wasted time'):
+                status = "✅ under" if actual <= target else f"⚠️ OVER ({actual:.0f}/{target:.0f} min)"
+            elif cat.lower() == 'learning' and current_hour < 14:
+                # Learning is an afternoon/evening activity — don't flag as behind in the morning
+                if pct >= 100:
+                    status = "✅ done"
+                else:
+                    status = f"scheduled for later ({actual:.0f}/{target:.0f} min) — afternoon/evening task"
+            else:
+                # Compare against pro-rated expected progress, not full-day target
+                expected = target * day_fraction
+                if pct >= 100:
+                    status = "✅ done"
+                elif actual >= expected * 0.7:
+                    status = f"on track ({actual:.0f} min, expected ~{expected:.0f} by now, goal {target:.0f})"
+                else:
+                    status = f"behind pace ({actual:.0f} min, expected ~{expected:.0f} by now, goal {target:.0f})"
+            progress_lines.append(f"  - {cat}: {status}")
+        progress_str = "\n".join(progress_lines)
+        
         # Format notes with tags
         notes_section = self._format_notes_for_prompt(context.notes_summary)
+        must_done_section = self._format_must_done_for_prompt(context.must_done_tasks)
         
         prompt = f"""Current Situation:
 Time: {datetime.datetime.now().strftime('%H:%M')} ({context.time_of_day})
@@ -214,6 +252,9 @@ Today's Activity:
 Goals:
 {goals_str}
 
+Progress vs Goals:
+{progress_str}
+
 Metrics:
 - Waste Ratio: {context.waste_ratio:.1f}%
 - Current Focus Streak: {context.focus_streak:.0f} min
@@ -222,9 +263,16 @@ Metrics:
 
 {notes_section}
 
+{must_done_section}
+
 {self._get_situation_specific_context(context)}
 
-Based on this context, provide brief, encouraging coaching advice (2-3 sentences max)."""
+Based on this context, provide 2-3 bullet points (use • character). Each bullet: one short, actionable thought (max 15 words).
+RULES:
+- When mentioning progress, ALWAYS include the actual numbers (e.g., "45/240 min" not just "behind").
+- If there are incomplete Must Done tasks or user #todo/#focus notes, reference them specifically.
+- LEARNING is an afternoon/evening activity. Before 12:30 PM, do NOT flag learning as behind or suggest learning tasks. Focus on work goals in the morning instead.
+- For WORK goals, compare against the pro-rated expected progress (shown in the Progress section), NOT the full-day target. Saying "29/240 behind" at 11 AM is misleading — there are many hours left. Use the expected-by-now number instead and keep the tone encouraging if the developer is roughly on pace."""
         
         return prompt
     
@@ -268,6 +316,33 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         
         if sections:
             return "User's Notes Today:\n" + "\n\n".join(sections)
+        return ""
+    
+    def _format_must_done_for_prompt(self, must_done_tasks: Optional[List[Dict]]) -> str:
+        """Format must-done tasks for the coaching prompt."""
+        if not must_done_tasks:
+            return ""
+        
+        lines = []
+        pending = []
+        completed = []
+        for task in must_done_tasks:
+            desc = task.get('description', task.get('task_id', '?'))
+            day = task.get('day', '')
+            if task.get('completed'):
+                completed.append(f"  ✅ {desc} (due {day})")
+            else:
+                pending.append(f"  ⬜ {desc} (due {day})")
+        
+        if pending:
+            lines.append("Must Done This Week (INCOMPLETE):")
+            lines.extend(pending)
+        if completed:
+            lines.append("Must Done This Week (done):")
+            lines.extend(completed)
+        
+        if lines:
+            return "\n".join(lines)
         return ""
     
     def _get_situation_specific_context(self, context: CoachingContext) -> str:
@@ -327,9 +402,16 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         if context.hours_remaining < 3 and work_mins < work_goal * 0.5 and current_hour < 20:
             situations.append("Limited time remaining and behind on work goals.")
         
-        # Learning achievement
-        if learning_mins > 30:
+        # Learning scheduling awareness
+        if current_hour < 14:
+            # Morning/early afternoon — learning is not expected yet
+            if learning_mins > 15:
+                situations.append(f"Bonus: already started learning early ({learning_mins:.0f} min)!")
+            # Don't flag learning as behind before 2 PM
+        elif learning_mins > 30:
             situations.append(f"Great learning investment today: {learning_mins:.0f} min!")
+        elif learning_mins < context.goals.get('learning', 30) * 0.5 and current_hour >= 17:
+            situations.append(f"Learning goal needs attention: {learning_mins:.0f}/{context.goals.get('learning', 30):.0f} min — evening is a good time.")
         
         if situations:
             return "Observations:\n" + "\n".join(f"- {s}" for s in situations)
@@ -368,12 +450,14 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         hours_remaining = max(0, work_end - now.hour - now.minute / 60)
         
         # Fetch today's notes with tags for context
+        notes_summary = None
+        must_done_tasks = None
         try:
             import database
             notes_summary = database.get_notes_summary_for_coaching()
+            must_done_tasks = database.get_must_done_summary_for_coaching()
         except Exception as e:
-            print(f"[GeminiCoach] Could not fetch notes: {e}")
-            notes_summary = None
+            print(f"[GeminiCoach] Could not fetch notes/must-done: {e}")
         
         context = CoachingContext(
             current_stats=stats,
@@ -386,6 +470,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
             best_streak=best_streak,
             hours_remaining=hours_remaining,
             notes_summary=notes_summary,
+            must_done_tasks=must_done_tasks,
         )
         
         # Check if we can use cached advice
@@ -569,22 +654,22 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         time_of_day = self._get_time_of_day()
         
         if is_rest_day:
-            return "🌴 Rest days are for recharging. A little work is fine, but don't forget to enjoy yourself!"
+            return "• 🌴 Rest day — recharge is the priority\n• A little work is fine, enjoy yourself"
         
         if time_of_day == "morning" and work < 30:
-            return "🌅 Morning is golden time for deep work. Try starting with your most challenging task!"
+            return "• 🌅 Morning is golden for deep work\n• Start with your hardest task first"
         
         if work >= work_goal:
-            return "🎉 Amazing! You've hit your work goal. Consider some learning time or a well-deserved break!"
+            return "• ✅ Work goal hit\n• Consider learning time or a break"
         
         if wasted > 60:
-            return "🔄 Time for a reset? Try the 2-minute rule: pick one small task and complete it."
+            return "• 🔄 High waste — time for a reset\n• Pick one small task, finish it now"
         
         progress = work / work_goal if work_goal > 0 else 0
         if progress >= 0.7:
-            return f"💪 Great progress at {progress*100:.0f}%! You're in the home stretch - keep the momentum!"
+            return f"• 💪 Work at {work:.0f}/{work_goal:.0f} min ({progress*100:.0f}%)\n• Home stretch — keep momentum"
         
-        return "🚀 Every line of code counts. What's the smallest useful thing you can build right now?"
+        return f"• ⚠️ Work behind: {work:.0f}/{work_goal:.0f} min ({progress*100:.0f}%)\n• Pick one task, start now"
     
     def get_new_day_briefing(
         self,
@@ -649,7 +734,7 @@ Based on this context, provide brief, encouraging coaching advice (2-3 sentences
         
         prompt = f"""NEW DAY BRIEFING REQUEST
 
-Yesterday's Performance:
+Yesterday's Performance (for context only — do NOT dwell on it):
 {chr(10).join('  - ' + s for s in yesterday_summary)}
 
 Today's Goals:
@@ -658,13 +743,17 @@ Today's Goals:
 Day Type: {day_type}
 {f'Rest Reason: {rest_reason}' if is_rest_day else ''}
 
-Based on yesterday's results, provide a morning briefing (3-4 sentences max) that:
-1. Acknowledges what went well or poorly yesterday (be honest but not harsh)
-2. Identifies ONE key area to improve today
-3. Gives a specific, actionable focus for the morning
+Generate a SHORT, actionable morning checklist for today. Format as bullet points (use • character).
+Rules:
+1. Start with ONE brief line about yesterday (max 10 words, e.g., "Yesterday: solid work day" or "Yesterday: too much waste time").
+2. Then list 3-5 concrete bullet-point tasks/focus areas for TODAY based on the goals and yesterday's gaps.
+3. Each bullet should be specific and actionable (e.g., "• 90 min deep coding before checking email").
+4. If it's a rest day, keep it to 2-3 gentle bullets.
+5. Do NOT give generic motivational advice. Every bullet must be a clear action or time-boxed focus block.
+6. No "tomorrow" references — this is about TODAY only.
 
-Remember the user's challenge: procrastination leads to late nights which ruins the next morning.
-If yesterday had late-night work or high waste ratio, address the sleep-productivity cycle."""
+Remember the user's challenge: procrastination leads to late nights.
+If yesterday had high waste ratio, include a bullet about starting with the hardest task first."""
         
         # Try to get AI response
         for model in self._model_fallbacks:
@@ -697,25 +786,29 @@ If yesterday had late-night work or high waste ratio, address the sleep-producti
         work = aggregate_stats(yesterday_stats, 'work')
         wasted = yesterday_stats.get('wasted', 0) + yesterday_stats.get('wasted time', 0)
         work_goal = yesterday_goals.get('work', 240)
+        learning_goal = yesterday_goals.get('learning', 60)
         
-        lines = ["☀️ Good morning! Here's your daily briefing:\n"]
-        
-        # Yesterday summary
         if work >= work_goal:
-            lines.append(f"✅ Yesterday: Great job! You hit your work goal ({work:.0f}/{work_goal:.0f} min).")
+            yesterday_line = "Yesterday: hit work goal ✅"
         elif work >= work_goal * 0.7:
-            lines.append(f"📊 Yesterday: Solid effort at {work:.0f}/{work_goal:.0f} min ({work/work_goal*100:.0f}%).")
+            yesterday_line = f"Yesterday: decent ({work:.0f}/{work_goal:.0f} min)"
         else:
-            lines.append(f"⚠️ Yesterday: Missed work goal - only {work:.0f}/{work_goal:.0f} min ({work/work_goal*100:.0f}%).")
+            yesterday_line = f"Yesterday: missed work goal ({work:.0f}/{work_goal:.0f} min)"
         
-        if wasted > 90:
-            lines.append(f"🔄 Waste time was high ({wasted:.0f} min). Today, try blocking distractions early.")
+        lines = [f"{yesterday_line}\n"]
         
-        # Today focus
         if is_rest_day:
-            lines.append("\n🌴 It's a rest day - recharge, but consider one small productive win!")
+            lines.append("• Rest day — recharge is the priority")
+            lines.append("• Consider one small productive win (30 min max)")
+            lines.append("• Enjoy your time off")
         else:
-            lines.append("\n🎯 Today's focus: Start with 25 minutes of deep work before checking anything else.")
+            lines.append(f"• Start with 25 min deep coding before checking anything else")
+            lines.append(f"• Target {work_goal:.0f} min work, {learning_goal:.0f} min learning")
+            if wasted > 90:
+                lines.append("• Block distractions early — yesterday's waste was high")
+            else:
+                lines.append("• Keep waste time under control")
+            lines.append("• Take a 5-min break every 50 min")
         
         return "\n".join(lines)
     
@@ -803,12 +896,22 @@ Today's Results (minutes):
 Today's Goals (minutes):
 {json.dumps(goals, indent=2)}
 
-Provide:
-1. One thing to celebrate (1 sentence)
-2. One insight about today (1 sentence)
-3. One suggestion for tomorrow (1 sentence)
+Your response MUST start with a per-category scoreboard using EXACTLY this format
+(one bullet per goal, always show actual/target and percentage):
 
-Keep it warm, encouraging, and specific to their actual numbers. Do not re-interpret units as hours."""
+• Work: <actual> / <target> min (<pct>%) [exceeded ✅ | on track | short ⚠️]
+• Learning: <actual> / <target> min (<pct>%) [exceeded ✅ | on track | short ⚠️]
+• Wasted: <actual> / <target> min (<pct>%) [under ✅ | over ⚠️]
+
+After the scoreboard, add ONE sentence — either something to celebrate
+or an honest observation about today's patterns.
+
+Rules:
+- Use the EXACT category names from the goals dict (work, learning, wasted time).
+- Never invent combined labels like "focused work" — keep categories separate.
+- Do NOT mention tomorrow or give suggestions for the next day.
+- Keep it factual, warm, and specific to their actual numbers.
+- Do not re-interpret units as hours."""
 
         try:
             response = self.client.models.generate_content(
@@ -828,10 +931,32 @@ Keep it warm, encouraging, and specific to their actual numbers. Do not re-inter
         """Fallback daily summary."""
         work = aggregate_stats(stats, 'work')
         learning = stats.get('learning', 0)
-        
-        return f"""📊 Daily Summary:
-🎯 Work: {work:.0f} min | Learning: {learning:.0f} min
-💡 Tomorrow: Start with your hardest task while energy is fresh!"""
+        wasted = aggregate_stats(stats, 'wasted time')
+        work_goal = goals.get('work', 240)
+        learning_goal = goals.get('learning', 30)
+        wasted_goal = goals.get('wasted time', 60)
+
+        def _tag(actual, target, positive=True):
+            pct = (actual / target * 100) if target else 0
+            if positive:
+                return f"exceeded ✅" if actual >= target else (f"on track" if pct >= 70 else f"short ⚠️")
+            else:
+                return f"under ✅" if actual <= target else f"over ⚠️"
+
+        lines = [
+            f"• Work: {work:.0f} / {work_goal:.0f} min ({work/work_goal*100:.0f}%) — {_tag(work, work_goal)}",
+            f"• Learning: {learning:.0f} / {learning_goal:.0f} min ({learning/learning_goal*100:.0f}%) — {_tag(learning, learning_goal)}",
+            f"• Wasted: {wasted:.0f} / {wasted_goal:.0f} min ({wasted/wasted_goal*100:.0f}%) — {_tag(wasted, wasted_goal, positive=False)}",
+        ]
+
+        if work >= work_goal:
+            note = "Hit the work target — solid day."
+        elif work >= work_goal * 0.7:
+            note = f"Decent effort at {work/work_goal*100:.0f}% of work goal."
+        else:
+            note = f"Fell short on work ({work:.0f}/{work_goal:.0f} min)."
+
+        return "\n".join(lines) + f"\n{note}"
     
     def ask_question(self, question: str, stats: Dict[str, float]) -> str:
         """Ask the coach a free-form question about productivity."""

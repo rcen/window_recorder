@@ -1066,4 +1066,52 @@ def get_must_done_status_for_week(week_id: str) -> dict:
         return {}
 
 
+def get_must_done_summary_for_coaching() -> list[dict]:
+    """Get Must Done tasks with their completion status for AI coaching context.
+
+    Reads task definitions from config.dat [MUST_DONE] section and checks
+    completion against the current week_id in the database.
+
+    Returns list of dicts with keys:
+        task_id, description, day, deadline_time, completed (bool)
+    """
+    import configparser
+
+    config = configparser.ConfigParser()
+    config.read("config.dat", encoding='utf-8')
+
+    if not config.has_section("MUST_DONE"):
+        return []
+
+    # Parse task definitions
+    tasks: list[dict] = []
+    for task_id in config.options("MUST_DONE"):
+        task_def = config.get("MUST_DONE", task_id)
+        parts = [p.strip() for p in task_def.split(",", 2)]
+        if len(parts) == 3:
+            tasks.append({
+                "task_id": task_id,
+                "day": parts[0],
+                "deadline_time": parts[1],
+                "description": parts[2],
+            })
+
+    if not tasks:
+        return []
+
+    # Determine current week_id (Monday date of current week)
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.datetime.now(tz)
+    # ISO weekday: Monday=1 ... Sunday=7
+    monday = (now - datetime.timedelta(days=now.weekday())).date()
+    week_id = monday.strftime("%Y-%m-%d")
+
+    status_map = get_must_done_status_for_week(week_id)
+
+    for task in tasks:
+        task["completed"] = status_map.get(task["task_id"], False)
+
+    return tasks
+
+
 

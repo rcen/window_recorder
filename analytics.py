@@ -213,6 +213,38 @@ def reanalyze_all():
     analytic.create_html()
 
 
+def _format_coach_html(text: str) -> str:
+    """Convert plain-text coach output (with • bullets) into well-formatted HTML.
+
+    Bullet lines are rendered as a proper <ul> so wrapped text stays
+    indented under the bullet character, not flush-left.
+    """
+    lines = text.splitlines()
+    parts: list[str] = []
+    in_list = False
+
+    for line in lines:
+        stripped = line.strip()
+        # Detect bullet lines: • or - at the start
+        if stripped.startswith('•') or (stripped.startswith('- ') and not stripped.startswith('---')):
+            if not in_list:
+                parts.append('<ul style="margin:4px 0 4px 8px; padding-left:1.2em; list-style:disc;">')
+                in_list = True
+            # Remove the leading bullet/dash character
+            item_text = stripped.lstrip('•-').strip()
+            parts.append(f'<li style="margin-bottom:3px;">{html.escape(item_text)}</li>')
+        else:
+            if in_list:
+                parts.append('</ul>')
+                in_list = False
+            if stripped:
+                parts.append(f'<p style="margin:2px 0;">{html.escape(stripped)}</p>')
+
+    if in_list:
+        parts.append('</ul>')
+
+    return '\n'.join(parts)
+
 
 class Analytics():
 
@@ -348,6 +380,66 @@ class Analytics():
         active_seconds = float(df['duration'].sum()) if not df['duration'].empty else 0.0
         switches_per_hour = (switches / (active_seconds / 3600.0)) if active_seconds > 0 else 0.0
         return switches, switches_per_hour, active_seconds
+
+    def _get_recent_context_switches(
+        self,
+        date_str: str,
+        *,
+        max_switches: int = 5,
+        ignore_idle: bool = True,
+    ) -> list[dict]:
+        """Return the most recent context switches for a day.
+
+        Each entry is a dict with:
+            from_cat, to_cat, time (datetime), is_focus_to_distraction
+        Ordered newest-first. Returns at most *max_switches* entries.
+        """
+        df = self._get_and_prepare_day_df(date_str)
+        if df is None or df.empty:
+            return []
+
+        df = resolve_conflicts(df)
+        if df is None or df.empty:
+            return []
+
+        if 'category' not in df.columns or 'duration' not in df.columns:
+            return []
+
+        df = df.copy()
+        df['category'] = df['category'].fillna('').astype(str)
+        if ignore_idle:
+            df = df[df['category'].str.strip().str.lower() != 'idle']
+        if df.empty:
+            return []
+
+        sort_col = 'start_time' if 'start_time' in df.columns else 'timestamp'
+        df = df.sort_values(sort_col)
+
+        cats = df['category'].tolist()
+        # Use end_time of the row we switch TO as the switch timestamp
+        times = df['end_time'].tolist() if 'end_time' in df.columns else [None] * len(cats)
+
+        switches: list[dict] = []
+        prev = None
+        for i, cat in enumerate(cats):
+            if prev is None:
+                prev = cat
+                continue
+            if cat != prev:
+                from_productive = is_productive(prev)
+                to_wasted = is_wasted(cat)
+                switches.append({
+                    'from_cat': prev,
+                    'to_cat': cat,
+                    'time': times[i],
+                    'is_focus_to_distraction': from_productive and to_wasted,
+                })
+                prev = cat
+            else:
+                prev = cat
+
+        # Return newest first, capped
+        return list(reversed(switches[-max_switches:]))
 
     def _calculate_context_switching_window(
         self,
@@ -1150,6 +1242,8 @@ window.addEventListener("load", function() {
 
             lowest_switch_per_hour_today = self._calculate_lowest_context_switching_rate(today_date_str) if today_date_str else None
 
+            recent_switches = self._get_recent_context_switches(today_date_str, max_switches=5) if today_date_str else []
+
             lowest_switch_per_hour_7d = None
             lowest_switch_per_hour_7d_date = None
             if date_list:
@@ -1569,6 +1663,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     f'color:#263238; font-weight:600; letter-spacing:0.1px;">{joined}</span>'
                     f'</p>'
                 )
+
+            # Recent switch transitions
+            if recent_switches:
+                file.write('<div style="margin-top:10px; text-align:left; font-size:0.88em; line-height:1.6;">')
+                file.write('<div style="font-weight:600; color:#455a64; margin-bottom:4px;">Recent switches:</div>')
+                for sw in recent_switches:
+                    from_cat = html.escape(sw['from_cat'])
+                    to_cat = html.escape(sw['to_cat'])
+                    sw_time = sw.get('time')
+                    time_str = sw_time.strftime('%I:%M %p') if sw_time else ''
+                    if sw['is_focus_to_distraction']:
+                        # Highlight focus → distraction in red
+                        file.write(
+                            f'<div style="color:#c62828; font-weight:600;">'
+                            f'<span style="color:#888; font-weight:400;">{time_str}</span> '
+                            f'⚠️ {from_cat} → {to_cat}'
+                            f'</div>'
+                        )
+                    else:
+                        file.write(
+                            f'<div style="color:#455a64;">'
+                            f'<span style="color:#888;">{time_str}</span> '
+                            f'{from_cat} → {to_cat}'
+                            f'</div>'
+                        )
+                file.write('</div>')
+
             file.write('</div>')
             
             # Waste Ratio
@@ -3051,6 +3172,7 @@ if (chartsBtn) {
         now = datetime.datetime.now(tz)
         week_id = self._get_week_id(now)
         month_id = now.strftime('%Y-%m')
+        today_id = now.strftime('%Y-%m-%d')
         
         # Calculate logical boundaries for display
         target_monday = datetime.datetime.strptime(week_id, '%Y-%m-%d').date()
@@ -3141,14 +3263,15 @@ if (chartsBtn) {
         html_parts.append(f'''
             <div id="must-be-done" style="min-width:0;">
                 <h3 style="margin:0 0 8px 0; color:#333;">🧾 Must be Done</h3>
-                <div style="color:#666; font-size:0.9em; margin-bottom:10px;">Quick add ad-hoc tasks (weekly / monthly / persistent).</div>
-                <div id="must-be-done-meta" data-week-id="{week_id}" data-month-id="{month_id}"></div>
+                <div style="color:#666; font-size:0.9em; margin-bottom:10px;">Quick add ad-hoc tasks (today / weekly / monthly / persistent).</div>
+                <div id="must-be-done-meta" data-week-id="{week_id}" data-month-id="{month_id}" data-today-id="{today_id}"></div>
 
                 <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
                     <input id="must-be-done-input" type="text" placeholder="Add a task (e.g., pay taxes, take a shower)" 
                         style="flex:1; min-width:220px; padding:10px 12px; border:1px solid #bbb; border-radius:8px; font-size:1em;">
                     <select id="must-be-done-bucket" style="padding:10px 12px; border:1px solid #bbb; border-radius:8px; font-size:1em;">
-                        <option value="week" selected>This week</option>
+                        <option value="today" selected>Today</option>
+                        <option value="week">This week</option>
                         <option value="month">This month</option>
                         <option value="persistent">Persistent</option>
                     </select>
@@ -3194,6 +3317,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function bucketLabel(bucketType) {
+        if (bucketType === 'today') return 'today';
         if (bucketType === 'month') return 'monthly';
         if (bucketType === 'persistent') return 'persistent';
         return 'weekly';
@@ -3269,7 +3393,13 @@ document.addEventListener('DOMContentLoaded', function() {
             title.style.textDecoration = item.completed ? 'line-through' : 'none';
 
             const meta = document.createElement('div');
-            meta.textContent = bucketLabel(item.bucket_type) + (isExpired ? ' • expired' : '');
+            let metaText = bucketLabel(item.bucket_type) + (isExpired ? ' • expired' : '');
+            if (item.completed && item.completed_at) {
+                const completedDate = new Date(item.completed_at * 1000);
+                const timeStr = completedDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                metaText += ' • ✓ ' + timeStr;
+            }
+            meta.textContent = metaText;
             meta.style.color = isExpired ? '#b00020' : '#666';
             meta.style.fontSize = '0.85em';
             meta.style.marginTop = '2px';
@@ -3323,7 +3453,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function getMustBeDoneBucketId(bucketType, weekId, monthId) {
+    function getMustBeDoneBucketId(bucketType, weekId, monthId, todayId) {
+        if (bucketType === 'today') return todayId;
         if (bucketType === 'month') return monthId;
         if (bucketType === 'persistent') return 'all';
         return weekId;
@@ -3333,8 +3464,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!mustBeDoneMeta) return;
         const weekId = mustBeDoneMeta.getAttribute('data-week-id');
         const monthId = mustBeDoneMeta.getAttribute('data-month-id');
+        const todayId = mustBeDoneMeta.getAttribute('data-today-id');
         setMustBeDoneStatus('Syncing…', 'info');
-        fetch('http://127.0.0.1:8042/must_be_done/list?week_id=' + encodeURIComponent(weekId || '') + '&month_id=' + encodeURIComponent(monthId || '') + '&include_persistent=1&include_completed=1&include_expired=1&weeks_back=12&months_back=6')
+        fetch('http://127.0.0.1:8042/must_be_done/list?week_id=' + encodeURIComponent(weekId || '') + '&month_id=' + encodeURIComponent(monthId || '') + '&today_id=' + encodeURIComponent(todayId || '') + '&include_persistent=1&include_completed=1&include_expired=1&weeks_back=12&months_back=6&days_back=7')
             .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
             .then(data => {
                 if (!data || data.status !== 'success') throw new Error('Bad payload');
@@ -3359,9 +3491,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!mustBeDoneMeta || !mustBeDoneInput || !mustBeDoneBucket) return;
             const weekId = mustBeDoneMeta.getAttribute('data-week-id');
             const monthId = mustBeDoneMeta.getAttribute('data-month-id');
+            const todayId = mustBeDoneMeta.getAttribute('data-today-id');
             const description = (mustBeDoneInput.value || '').trim();
-            const bucketType = (mustBeDoneBucket.value || 'week').trim();
-            const bucketId = getMustBeDoneBucketId(bucketType, weekId, monthId);
+            const bucketType = (mustBeDoneBucket.value || 'today').trim();
+            const bucketId = getMustBeDoneBucketId(bucketType, weekId, monthId, todayId);
             if (!description) return;
 
             if (typeof window.__setRefreshLock === 'function') {
@@ -3647,7 +3780,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html_parts.append(f'''
             <div style="margin-top:15px; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:8px; color:white;">
                 <div style="font-weight:bold; margin-bottom:8px;">🤖 AI Coach Says <span style="font-weight:normal; font-size:0.85em; opacity:0.8;">({coach_timestamp})</span>:</div>
-                <div style="font-size:1.05em; line-height:1.5;">{html.escape(ai_advice)}</div>
+                <div style="font-size:1.05em; line-height:1.6;">{_format_coach_html(ai_advice)}</div>
             </div>
             ''')
 
@@ -3708,10 +3841,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div style="padding:10px; background:#f8f9ff; border-radius:6px; border:1px solid #e0e3f7;">
                     <div style="font-weight:bold; color:#1f2a44; margin-bottom:6px;">{date_key}{rest_badge}</div>
                     <div style="font-size:0.92em; color:#111;">
-                        <div style="font-weight:600; color:#555; margin-bottom:3px;">☀️ Morning Briefing</div>
-                        <div style="margin-bottom:8px; line-height:1.45;">{html.escape(morning_text)}</div>
+                        <div style="font-weight:600; color:#555; margin-bottom:3px;">☀️ Today's Focus</div>
+                        <div style="margin-bottom:8px; line-height:1.45;">{_format_coach_html(morning_text)}</div>
                         <div style="font-weight:600; color:#555; margin-bottom:3px;">🌙 Daily Summary</div>
-                        <div style="line-height:1.45;">{html.escape(summary_text)}</div>
+                        <div style="line-height:1.45;">{_format_coach_html(summary_text)}</div>
                     </div>
                 </div>
                 ''')
