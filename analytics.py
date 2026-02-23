@@ -3793,7 +3793,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.disabled = true;
                 btn.textContent = '⏳ Loading...';
                 try {{
-                    const resp = await fetch('http://127.0.0.1:8042/ai_coach/refresh', {{method: 'POST'}});
+                    // Use relative URL that works when html is served from habit_server
+                    const resp = await fetch('/ai_coach/refresh', {{method: 'POST'}});
+                    if (!resp.ok) {{
+                        throw new Error(`HTTP ${resp.status}`);
+                    }}
                     const data = await resp.json();
                     if (data.status === 'success') {{
                         adviceDiv.innerHTML = data.advice.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
@@ -3803,7 +3807,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('Error: ' + (data.error || 'Unknown error'));
                     }}
                 }} catch (e) {{
-                    alert('Failed to refresh: ' + e.message);
+                    console.error('Refresh error:', e);
+                    alert('Failed to refresh advice: ' + e.message);
                 }} finally {{
                     btn.disabled = false;
                     btn.textContent = '🔄 Refresh';

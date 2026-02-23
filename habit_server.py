@@ -390,6 +390,65 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
             traceback.print_exc()
             return
         
+        # Handle AI coach refresh FIRST, before any other routing
+        if parsed.path == '/ai_coach/refresh':
+            try:
+                print(f"[habit-server] AI coach refresh requested", flush=True)
+                agent = get_productivity_agent()
+                if not agent.coach or not agent.coach.enabled:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'AI coach not enabled'}).encode('utf-8'))
+                    return
+                
+                # Clear the cache file to force fresh API call
+                cache_file = agent.coach._advice_cache_file
+                if cache_file.exists():
+                    cache_file.unlink()
+                    print(f"[habit-server] Cleared cache file", flush=True)
+                
+                # Get fresh advice
+                try:
+                    stats = agent.get_current_stats()
+                    goals_dict = {cat: g.daily_target_minutes for cat, g in agent.goals.items()}
+                    thresholds = agent._get_adaptive_thresholds()
+                    waste_ratio = stats.get('wasted', 0) / max(1, sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
+                    
+                    print(f"[habit-server] Calling AI coach with stats: {stats}", flush=True)
+                    advice, advice_ts = agent.coach.get_coaching_with_timestamp(
+                        stats=stats,
+                        goals=goals_dict,
+                        is_rest_day=thresholds['is_rest_day'],
+                        rest_reason=thresholds['rest_reason'],
+                        waste_ratio=waste_ratio,
+                        focus_streak=agent.state.longest_streak_today,
+                        best_streak=agent.state.longest_streak_today,
+                    )
+                    
+                    print(f"[habit-server] Got advice: {advice[:100]}...", flush=True)
+                    
+                    self._set_headers(200)
+                    self.wfile.write(json.dumps({
+                        'status': 'success',
+                        'advice': advice,
+                        'timestamp': advice_ts,
+                        'model': agent.coach._model_name
+                    }).encode('utf-8'))
+                    return
+                except Exception as coach_err:
+                    print(f"[habit-server] AI coach error: {coach_err}", flush=True)
+                    import traceback
+                    traceback.print_exc()
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({'error': str(coach_err)}).encode('utf-8'))
+                    return
+            except Exception as e:
+                print(f"[habit-server] AI coach refresh error: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+        
         # Handle productivity goal updates
         if parsed.path == '/productivity/goals':
             length = int(self.headers.get('Content-Length', 0))
@@ -550,7 +609,7 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 return
 
         # Handle streak notes add
-        elif parsed.path in ('/notes/add', '/save_note'):
+        if parsed.path in ('/notes/add', '/save_note'):
             length = int(self.headers.get('Content-Length', 0))
             try:
                 body = self.rfile.read(length)
@@ -587,54 +646,12 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
 
-        # Handle AI coach refresh
-        elif parsed.path == '/ai_coach/refresh':
-            try:
-                agent = get_productivity_agent()
-                if agent.coach and agent.coach.enabled:
-                    # Clear the cache file to force fresh API call
-                    cache_file = agent.coach._advice_cache_file
-                    if cache_file.exists():
-                        cache_file.unlink()
-                    
-                    # Get fresh advice
-                    stats = agent.get_current_stats()
-                    goals_dict = {cat: g.daily_target_minutes for cat, g in agent.goals.items()}
-                    thresholds = agent._get_adaptive_thresholds()
-                    waste_ratio = stats.get('wasted', 0) / max(1, sum(stats.values())) * 100
-                    
-                    advice, advice_ts = agent.coach.get_coaching_with_timestamp(
-                        stats=stats,
-                        goals=goals_dict,
-                        is_rest_day=thresholds['is_rest_day'],
-                        rest_reason=thresholds['rest_reason'],
-                        waste_ratio=waste_ratio,
-                        focus_streak=agent.state.longest_streak_today,
-                        best_streak=agent.state.longest_streak_today,
-                    )
-                    
-                    self._set_headers(200)
-                    self.wfile.write(json.dumps({
-                        'status': 'success',
-                        'advice': advice,
-                        'timestamp': advice_ts,
-                        'model': agent.coach._model_name
-                    }).encode('utf-8'))
-                    return
-                else:
-                    self._set_headers(400)
-                    self.wfile.write(json.dumps({'error': 'AI coach not enabled'}).encode('utf-8'))
-                    return
-            except Exception as e:
-                print(f"[habit-server] AI coach refresh error: {e}")
-                self._set_headers(500)
-                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
-                return
-
         # Handle habit completions
         if parsed.path != '/habits':
+            # Only return 404 if it's not one of the special routes we handle above
+            # (This safeguard should not be reached for /ai_coach/refresh since it returns above)
             self._set_headers(404)
-            self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
+            self.wfile.write(json.dumps({'error': f'Not found: {parsed.path}'}).encode('utf-8'))
             return
 
         length = int(self.headers.get('Content-Length', 0))
