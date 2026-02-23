@@ -508,11 +508,24 @@ RULES:
                     config=types.GenerateContentConfig(
                         temperature=0.7,
                         top_p=0.9,
-                        max_output_tokens=200,
+                        # Gemini 2.5 uses "thinking" tokens that count against output limit
+                        # Need ~1500 for thinking + ~300 for actual response
+                        max_output_tokens=2048,
                     )
                 )
                 
+                # Debug: check if response was truncated
+                if hasattr(response, 'candidates') and response.candidates:
+                    candidate = response.candidates[0]
+                    finish_reason = getattr(candidate, 'finish_reason', None)
+                    if finish_reason and str(finish_reason) not in ('STOP', 'FinishReason.STOP', '1'):
+                        print(f"[GeminiCoach] WARNING: Response truncated, finish_reason={finish_reason}")
+                
                 advice = response.text.strip()
+                
+                # Sanity check: if advice seems truncated (ends mid-sentence), log warning
+                if advice and not advice[-1] in '.!?…"\'':
+                    print(f"[GeminiCoach] WARNING: Advice may be truncated: '{advice[-50:]}...'")
                 
                 # Update current model if fallback succeeded
                 if model != self._model_name:

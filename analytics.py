@@ -3778,10 +3778,38 @@ document.addEventListener('DOMContentLoaded', function() {
             else:
                 coach_timestamp = datetime.datetime.now().strftime("%H:%M")
             html_parts.append(f'''
-            <div style="margin-top:15px; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:8px; color:white;">
-                <div style="font-weight:bold; margin-bottom:8px;">🤖 AI Coach Says <span style="font-weight:normal; font-size:0.85em; opacity:0.8;">({coach_timestamp})</span>:</div>
-                <div style="font-size:1.05em; line-height:1.6;">{_format_coach_html(ai_advice)}</div>
+            <div id="ai-coach-container" style="margin-top:15px; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:8px; color:white;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="font-weight:bold;">🤖 AI Coach Says <span style="font-weight:normal; font-size:0.85em; opacity:0.8;" id="coach-timestamp">({coach_timestamp})</span>:</div>
+                    <button onclick="refreshAICoach()" id="refresh-coach-btn" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:white; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:0.85em;" title="Get fresh advice from AI">🔄 Refresh</button>
+                </div>
+                <div id="coach-advice" style="font-size:1.05em; line-height:1.6;">{_format_coach_html(ai_advice)}</div>
             </div>
+            <script>
+            async function refreshAICoach() {{
+                const btn = document.getElementById('refresh-coach-btn');
+                const adviceDiv = document.getElementById('coach-advice');
+                const tsSpan = document.getElementById('coach-timestamp');
+                btn.disabled = true;
+                btn.textContent = '⏳ Loading...';
+                try {{
+                    const resp = await fetch('http://127.0.0.1:8042/ai_coach/refresh', {{method: 'POST'}});
+                    const data = await resp.json();
+                    if (data.status === 'success') {{
+                        adviceDiv.innerHTML = data.advice.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+                        const ts = new Date(data.timestamp * 1000);
+                        tsSpan.textContent = '(' + ts.toLocaleTimeString([], {{hour: '2-digit', minute:'2-digit'}}) + ')';
+                    }} else {{
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }}
+                }} catch (e) {{
+                    alert('Failed to refresh: ' + e.message);
+                }} finally {{
+                    btn.disabled = false;
+                    btn.textContent = '🔄 Refresh';
+                }}
+            }}
+            </script>
             ''')
 
         # Recent AI coach briefings/summaries (last few days)

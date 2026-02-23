@@ -587,8 +587,49 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
 
-        
-
+        # Handle AI coach refresh
+        elif parsed.path == '/ai_coach/refresh':
+            try:
+                agent = get_productivity_agent()
+                if agent.coach and agent.coach.enabled:
+                    # Clear the cache file to force fresh API call
+                    cache_file = agent.coach._advice_cache_file
+                    if cache_file.exists():
+                        cache_file.unlink()
+                    
+                    # Get fresh advice
+                    stats = agent.get_current_stats()
+                    goals_dict = {cat: g.daily_target_minutes for cat, g in agent.goals.items()}
+                    thresholds = agent._get_adaptive_thresholds()
+                    waste_ratio = stats.get('wasted', 0) / max(1, sum(stats.values())) * 100
+                    
+                    advice, advice_ts = agent.coach.get_coaching_with_timestamp(
+                        stats=stats,
+                        goals=goals_dict,
+                        is_rest_day=thresholds['is_rest_day'],
+                        rest_reason=thresholds['rest_reason'],
+                        waste_ratio=waste_ratio,
+                        focus_streak=agent.state.longest_streak_today,
+                        best_streak=agent.state.longest_streak_today,
+                    )
+                    
+                    self._set_headers(200)
+                    self.wfile.write(json.dumps({
+                        'status': 'success',
+                        'advice': advice,
+                        'timestamp': advice_ts,
+                        'model': agent.coach._model_name
+                    }).encode('utf-8'))
+                    return
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'AI coach not enabled'}).encode('utf-8'))
+                    return
+            except Exception as e:
+                print(f"[habit-server] AI coach refresh error: {e}")
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
 
         # Handle habit completions
         if parsed.path != '/habits':
