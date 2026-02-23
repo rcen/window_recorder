@@ -408,9 +408,9 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 
                 # Get fresh advice
                 try:
-                    stats = agent.get_current_stats()
+                    stats = agent.get_current_day_stats()
                     goals_dict = {cat: g.daily_target_minutes for cat, g in agent.goals.items()}
-                    thresholds = agent._get_adaptive_thresholds()
+                    thresholds = agent.get_effective_thresholds()
                     waste_ratio = stats.get('wasted', 0) / max(1, sum(stats.values())) * 100 if sum(stats.values()) > 0 else 0
                     
                     print(f"[habit-server] Calling AI coach with stats: {stats}", flush=True)

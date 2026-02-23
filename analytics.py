@@ -3796,7 +3796,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Use relative URL that works when html is served from habit_server
                     const resp = await fetch('/ai_coach/refresh', {{method: 'POST'}});
                     if (!resp.ok) {{
-                        throw new Error(`HTTP ${resp.status}`);
+                        throw new Error(`HTTP ${{resp.status}}`);
                     }}
                     const data = await resp.json();
                     if (data.status === 'success') {{
