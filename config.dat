@@ -152,7 +152,18 @@ www.msn.com/en-us/money: gaming
 ultracopier: work
 fastcopy: work
 projects-build: work
+services.core: work
+regex__^imagetest properties$: work
+regex__\b% complete$: work
+regex__^image processing$: work
+regex__^preferences$: work
+regex__^processing profile$: work
+regex__^select directory$: work
+regex__^additional library directories$: work
 regex__^start$: work
+regex__^open project$: work
+regex__^load images$: work
+regex__^select flexicapture mode$: work
 regex__\bmicrosoft pc manager\b:vibe_coding
 regex__\btk\b: idle
 regex__\bwindows input experience\b: work

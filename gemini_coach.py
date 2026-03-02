@@ -91,6 +91,10 @@ Key principles you follow:
 6. Morning hours are golden for complex work
 7. Energy management > time management
 8. Idle time is normal - it represents time away from the computer, NOT lost productivity
+9. A written daily plan in the morning is THE single highest-leverage habit for productivity.
+   Without a plan, the day drifts into reactive mode and procrastination wins.
+   Encourage the user to spend 5-10 minutes each morning writing a concrete plan:
+   pick 1-3 focus tasks, assign time blocks, and define a "done" criteria for each.
 
 CRITICAL ANTI-PROCRASTINATION RULES:
 The user struggles with procrastination that leads to late nights and miserable mornings. Your #1 job is breaking this cycle:
@@ -381,6 +385,8 @@ RULES:
         # Morning with no work yet
         if context.time_of_day == "morning" and work_mins < 30:
             situations.append("Developer hasn't started deep work yet this morning.")
+            if work_mins < 5 and wasted_mins < 10:
+                situations.append("DAILY PLAN CHECK: If the user hasn't made a plan yet, strongly encourage spending 5 min writing down today's top 1-3 tasks with time blocks. A plan in the morning is the #1 predictor of a productive day.")
         
         # Good progress
         if work_mins >= work_goal * 0.7:
@@ -670,7 +676,7 @@ RULES:
             return "• 🌴 Rest day — recharge is the priority\n• A little work is fine, enjoy yourself"
         
         if time_of_day == "morning" and work < 30:
-            return "• 🌅 Morning is golden for deep work\n• Start with your hardest task first"
+            return "• 📋 First: spend 5 min writing today's plan (1-3 tasks + time blocks)\n• 🌅 Then start your hardest task — morning focus is golden"
         
         if work >= work_goal:
             return "• ✅ Work goal hit\n• Consider learning time or a break"
@@ -756,17 +762,20 @@ Today's Goals:
 Day Type: {day_type}
 {f'Rest Reason: {rest_reason}' if is_rest_day else ''}
 
-Generate a SHORT, actionable morning checklist for today. Format as bullet points (use • character).
+Generate a SHORT, actionable morning plan for today. Format as bullet points (use • character).
 Rules:
 1. Start with ONE brief line about yesterday (max 10 words, e.g., "Yesterday: solid work day" or "Yesterday: too much waste time").
-2. Then list 3-5 concrete bullet-point tasks/focus areas for TODAY based on the goals and yesterday's gaps.
-3. Each bullet should be specific and actionable (e.g., "• 90 min deep coding before checking email").
-4. If it's a rest day, keep it to 2-3 gentle bullets.
-5. Do NOT give generic motivational advice. Every bullet must be a clear action or time-boxed focus block.
-6. No "tomorrow" references — this is about TODAY only.
+2. Then present a CONCRETE DAILY PLAN with 3-5 time-blocked focus areas for TODAY based on the goals and yesterday's gaps.
+3. Each bullet should be a specific, time-boxed action with a clear "done" state (e.g., "• 9:00-10:30 — Deep coding on [priority task]. Done = PR submitted.").
+4. Include at least one bullet reminding the user to write down their top 1-3 tasks for the day if they haven't already. Planning is NOT optional — it's the #1 predictor of a productive day.
+5. If it's a rest day, keep it to 2-3 gentle bullets but still suggest a light plan.
+6. Do NOT give generic motivational advice. Every bullet must be a clear action or time-boxed focus block.
+7. No "tomorrow" references — this is about TODAY only.
+8. End with a short reminder: "A day without a plan drifts. 5 min of planning saves hours of wasted time."
 
 Remember the user's challenge: procrastination leads to late nights.
-If yesterday had high waste ratio, include a bullet about starting with the hardest task first."""
+If yesterday had high waste ratio, include a bullet about starting with the hardest task first.
+The CORE message: making a plan in the morning is the single most effective thing the user can do to have a good day."""
         
         # Try to get AI response
         for model in self._model_fallbacks:
@@ -812,16 +821,17 @@ If yesterday had high waste ratio, include a bullet about starting with the hard
         
         if is_rest_day:
             lines.append("• Rest day — recharge is the priority")
-            lines.append("• Consider one small productive win (30 min max)")
+            lines.append("• Jot down 1-2 light goals so the day has shape")
             lines.append("• Enjoy your time off")
         else:
-            lines.append(f"• Start with 25 min deep coding before checking anything else")
+            lines.append("• First 5 min: write today's plan — pick 1-3 tasks, assign time blocks")
+            lines.append(f"• Then 25 min deep coding before checking anything else")
             lines.append(f"• Target {work_goal:.0f} min work, {learning_goal:.0f} min learning")
             if wasted > 90:
                 lines.append("• Block distractions early — yesterday's waste was high")
             else:
                 lines.append("• Keep waste time under control")
-            lines.append("• Take a 5-min break every 50 min")
+            lines.append("• A day without a plan drifts. Plan now, thank yourself tonight.")
         
         return "\n".join(lines)
     
