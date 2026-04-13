@@ -732,6 +732,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
         if time.time() > html_update_time:
             # This updates the main analysis report (index.html)
             analytic.create_html()
+            last_loop_time = time.time()  # Prevent false sleep detection: create_html() can block >5s
             
             # Dynamic HTML update interval based on current activity
             # Fast updates (15s) when wasting time for immediate feedback
@@ -763,6 +764,7 @@ TRACK YOUR TIME - DON'T WASTE IT!
             image_folder = analytic.config.get('SETTINGS', 'image_folder', fallback='figs/pictures')
             md_folder = analytic.config.get('SETTINGS', 'md_folder', fallback='C:/Users/YourUser/Documents/Notes')
             result = generate_inspirational_html(image_folder, md_folder)
+            last_loop_time = time.time()  # Prevent false sleep detection after blocking call
             inspirational_html_update_time = time.time() + 600 # Reset for another 10 minutes
 
         # Activity page reminder every 30 minutes

@@ -139,6 +139,7 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         self._model_fallbacks = [
             'gemini-2.5-pro',   # Primary: best quality, free tier available
             'gemini-2.5-flash', # Fallback 1: fast, good quality
+            'gemini-2.5-flash-lite', # Fallback 1a: fast, free tier
             'gemini-2.0-flash', # Fallback 2: stable Gemini flash
             'gemma-3-27b-it',   # Fallback 3: free, largest Gemma
             'gemma-3-12b-it',   # Fallback 4: free, good balance
@@ -554,9 +555,9 @@ RULES:
                     print(f"[GeminiCoach] {model} quota exhausted, trying next...")
                     continue
                 else:
-                    # Non-quota error, don't try other models
-                    print(f"[GeminiCoach] API error with {model}: {e}")
-                    break
+                    # Non-quota error, log and try next model
+                    print(f"[GeminiCoach] API error with {model}: {e}, trying next...")
+                    continue
         
         # All models failed
         print(f"[GeminiCoach] All models exhausted or failed: {last_error}")

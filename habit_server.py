@@ -5,6 +5,7 @@ import json
 import datetime
 import sys
 import os
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -38,6 +39,87 @@ def _default_start_end(days: int = 30) -> tuple[str, str]:
     today = datetime.datetime.now(tz).astimezone().date()
     start = today - datetime.timedelta(days=days - 1)
     return start.isoformat(), today.isoformat()
+
+
+def _fetch_page_info(url: str, need_title: bool = True, need_summary: bool = True) -> tuple:
+    """Fetch a URL and extract page title; optionally generate AI summary.
+
+    Returns (title_or_None, summary_or_None).
+    """
+    import re as _re
+    title = None
+    page_text = None
+
+    # --- Fetch the page HTML ---
+    try:
+        import urllib.request
+        import urllib.error
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,*/*',
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            raw = resp.read(200_000)  # cap at 200 KB
+            charset = resp.headers.get_content_charset() or 'utf-8'
+            html_text = raw.decode(charset, errors='replace')
+    except Exception as e:
+        print(f'[bookmark] failed to fetch {url}: {e}')
+        html_text = None
+
+    # --- Extract <title> ---
+    if html_text and need_title:
+        m = _re.search(r'<title[^>]*>(.*?)</title>', html_text, _re.IGNORECASE | _re.DOTALL)
+        if m:
+            import html as _html_mod
+            title = _html_mod.unescape(m.group(1)).strip()
+            # Trim very long titles
+            if len(title) > 200:
+                title = title[:197] + '...'
+
+    # --- AI summary via Gemini ---
+    if html_text and need_summary:
+        try:
+            # Strip HTML tags to get plain text for the AI
+            clean = _re.sub(r'<script[^>]*>.*?</script>', '', html_text, flags=_re.DOTALL | _re.IGNORECASE)
+            clean = _re.sub(r'<style[^>]*>.*?</style>', '', clean, flags=_re.DOTALL | _re.IGNORECASE)
+            clean = _re.sub(r'<[^>]+>', ' ', clean)
+            clean = _re.sub(r'\s+', ' ', clean).strip()
+            # Take first ~4000 chars for the prompt
+            page_text = clean[:4000]
+        except Exception:
+            page_text = None
+
+        if page_text and len(page_text) > 80:
+            try:
+                from gemini_coach import GeminiCoach, GEMINI_AVAILABLE
+                if GEMINI_AVAILABLE:
+                    coach = GeminiCoach()
+                    if coach.enabled and coach.client:
+                        prompt = (
+                            f"Summarize the following web page content in 1-2 sentences (max 200 characters). "
+                            f"Be concise and factual. Page URL: {url}\n\n"
+                            f"Page content:\n{page_text}"
+                        )
+                        # Use the coach's model fallback chain
+                        for model in coach._model_fallbacks:
+                            try:
+                                resp = coach.client.models.generate_content(
+                                    model=model,
+                                    contents=prompt,
+                                )
+                                ai_summary = (resp.text or '').strip()
+                                if ai_summary:
+                                    if len(ai_summary) > 300:
+                                        ai_summary = ai_summary[:297] + '...'
+                                    print(f'[bookmark] AI summary OK via {model}')
+                                    return title, ai_summary
+                            except Exception as model_err:
+                                print(f'[bookmark] model {model} failed: {model_err}')
+                                continue
+            except Exception as e:
+                print(f'[bookmark] AI summary failed: {e}')
+
+    return title, None
 
 
 class HabitRequestHandler(BaseHTTPRequestHandler):
@@ -113,6 +195,38 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps({'error': 'index.html not found'}).encode('utf-8'))
+                return
+
+        # Serve bookmarklet setup page
+        if parsed.path == '/bookmarklet':
+            try:
+                with open('html/bookmarklet.html', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'bookmarklet.html not found'}).encode('utf-8'))
+                return
+
+        # Serve bookmarks management page
+        if parsed.path == '/bookmarks':
+            try:
+                with open('html/bookmarks.html', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'bookmarks.html not found'}).encode('utf-8'))
                 return
         
         # Handle productivity endpoints
@@ -306,6 +420,44 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
+
+        # ---- Bookmarks endpoints ----
+        if parsed.path == '/bookmarks/list':
+            params = parse_qs(parsed.query)
+            try:
+                limit = int(params.get('limit', ['20'])[0])
+            except Exception:
+                limit = 20
+            include_archived = params.get('include_archived', ['0'])[0] == '1'
+            tag_filter = params.get('tag', [None])[0]
+            try:
+                bookmarks = database.get_bookmarks(
+                    limit=limit, include_archived=include_archived, tag_filter=tag_filter
+                )
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'bookmarks': bookmarks}).encode('utf-8'))
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            return
+
+        if parsed.path.startswith('/bookmark_screenshots/'):
+            # Serve screenshot images from data/bookmark_screenshots/
+            filename = parsed.path.split('/')[-1]
+            filepath = os.path.join('data', 'bookmark_screenshots', filename)
+            if os.path.isfile(filepath):
+                import mimetypes
+                mime, _ = mimetypes.guess_type(filepath)
+                self.send_response(200)
+                self.send_header('Content-Type', mime or 'application/octet-stream')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                with open(filepath, 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'Screenshot not found'}).encode('utf-8'))
+            return
 
         # Lightweight activity status for conditional dashboard refresh.
         if parsed.path == '/activity/status':
@@ -645,6 +797,127 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
                 return
+
+        # ---- Bookmark POST endpoints ----
+        if parsed.path == '/bookmarks/add':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            url = (payload.get('url') or '').strip()
+            if not url:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing url'}).encode('utf-8'))
+                return
+
+            # Auto-fetch page title and AI summary if not provided
+            title = payload.get('title')
+            summary = payload.get('summary')
+            if not title or not summary:
+                fetched_title, fetched_summary = _fetch_page_info(url, need_title=not title, need_summary=not summary)
+                if not title and fetched_title:
+                    payload['title'] = fetched_title
+                if not summary and fetched_summary:
+                    payload['summary'] = fetched_summary
+
+            # Handle optional base64 screenshot
+            screenshot_data = payload.get('screenshot_b64')
+            screenshot_path = None
+            if screenshot_data:
+                try:
+                    import base64
+                    img_dir = os.path.join('data', 'bookmark_screenshots')
+                    os.makedirs(img_dir, exist_ok=True)
+                    import hashlib
+                    fname = hashlib.md5(url.encode()).hexdigest()[:12] + f'_{int(time.time())}.png'
+                    fpath = os.path.join(img_dir, fname)
+                    with open(fpath, 'wb') as img_f:
+                        img_f.write(base64.b64decode(screenshot_data))
+                    screenshot_path = fname
+                except Exception as img_err:
+                    print(f'[habit-server] screenshot save error: {img_err}')
+
+            try:
+                bookmark = database.add_bookmark(
+                    url=url,
+                    title=payload.get('title'),
+                    summary=payload.get('summary'),
+                    notes=payload.get('notes'),
+                    screenshot_path=screenshot_path,
+                    tags=payload.get('tags'),
+                    timestamp=payload.get('timestamp'),
+                )
+                if not bookmark:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Failed to add bookmark'}).encode('utf-8'))
+                    return
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'bookmark': bookmark}).encode('utf-8'))
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            return
+
+        if parsed.path == '/bookmarks/update':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            bookmark_id = payload.pop('id', None)
+            if bookmark_id is None:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing id'}).encode('utf-8'))
+                return
+            try:
+                ok = database.update_bookmark(int(bookmark_id), **payload)
+                if not ok:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Bookmark not found or nothing to update'}).encode('utf-8'))
+                    return
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'id': bookmark_id}).encode('utf-8'))
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            return
+
+        if parsed.path == '/bookmarks/delete':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            bookmark_id = payload.get('id')
+            if bookmark_id is None:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing id'}).encode('utf-8'))
+                return
+            try:
+                ok = database.delete_bookmark(int(bookmark_id))
+                if not ok:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Bookmark not found'}).encode('utf-8'))
+                    return
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'id': bookmark_id}).encode('utf-8'))
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+            return
 
         # Handle habit completions
         if parsed.path != '/habits':

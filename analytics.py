@@ -333,7 +333,8 @@ class Analytics():
         df = self._ensure_url_columns(df)
 
         # Correctly interpret the timestamp as UTC, then convert to local time
-        df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.tz_localize('UTC').dt.tz_convert(tz)
+        # .floor('us') truncates nanosecond sub-precision that Plotly cannot serialize
+        df['end_time'] = pd.to_datetime(df['timestamp'], unit='s').dt.floor('us').dt.tz_localize('UTC').dt.tz_convert(tz)
         df['start_time'] = df.apply(lambda row: row['end_time'] - datetime.timedelta(seconds=row['duration']), axis=1)
         return df
 
@@ -1099,6 +1100,11 @@ test:
             file.write(f'<meta name="refresh-interval" content="{refresh_interval}">\n')
             file.write(f'<meta name="activity-count" content="{current_activity_count}">\n')
             file.write(f'<meta name="activity-last-ts" content="{latest_activity_ts}">\n')
+
+            # Add smart bookmarks section at the top
+            bookmarks_html = self._generate_bookmarks_html()
+            if bookmarks_html:
+                file.write(bookmarks_html)
 
             # Add stock prices at the top
             stock_html = stock_prices.get_stock_html()
@@ -2952,6 +2958,308 @@ if (chartsBtn) {
                 return category
         
         return None
+
+    def _generate_bookmarks_html(self) -> str:
+        """Generate HTML section for recent smart bookmarks with inline add/edit."""
+        try:
+            bookmarks = database.get_bookmarks(limit=10, include_archived=False)
+        except Exception as e:
+            print(f"WARNING: could not load bookmarks: {e}")
+            bookmarks = []
+
+        tz = pytz.timezone(TIMEZONE)
+        count = len(bookmarks)
+
+        bm_html = '''
+    <div id="bookmarks-section" style="background-color: #f0f4ff; border: 1px solid #b8c9e8; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0; color: #333; font-size: 18px; display: flex; align-items: center; justify-content: space-between;">
+            <span>\U0001f516 Smart Bookmarks</span>
+            <span>
+                <button onclick="document.getElementById('bm-add-form').style.display=document.getElementById('bm-add-form').style.display==='none'?'block':'none'" style="background:#4c6ef5; color:white; border:none; padding:4px 14px; border-radius:5px; cursor:pointer; font-size:13px; margin-right:6px;">+ Add Bookmark</button>
+                <a href="bookmarks.html" style="font-size: 12px; font-weight: normal; color: #4c6ef5; text-decoration: none;" title="Manage all bookmarks">View All \u2192</a>
+            </span>
+        </h3>
+
+        <!-- Inline Add Bookmark Form (hidden by default) -->
+        <div id="bm-add-form" style="display:none; background:#fff; border:1px solid #c5d0e0; border-radius:6px; padding:12px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:12px; color:#555; font-weight:600;">URL *</label>
+                    <input type="text" id="bm-url" placeholder="https://example.com/article" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:#555; font-weight:600;">Title</label>
+                    <input type="text" id="bm-title" placeholder="Page title (auto-filled by bookmarklet)" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+            </div>
+            <div style="margin-bottom:8px;">
+                <label style="font-size:12px; color:#555; font-weight:600;">Summary</label>
+                <input type="text" id="bm-summary" placeholder="Brief description of the page" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+            </div>
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:8px;">
+                <div>
+                    <label style="font-size:12px; color:#555; font-weight:600;">Notes (why save this?)</label>
+                    <input type="text" id="bm-notes" placeholder="Your personal notes on why to revisit" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:12px; color:#555; font-weight:600;">Tags (comma-separated)</label>
+                    <input type="text" id="bm-tags" placeholder="ai, tutorial, reference" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <button onclick="document.getElementById('bm-add-form').style.display='none'" style="background:#e0e0e0; color:#333; border:none; padding:5px 14px; border-radius:4px; cursor:pointer; font-size:13px; margin-right:6px;">Cancel</button>
+                <button onclick="addBookmarkFromForm()" style="background:#4c6ef5; color:white; border:none; padding:5px 14px; border-radius:4px; cursor:pointer; font-size:13px;">Save Bookmark</button>
+            </div>
+        </div>
+'''
+
+        if not bookmarks:
+            bm_html += '''
+        <div style="text-align:center; padding:20px; color:#888; font-size:14px;">
+            No bookmarks yet. Click <b>+ Add Bookmark</b> above, or install the
+            <a href="bookmarklet.html" target="_blank" style="color:#4c6ef5;">browser bookmarklet</a>
+            to save pages while browsing.
+        </div>
+'''
+        else:
+            bm_html += '''
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead>
+                <tr style="background: #dbe4f0; text-align: left;">
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0;">Title</th>
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0; max-width: 300px;">Summary</th>
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0;">Notes</th>
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0;">Tags</th>
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0;">Saved</th>
+                    <th style="padding: 6px 8px; border: 1px solid #c5d0e0; width: 60px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+'''
+            for bm in bookmarks:
+                title_raw = bm.get('title') or bm.get('url', '')
+                url = html.escape(bm.get('url', ''))
+                summary_raw = bm.get('summary') or ''
+                notes_raw = bm.get('notes') or ''
+                tags_raw = bm.get('tags') or ''
+                bm_id = bm.get('id', '')
+
+                title = html.escape(title_raw)
+                if len(title) > 60:
+                    title = title[:57] + '...'
+                summary = html.escape(summary_raw)
+                if len(summary) > 120:
+                    summary = summary[:117] + '...'
+                notes_escaped = html.escape(notes_raw)
+
+                ts = bm.get('timestamp')
+                time_str = ''
+                if ts:
+                    try:
+                        dt = datetime.datetime.fromtimestamp(float(ts), tz)
+                        time_str = dt.strftime('%b %d %H:%M')
+                    except Exception:
+                        pass
+
+                screenshot = bm.get('screenshot_path')
+                thumb_html = ''
+                if screenshot:
+                    thumb_html = f'<img src="http://127.0.0.1:8042/bookmark_screenshots/{html.escape(screenshot)}" style="max-height:30px; max-width:50px; border-radius:3px; margin-right:6px; vertical-align:middle;" title="Screenshot">'
+
+                tag_badges = ''
+                if tags_raw:
+                    for tag in tags_raw.split(','):
+                        tag = tag.strip()
+                        if tag:
+                            tag_badges += f'<span style="background:#4c6ef5; color:white; padding:1px 6px; border-radius:10px; font-size:11px; margin-right:3px;">{html.escape(tag)}</span>'
+
+                # Notes cell is editable: click to edit inline
+                notes_json = html.escape(json.dumps(notes_raw))
+                title_json = html.escape(json.dumps(title_raw))
+                summary_json = html.escape(json.dumps(summary_raw))
+                tags_json = html.escape(json.dumps(tags_raw))
+                url_json = html.escape(json.dumps(bm.get('url', '')))
+                bm_html += f'''                <tr style="border-bottom: 1px solid #dde3ee;" data-bookmark-id="{bm_id}">
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0;">{thumb_html}<a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;" title="{url}">{title}</a></td>
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0; max-width: 300px; color: #555;">{summary}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0; color: #666; font-style: italic; cursor:pointer;" onclick="editBookmarkNotes({bm_id}, this)" title="Click to edit notes" id="bm-notes-{bm_id}">{notes_escaped}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0;">{tag_badges}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0; white-space: nowrap; color: #888;">{time_str}</td>
+                    <td style="padding: 6px 8px; border: 1px solid #e0e6f0; text-align: center; white-space: nowrap;">
+                        <button onclick='openEditBookmark({bm_id}, {title_json}, {summary_json}, {notes_json}, {tags_json}, {url_json})' title="Edit all fields" style="background:none; border:none; cursor:pointer; font-size:13px; color:#4c6ef5;">\u270e</button>
+                        <button onclick="archiveBookmark({bm_id})" title="Archive" style="background:none; border:none; cursor:pointer; font-size:13px; color:#999;">\u2716</button>
+                    </td>
+                </tr>
+'''
+
+            bm_html += '''            </tbody>
+        </table>
+'''
+
+        bm_html += f'''
+        <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888;">
+            <span>
+                <a href="bookmarklet.html" target="_blank" style="color:#4c6ef5; text-decoration:none;">
+                    \U0001f4cc Install browser bookmarklet
+                </a>
+                &mdash; one click to save any page while browsing
+            </span>
+            <span>{count} bookmark{"s" if count != 1 else ""} &middot;
+                <a href="bookmarks.html" style="color:#4c6ef5; text-decoration:none;">Manage all bookmarks</a>
+            </span>
+        </div>
+    </div>
+
+    <script>
+    function addBookmarkFromForm() {{
+        const url = document.getElementById('bm-url').value.trim();
+        if (!url) {{ alert('URL is required'); return; }}
+        const payload = {{
+            url: url,
+            title: document.getElementById('bm-title').value.trim() || null,
+            summary: document.getElementById('bm-summary').value.trim() || null,
+            notes: document.getElementById('bm-notes').value.trim() || null,
+            tags: document.getElementById('bm-tags').value.trim() || null,
+            timestamp: Date.now() / 1000
+        }};
+        fetch('http://127.0.0.1:8042/bookmarks/add', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify(payload)
+        }})
+        .then(r => r.json())
+        .then(data => {{
+            if (data.status === 'success') {{
+                alert('Bookmark saved!' + (data.bookmark && data.bookmark.title ? '\\nTitle: ' + data.bookmark.title : '') + (data.bookmark && data.bookmark.summary ? '\\nSummary: ' + data.bookmark.summary : ''));
+                location.reload();
+            }} else {{
+                alert('Failed: ' + (data.error || 'Unknown error'));
+            }}
+        }})
+        .catch(err => alert('Error: ' + err.message));
+    }}
+
+    function archiveBookmark(id) {{
+        if (!confirm('Archive this bookmark?')) return;
+        fetch('http://127.0.0.1:8042/bookmarks/update', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{id: id, archived: 1}})
+        }}).then(r => r.json()).then(data => {{
+            if (data.status === 'success') {{
+                const row = document.querySelector('tr[data-bookmark-id="' + id + '"]');
+                if (row) row.style.display = 'none';
+            }}
+        }}).catch(err => console.error('Archive failed:', err));
+    }}
+
+    function editBookmarkNotes(id, cell) {{
+        const current = cell.innerText;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = current;
+        input.style.cssText = 'width:100%; padding:3px 6px; border:1px solid #4c6ef5; border-radius:3px; font-size:13px; box-sizing:border-box;';
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+
+        function save() {{
+            const newNotes = input.value.trim();
+            fetch('http://127.0.0.1:8042/bookmarks/update', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                body: JSON.stringify({{id: id, notes: newNotes}})
+            }})
+            .then(r => r.json())
+            .then(data => {{
+                if (data.status === 'success') {{
+                    cell.innerText = newNotes;
+                }} else {{
+                    cell.innerText = current;
+                    alert('Failed to update notes');
+                }}
+            }})
+            .catch(() => {{ cell.innerText = current; }});
+        }}
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {{
+            if (e.key === 'Enter') {{ e.preventDefault(); input.blur(); }}
+            if (e.key === 'Escape') {{ cell.innerText = current; }}
+        }});
+    }}
+
+    /* --- Full Edit Modal --- */
+    function openEditBookmark(id, title, summary, notes, tags, url) {{
+        // Remove existing modal if any
+        const old = document.getElementById('bm-edit-modal');
+        if (old) old.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'bm-edit-modal';
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; display:flex; align-items:center; justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white; border-radius:10px; padding:20px; width:520px; max-width:95vw; box-shadow:0 8px 30px rgba(0,0,0,0.25); font-family:Verdana,sans-serif;">
+                <h3 style="margin:0 0 14px 0; color:#2563eb; font-size:16px;">\\u270e Edit Bookmark #${{id}}</h3>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">URL</label>
+                    <input id="bm-edit-url" type="text" value="${{url.replace(/"/g, '&quot;')}}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Title</label>
+                    <input id="bm-edit-title" type="text" value="${{title.replace(/"/g, '&quot;')}}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Summary <span style="color:#999; font-weight:normal;">(AI-generated if left empty on creation)</span></label>
+                    <input id="bm-edit-summary" type="text" value="${{summary.replace(/"/g, '&quot;')}}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Notes</label>
+                    <input id="bm-edit-notes" type="text" value="${{notes.replace(/"/g, '&quot;')}}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Tags <span style="color:#999; font-weight:normal;">(comma-separated)</span></label>
+                    <input id="bm-edit-tags" type="text" value="${{tags.replace(/"/g, '&quot;')}}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="text-align:right;">
+                    <button onclick="document.getElementById('bm-edit-modal').remove()" style="background:#e0e0e0; color:#333; border:none; padding:6px 16px; border-radius:4px; cursor:pointer; font-size:13px; margin-right:6px;">Cancel</button>
+                    <button onclick="saveEditBookmark(${{id}})" style="background:#4c6ef5; color:white; border:none; padding:6px 16px; border-radius:4px; cursor:pointer; font-size:13px;">Save Changes</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        // Close on backdrop click
+        modal.addEventListener('click', function(e) {{ if (e.target === modal) modal.remove(); }});
+    }}
+
+    function saveEditBookmark(id) {{
+        const payload = {{
+            id: id,
+            url: document.getElementById('bm-edit-url').value.trim(),
+            title: document.getElementById('bm-edit-title').value.trim(),
+            summary: document.getElementById('bm-edit-summary').value.trim(),
+            notes: document.getElementById('bm-edit-notes').value.trim(),
+            tags: document.getElementById('bm-edit-tags').value.trim()
+        }};
+        fetch('http://127.0.0.1:8042/bookmarks/update', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify(payload)
+        }})
+        .then(r => r.json())
+        .then(data => {{
+            if (data.status === 'success') {{
+                document.getElementById('bm-edit-modal').remove();
+                location.reload();
+            }} else {{
+                alert('Failed: ' + (data.error || 'Unknown'));
+            }}
+        }})
+        .catch(err => alert('Error: ' + err.message));
+    }}
+    </script>
+'''
+        return bm_html
 
     def _build_recent_activity_section(self, log_list, date_list, minutes=12):
         if not log_list or not date_list:

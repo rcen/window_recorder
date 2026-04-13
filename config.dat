@@ -77,6 +77,7 @@ hired.com: job_search
 wellfound.com: job_search
 levels.fyi: job_search
 www.kaggle.com: learning
+npr.org: wasted
 
 # Regular categories
 compressing...: work
@@ -153,8 +154,15 @@ ultracopier: work
 fastcopy: work
 projects-build: work
 services.core: work
+keystonecollects: family
+regex__^save ocr project$: work
+regex__^save changes to the following items?$: work
+regex__^new notification$: work
+regex__^copilot usage$: work
 regex__^imagetest properties$: work
 regex__\b% complete$: work
+regex__^ocrengine$: work
+regex__^processing images$: work
 regex__^image processing$: work
 regex__^preferences$: work
 regex__^processing profile$: work

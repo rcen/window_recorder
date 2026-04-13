@@ -125,6 +125,20 @@ def initialize_database():
                 timestamp REAL NOT NULL
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                title TEXT,
+                summary TEXT,
+                notes TEXT,
+                screenshot_path TEXT,
+                tags TEXT,
+                timestamp REAL NOT NULL,
+                local_date TEXT,
+                archived INTEGER NOT NULL DEFAULT 0
+            )
+        ''')
 
         # Migrate existing streak_notes to ensure required columns exist
         try:
@@ -1114,4 +1128,140 @@ def get_must_done_summary_for_coaching() -> list[dict]:
     return tasks
 
 
+# --- Bookmark Functions ---
 
+def add_bookmark(url: str, title: str | None = None, summary: str | None = None,
+                 notes: str | None = None, screenshot_path: str | None = None,
+                 tags: str | None = None, timestamp: float | None = None) -> dict | None:
+    """Add a new bookmark.
+
+    Args:
+        url: The page URL (required).
+        title: Page title.
+        summary: Short summary / meta description of the page.
+        notes: User's personal notes on why they want to revisit.
+        screenshot_path: Relative path to a screenshot image file.
+        tags: Comma-separated tags.
+        timestamp: Unix timestamp (defaults to now).
+
+    Returns:
+        Dict with the inserted bookmark data, or None on failure.
+    """
+    if not url:
+        return None
+    ts = timestamp or time.time()
+    local_date = calculate_adjusted_local_date(ts)
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO bookmarks (url, title, summary, notes, screenshot_path, tags, timestamp, local_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (url, title, summary, notes, screenshot_path, tags, ts, local_date))
+            conn.commit()
+            return {
+                'id': cursor.lastrowid,
+                'url': url,
+                'title': title,
+                'summary': summary,
+                'notes': notes,
+                'screenshot_path': screenshot_path,
+                'tags': tags,
+                'timestamp': ts,
+                'local_date': local_date,
+                'archived': 0,
+            }
+    except Exception as e:
+        print(f"Error adding bookmark: {e}")
+        return None
+
+
+def get_bookmarks(limit: int = 20, include_archived: bool = False,
+                  tag_filter: str | None = None) -> list[dict]:
+    """Return recent bookmarks ordered by timestamp descending.
+
+    Args:
+        limit: Max bookmarks to return.
+        include_archived: Whether to include archived bookmarks.
+        tag_filter: If set, only return bookmarks whose tags contain this string.
+
+    Returns:
+        List of bookmark dicts.
+    """
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            query = 'SELECT * FROM bookmarks'
+            conditions: list[str] = []
+            params: list = []
+            if not include_archived:
+                conditions.append('archived = 0')
+            if tag_filter:
+                conditions.append('tags LIKE ?')
+                params.append(f'%{tag_filter}%')
+            if conditions:
+                query += ' WHERE ' + ' AND '.join(conditions)
+            query += ' ORDER BY timestamp DESC LIMIT ?'
+            params.append(limit)
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error fetching bookmarks: {e}")
+        return []
+
+
+def update_bookmark(bookmark_id: int, **fields) -> bool:
+    """Update fields on an existing bookmark.
+
+    Allowed fields: title, summary, notes, screenshot_path, tags, archived.
+
+    Returns:
+        True if the row was updated, False otherwise.
+    """
+    allowed = {'url', 'title', 'summary', 'notes', 'screenshot_path', 'tags', 'archived'}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return False
+    set_clause = ', '.join(f'{k} = ?' for k in updates)
+    values = list(updates.values()) + [bookmark_id]
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute(f'UPDATE bookmarks SET {set_clause} WHERE id = ?', values)
+            conn.commit()
+            return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Error updating bookmark {bookmark_id}: {e}")
+        return False
+
+
+def delete_bookmark(bookmark_id: int) -> bool:
+    """Delete a bookmark by id.
+
+    Returns:
+        True if a row was deleted, False otherwise.
+    """
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM bookmarks WHERE id = ?', (bookmark_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+    except Exception as e:
+        print(f"Error deleting bookmark {bookmark_id}: {e}")
+        return False
+
+
+def get_bookmark_by_id(bookmark_id: int) -> dict | None:
+    """Return a single bookmark by its id."""
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM bookmarks WHERE id = ?', (bookmark_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+    except Exception as e:
+        print(f"Error fetching bookmark {bookmark_id}: {e}")
+        return None
