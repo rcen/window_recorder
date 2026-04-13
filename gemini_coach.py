@@ -137,12 +137,18 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         
         # Model fallback chain - try each in order if quota exhausted
         self._model_fallbacks = [
-            'gemini-2.5-pro',   # Primary: best quality, free tier available
-            'gemini-2.5-flash', # Fallback 1: fast, good quality
-            'gemini-2.5-flash-lite', # Fallback 1a: fast, free tier
-            'gemini-2.0-flash', # Fallback 2: stable Gemini flash
-            'gemma-3-27b-it',   # Fallback 3: free, largest Gemma
-            'gemma-3-12b-it',   # Fallback 4: free, good balance
+            'gemini-3.1-pro-preview',     # Primary: latest Gemini 3.1 Pro
+            'gemini-3-pro-preview',       # Fallback 1: Gemini 3 Pro
+            'gemini-2.5-pro',             # Fallback 2: stable Gemini 2.5 Pro
+            'gemini-3-flash-preview',     # Fallback 3: Gemini 3 Flash
+            'gemini-3.1-flash-lite-preview', # Fallback 4: Gemini 3.1 Flash Lite
+            'gemini-2.5-flash',           # Fallback 5: stable 2.5 Flash
+            'gemini-2.5-flash-lite',      # Fallback 6: stable 2.5 Flash Lite
+            'gemini-2.0-flash',           # Fallback 7: stable 2.0 Flash
+            'gemma-4-31b-it',             # Fallback 8: Gemma 4 31B (largest open)
+            'gemma-4-26b-a4b-it',         # Fallback 9: Gemma 4 26B A4B
+            'gemma-3-27b-it',             # Fallback 10: Gemma 3 27B
+            'gemma-3-12b-it',             # Fallback 11: Gemma 3 12B
         ]
         self._model_name = self._model_fallbacks[0]
         
