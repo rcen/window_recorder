@@ -36,6 +36,7 @@
 * **Context:** Use `@filename` to query files.
 * **Shell:** Prefix commands with `!` (e.g., `!pip install`).
 * **Ambiguity:** Ask clarifying questions first.
+* **Workflow:** Always present a detailed implementation plan and obtain the user's explicit approval before writing code, modifying files, or running commands. Never execute directly without review.
 * **Summary:** Describe changes briefly.
 
 ## **7. To-Do**
