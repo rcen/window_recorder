@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Activity Recategorizer - Window Recorder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 100%);
+            --card-bg: rgba(22, 28, 45, 0.6);
+            --card-border: rgba(255, 255, 255, 0.06);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: rgba(79, 70, 229, 0.15);
+            --success: #059669;
+            --danger: #dc2626;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --input-bg: rgba(17, 24, 39, 0.8);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        * { box-sizing: border-box; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #070a13;
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(to right, #818cf8, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            padding: 8px 18px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+        }
+
+        .back-link:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateX(-3px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow);
+        }
+
+        .panel-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #e5e7eb;
+        }
+
+        .panel-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: -12px;
+            margin-bottom: 20px;
+        }
+
+        /* Form styling */
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input[type=text], select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input[type=text]:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+        }
+
+        /* Suggestions and Quick Picks */
+        .suggestion-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .suggestion-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .suggestion-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: #818cf8;
+        }
+
+        .category-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .chip:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: #818cf8;
+        }
+
+        .chip.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+        }
+
+        /* Uncategorized activities list */
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 750px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        /* Custom Scrollbar */
+        .activity-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .activity-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 3px;
+        }
+        .activity-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+        }
+        .activity-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .activity-card {
+            background: rgba(17, 24, 39, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .activity-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.04);
+            transform: translateX(4px);
+        }
+
+        .activity-card.selected {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.08);
+        }
+
+        .activity-info {
+            flex: 1;
+            min-width: 0;
+            padding-right: 16px;
+        }
+
+        .activity-title {
+            font-weight: 500;
+            font-size: 0.95rem;
+            word-break: break-all;
+            margin-bottom: 4px;
+            color: #f3f4f6;
+        }
+
+        .activity-url {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            word-break: break-all;
+        }
+
+        .activity-meta {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .duration-badge {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+
+        .count-badge {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        /* Notifications / Toasts */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--success);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            z-index: 10000;
+            transform: translateY(100px);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast-error {
+            background: var(--danger);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 3.5rem;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+
+        .badge-count {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2px 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Activity Recategorizer</h1>
+            <a href="index.html" class="back-link">&larr; Back to Dashboard</a>
+        </header>
+
+        <div class="grid-layout">
+            <!-- Left Panel: List of Uncategorized Activities -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span>Uncategorized Activities</span>
+                    <span class="badge-count" id="uncategorized-count">0 items</span>
+                </div>
+                <div class="panel-subtitle">
+                    Select an activity to define a categorization rule for it. They are ordered by total duration descending.
+                </div>
+                <div class="activity-list" id="activity-list">
+                    <div class="empty-state">Loading activities...</div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Create Rule Form -->
+            <div class="panel" style="height: fit-content;">
+                <h3 style="margin-top:0; font-size:1.3rem; margin-bottom: 20px; color: #e5e7eb;">Create Mapping Rule</h3>
+                
+                <form id="rule-form" onsubmit="submitRule(event)">
+                    <div class="form-group">
+                        <label for="pattern-input">Rule Pattern (Substring match)</label>
+                        <input type="text" id="pattern-input" placeholder="e.g. stackoverflow or gitlab" required>
+                        <div class="suggestion-box" id="suggestion-box">
+                            <!-- Populated when an activity is clicked -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Target Category</label>
+                        <select id="category-select" required onchange="onCategorySelectChange()">
+                            <option value="" disabled selected>Select category...</option>
+                        </select>
+                        <div class="category-chips" id="category-chips">
+                            <!-- Populated with common categories -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days-select">Update Past History</label>
+                        <select id="days-select">
+                            <option value="7" selected>Recategorize past 7 days</option>
+                            <option value="30">Recategorize past 30 days</option>
+                            <option value="0">Recategorize all-time history</option>
+                        </select>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:6px;">
+                            Applying this rule will automatically reassign matching past events.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submit-btn">Save & Update Database</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const API = 'http://127.0.0.1:8042';
+        let uncategorizedData = [];
+        let systemCategories = [];
+        let selectedActivity = null;
+
+        async function init() {
+            await loadCategories();
+            await loadUncategorized();
+        }
+
+        async function loadCategories() {
+            try {
+                const resp = await fetch(`${API}/categories/list`);
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    systemCategories = data.data;
+                    populateCategorySelectAndChips();
+                }
+            } catch (err) {
+                showToast('Failed to load categories', true);
+            }
+        }
+
+        function populateCategorySelectAndChips() {
+            const select = document.getElementById('category-select');
+            const chips = document.getElementById('category-chips');
+            
+            // Clear
+            select.innerHTML = '<option value="" disabled selected>Select category...</option>';
+            chips.innerHTML = '';
+
+            systemCategories.forEach(cat => {
+                // Select Option
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                select.appendChild(opt);
+
+                // Chip
+                const chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.textContent = cat;
+                chip.onclick = () => selectCategory(cat);
+                chips.appendChild(chip);
+            });
+        }
+
+        function selectCategory(cat) {
+            const select = document.getElementById('category-select');
+            select.value = cat;
+            
+            // Update chip highlights
+            const chips = document.querySelectorAll('#category-chips .chip');
+            chips.forEach(c => {
+                if (c.textContent === cat) {
+                    c.classList.add('selected');
+                } else {
+                    c.classList.remove('selected');
+                }
+            });
+        }
+
+        function onCategorySelectChange() {
+            const select = document.getElementById('category-select');
+            selectCategory(select.value);
+        }
+
+        async function loadUncategorized() {
+            const listDiv = document.getElementById('activity-list');
+            try {
+                const resp = await fetch(`${API}/activity/uncategorized?limit=150`);
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    uncategorizedData = data.data;
+                    document.getElementById('uncategorized-count').textContent = `${uncategorizedData.length} items`;
+                    renderUncategorizedList();
+                }
+            } catch (err) {
+                listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div>Could not load uncategorized activities.</div>';
+            }
+        }
+
+        function renderUncategorizedList() {
+            const listDiv = document.getElementById('activity-list');
+            if (uncategorizedData.length === 0) {
+                listDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div>All activities have been categorized!</div>';
+                return;
+            }
+
+            listDiv.innerHTML = '';
+            uncategorizedData.forEach((act, index) => {
+                const card = document.createElement('div');
+                card.className = 'activity-card';
+                if (selectedActivity && selectedActivity.window_title === act.window_title && selectedActivity.window_url === act.window_url) {
+                    card.classList.add('selected');
+                }
+                
+                card.onclick = () => selectActivityItem(act, card);
+
+                const info = document.createElement('div');
+                info.className = 'activity-info';
+
+                const title = document.createElement('div');
+                title.className = 'activity-title';
+                title.textContent = act.window_title || '(No Window Title)';
+                info.appendChild(title);
+
+                if (act.window_url) {
+                    const url = document.createElement('div');
+                    url.className = 'activity-url';
+                    url.textContent = act.window_url;
+                    info.appendChild(url);
+                }
+
+                const meta = document.createElement('div');
+                meta.className = 'activity-meta';
+
+                const duration = document.createElement('span');
+                duration.className = 'duration-badge';
+                duration.textContent = formatDuration(act.total_duration);
+                meta.appendChild(duration);
+
+                const count = document.createElement('span');
+                count.className = 'count-badge';
+                count.textContent = `${act.occurrence_count} occurrences`;
+                meta.appendChild(count);
+
+                card.appendChild(info);
+                card.appendChild(meta);
+                listDiv.appendChild(card);
+            });
+        }
+
+        function selectActivityItem(act, cardElement) {
+            selectedActivity = act;
+            
+            // Highlight card
+            document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'));
+            cardElement.classList.add('selected');
+
+            // Generate suggestions
+            const suggestions = generateSuggestions(act);
+            const sugBox = document.getElementById('suggestion-box');
+            sugBox.innerHTML = '';
+
+            suggestions.forEach(sug => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'suggestion-btn';
+                btn.textContent = sug.label;
+                btn.onclick = () => {
+                    document.getElementById('pattern-input').value = sug.pattern;
+                };
+                sugBox.appendChild(btn);
+            });
+
+            // Set pattern input to first suggestion default
+            if (suggestions.length > 0) {
+                document.getElementById('pattern-input').value = suggestions[0].pattern;
+            }
+        }
+
+        function generateSuggestions(act) {
+            const list = [];
+            
+            // 1. If there's a URL, extract domain name or host
+            if (act.window_url) {
+                try {
+                    let cleanUrl = act.window_url;
+                    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                        cleanUrl = 'https://' + cleanUrl;
+                    }
+                    const urlObj = new URL(cleanUrl);
+                    let domain = urlObj.hostname;
+                    if (domain.startsWith('www.')) domain = domain.substring(4);
+                    list.push({ label: `Domain: ${domain}`, pattern: domain });
+                    
+                    // Regex alternative
+                    list.push({ label: `Regex: ${domain}`, pattern: `regex__${domain}` });
+                } catch (e) {
+                    // Ignore malformed URL parsing
+                }
+            }
+
+            // 2. Clean Window Title suggestions
+            if (act.window_title) {
+                const title = act.window_title.trim();
+                
+                // Keep first 2-3 words or specific keywords
+                const words = title.split(/[\s\-—|·]+/);
+                const firstWord = words[0].replace(/[^\w]/g, '');
+                if (firstWord && firstWord.length > 2) {
+                    list.push({ label: `Substring: ${firstWord}`, pattern: firstWord });
+                }
+
+                // If window title has a dash/pipe separator, take the prefix
+                const separatorMatch = title.match(/^(.+?)\s*[-|—·]/);
+                if (separatorMatch && separatorMatch[1]) {
+                    const cleanPrefix = separatorMatch[1].trim();
+                    if (cleanPrefix.length > 2) {
+                        list.push({ label: `Prefix: ${cleanPrefix}`, pattern: cleanPrefix });
+                    }
+                }
+                
+                // Exact window title match
+                if (title.length < 50) {
+                    list.push({ label: 'Exact Window Title', pattern: title });
+                }
+            }
+
+            return list;
+        }
+
+        async function submitRule(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const pattern = document.getElementById('pattern-input').value.trim();
+            const category = document.getElementById('category-select').value;
+            const days = parseInt(document.getElementById('days-select').value);
+
+            if (!pattern || !category) {
+                showToast('Please fill out all fields', true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const resp = await fetch(`${API}/activity/categorize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pattern, category, days })
+                });
+                const data = await resp.json();
+                
+                if (data.status === 'success') {
+                    showToast(`Mapped '${pattern}' to '${category}'! Updated ${data.updated_activities} past activities.`);
+                    
+                    // Reset selected
+                    selectedActivity = null;
+                    document.getElementById('pattern-input').value = '';
+                    document.getElementById('suggestion-box').innerHTML = '';
+                    
+                    // Reload data
+                    await loadUncategorized();
+                } else {
+                    showToast(data.error || 'Failed to apply rule', true);
+                }
+            } catch (err) {
+                showToast('Network error or server down', true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save & Update Database';
+            }
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSecs = Math.round(seconds % 60);
+            if (minutes < 60) return `${minutes}m ${remainingSecs}s`;
+            const hours = Math.floor(minutes / 60);
+            const remainingMins = minutes % 60;
+            return `${hours}h ${remainingMins}m`;
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            if (isError) {
+                toast.classList.add('toast-error');
+            } else {
+                toast.classList.remove('toast-error');
+            }
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4500);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -288,3 +288,71 @@ WARNING_DIALOG_AUTOCLOSE_SECONDS_SYSTEM = get_warning_dialog_autoclose_seconds_s
 WASTED_WARNING_SNOOZE_SECONDS = get_wasted_warning_snooze_seconds()
 PRODUCTIVITY_WARNING_SNOOZE_SECONDS = get_productivity_warning_snooze_seconds()
 SYSTEM_WARNING_SNOOZE_SECONDS = get_system_warning_snooze_seconds()
+
+
+def add_category_rule_to_file(pattern: str, category: str) -> bool:
+    """Adds a new category rule to config.dat.
+    
+    If the pattern already exists in the [CATEGORIES] section, its category is updated.
+    If not, the rule is inserted at the top of the [CATEGORIES] section.
+    """
+    config_path = os.path.join(os.path.dirname(__file__), 'config.dat')
+    if not os.path.exists(config_path):
+        return False
+        
+    pattern = pattern.strip()
+    category = category.strip()
+    
+    with open(config_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+        
+    in_categories = False
+    pattern_lower = pattern.lower()
+    updated = False
+    
+    new_lines = []
+    
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('[') and stripped.endswith(']'):
+            section = stripped[1:-1].strip().upper()
+            if section == 'CATEGORIES':
+                in_categories = True
+            else:
+                in_categories = False
+                
+        if in_categories and ':' in line and not stripped.startswith('#'):
+            parts = line.split(':', 1)
+            key = parts[0].strip()
+            if key.lower() == pattern_lower:
+                newline_char = '\n' if line.endswith('\n') else '\r\n'
+                new_lines.append(f"{parts[0]}: {category}{newline_char}")
+                updated = True
+                continue
+                
+        new_lines.append(line)
+        
+    if not updated:
+        final_lines = []
+        in_categories = False
+        inserted = False
+        for line in new_lines:
+            final_lines.append(line)
+            stripped = line.strip()
+            if stripped.startswith('[') and stripped.endswith(']'):
+                section = stripped[1:-1].strip().upper()
+                if section == 'CATEGORIES':
+                    in_categories = True
+                    
+            if in_categories and not inserted:
+                newline_char = '\n' if line.endswith('\n') else '\r\n'
+                final_lines.append(f"{pattern}: {category}{newline_char}")
+                inserted = True
+                
+        new_lines = final_lines
+        
+    with open(config_path, 'w', encoding='utf-8') as f:
+        f.writelines(new_lines)
+        
+    return True
+

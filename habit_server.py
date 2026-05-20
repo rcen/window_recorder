@@ -229,6 +229,50 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'bookmarks.html not found'}).encode('utf-8'))
                 return
         
+        # Serve recategorization page
+        if parsed.path == '/categorize':
+            try:
+                with open('html/categorize.html', 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
+            except FileNotFoundError:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'categorize.html not found'}).encode('utf-8'))
+                return
+
+        # Fetch list of uncategorized activities
+        if parsed.path == '/activity/uncategorized':
+            try:
+                params = parse_qs(parsed.query)
+                limit = int(params.get('limit', [100])[0])
+                uncategorized = database.get_uncategorized_activities(limit)
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'data': uncategorized}).encode('utf-8'))
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
+        # Fetch list of all active categories in system
+        if parsed.path == '/categories/list':
+            try:
+                from categories import PRODUCTIVE_CATS, WASTED_CATS, NEUTRAL_CATS
+                all_cats = sorted(list(PRODUCTIVE_CATS | WASTED_CATS | NEUTRAL_CATS))
+                all_cats = [c for c in all_cats if c not in ('not categorized', 'no_cat')]
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'status': 'success', 'data': all_cats}).encode('utf-8'))
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
         # Handle productivity endpoints
         if parsed.path == '/productivity':
             self._handle_productivity_get()
@@ -791,6 +835,54 @@ class HabitRequestHandler(BaseHTTPRequestHandler):
                     'status': 'success',
                     'id': note_id,
                     'recent_notes': notes_list
+                }).encode('utf-8'))
+                return
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode('utf-8'))
+                return
+
+        if parsed.path == '/activity/categorize':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = self.rfile.read(length)
+                payload = json.loads(body.decode('utf-8')) if body else {}
+            except json.JSONDecodeError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid JSON'}).encode('utf-8'))
+                return
+
+            pattern = (payload.get('pattern') or '').strip()
+            category = (payload.get('category') or '').strip()
+            days = payload.get('days')
+            if days is not None:
+                try:
+                    days = int(days)
+                except ValueError:
+                    days = 7
+            else:
+                days = 7
+
+            if not pattern or not category:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing pattern or category'}).encode('utf-8'))
+                return
+
+            try:
+                import config
+                import recategorize
+                success = config.add_category_rule_to_file(pattern, category)
+                if not success:
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({'error': 'Failed to write category rule to config.dat'}).encode('utf-8'))
+                    return
+                
+                updated_count = recategorize.recategorize_past_week(days=days)
+                self._set_headers(200)
+                self.wfile.write(json.dumps({
+                    'status': 'success',
+                    'message': f"Successfully mapped '{pattern}' to '{category}'.",
+                    'updated_activities': updated_count
                 }).encode('utf-8'))
                 return
             except Exception as e:

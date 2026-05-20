@@ -1265,3 +1265,47 @@ def get_bookmark_by_id(bookmark_id: int) -> dict | None:
     except Exception as e:
         print(f"Error fetching bookmark {bookmark_id}: {e}")
         return None
+
+
+def get_uncategorized_activities(limit: int = 100) -> list[dict]:
+    """Queries the SQLite database for activities where category = 'not categorized'.
+    
+    Groups them by window_title and window_url, sums their durations, counts occurrences,
+    and orders them by sum of duration descending.
+    """
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(activity)")
+        cols = [r[1] for r in cursor.fetchall()]
+        has_url = 'window_url' in cols
+        
+        if has_url:
+            query = """
+                SELECT window_title, window_url, SUM(duration) as total_duration, COUNT(*) as occurrence_count
+                FROM activity
+                WHERE category = 'not categorized'
+                GROUP BY window_title, window_url
+                ORDER BY total_duration DESC
+                LIMIT ?
+            """
+        else:
+            query = """
+                SELECT window_title, NULL as window_url, SUM(duration) as total_duration, COUNT(*) as occurrence_count
+                FROM activity
+                WHERE category = 'not categorized'
+                GROUP BY window_title
+                ORDER BY total_duration DESC
+                LIMIT ?
+            """
+        cursor.execute(query, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error fetching uncategorized activities: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+

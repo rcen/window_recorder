@@ -59,12 +59,15 @@ def list_activities_by_category(category):
         print(f"An unexpected error occurred: {e}")
 
 
-def recategorize_past_week():
+def recategorize_past_week(days=7):
     """
-    Recategorizes all activities from the past week based on the current
-    rules in config.dat.
+    Recategorizes all activities from the past N days based on the current
+    rules in config.dat. If days is None or 0, recategorizes all activities.
     """
-    print("Starting recategorization of the last 7 days...")
+    if days:
+        print(f"Starting recategorization of the last {days} days...")
+    else:
+        print("Starting recategorization of all activities...")
     
     # Use the Analytics class to get the current categorization logic
     try:
@@ -78,40 +81,43 @@ def recategorize_past_week():
         with sqlite3.connect(DB_FILE) as conn:
             cursor = conn.cursor()
 
-            # Calculate the timestamp for 7 days ago
-            seven_days_ago = time.time() - timedelta(days=7).total_seconds()
-
-            # Get all activities from the last 7 days
+            # Get columns in activity table
             cursor.execute("PRAGMA table_info(activity)")
             columns = [row[1] for row in cursor.fetchall()]
             has_window_url = 'window_url' in columns
 
-            if has_window_url:
-                cursor.execute(
-                    "SELECT id, window_title, window_url, category FROM activity WHERE timestamp >= ?",
-                    (seven_days_ago,)
-                )
+            # Build query and params based on days argument
+            if days:
+                cutoff_time = time.time() - timedelta(days=days).total_seconds()
+                if has_window_url:
+                    cursor.execute(
+                        "SELECT id, window_title, window_url, category FROM activity WHERE timestamp >= ?",
+                        (cutoff_time,)
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT id, window_title, NULL as window_url, category FROM activity WHERE timestamp >= ?",
+                        (cutoff_time,)
+                    )
             else:
-                cursor.execute(
-                    "SELECT id, window_title, NULL as window_url, category FROM activity WHERE timestamp >= ?",
-                    (seven_days_ago,)
-                )
+                if has_window_url:
+                    cursor.execute("SELECT id, window_title, window_url, category FROM activity")
+                else:
+                    cursor.execute("SELECT id, window_title, NULL as window_url, category FROM activity")
+                    
             activities = cursor.fetchall()
             
             if not activities:
-                print("No activities found in the last 7 days to recategorize.")
+                print("No activities found to recategorize.")
                 return
 
-            print(f"Found {len(activities)} activities to check from the past week.")
+            print(f"Found {len(activities)} activities to check.")
             
             update_count = 0
             updates = []
 
             for activity in activities:
-                if has_window_url:
-                    activity_id, window_title, window_url, old_category = activity
-                else:
-                    activity_id, window_title, window_url, old_category = activity
+                activity_id, window_title, window_url, old_category = activity
                 # Get the new category based on current rules
                 new_category = analytic.get_cat(window_title, window_url)
                 
@@ -122,7 +128,7 @@ def recategorize_past_week():
             
             if not updates:
                 print("All categories are already up-to-date.")
-                return
+                return 0
 
             # Perform all database updates in one transaction
             print(f"Found {update_count} activities that need recategorization. Updating now...")
@@ -130,11 +136,14 @@ def recategorize_past_week():
             conn.commit()
             
             print(f"Successfully updated {cursor.rowcount} activities.")
+            return cursor.rowcount
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
+        return 0
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        return 0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Recategorize activities or list them by category.")

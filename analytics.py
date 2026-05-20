@@ -1004,6 +1004,27 @@ test:
 
 
     def get_cat(self, window, url=None):
+        # Check if config.dat has been updated
+        config_path = 'config.dat'
+        if os.path.exists(config_path):
+            try:
+                mtime = os.path.getmtime(config_path)
+                if not hasattr(self, '_config_mtime') or mtime > self._config_mtime:
+                    self._config_mtime = mtime
+                    # Reload config
+                    self.config = self._load_config()
+                    self.string_cats = self.config.items('CATEGORIES')
+                    self._raw_color_list = self.config.items('COLORS')
+                    self.color_list, self._color_flags = self._parse_colors_with_flags(self._raw_color_list)
+                    self.proj_list = self.config.items('PROJECTS')
+                    self._activity_summary_hidden_cats = {
+                        cat
+                        for cat, flags in (self._color_flags or {}).items()
+                        if ('no_show_summary' in flags) or ('hide_summary' in flags) or ('hide_activity_summary' in flags)
+                    }
+            except Exception:
+                pass
+
         # Always treat 'desktop' as idle
         if window.strip().lower() == 'desktop':
             return 'idle'

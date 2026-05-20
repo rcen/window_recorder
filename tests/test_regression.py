@@ -368,6 +368,32 @@ class TestDatabaseOperations:
         assert count > 0
         conn.close()
 
+    def test_get_uncategorized_activities(self, test_db):
+        """Test retrieving uncategorized activities."""
+        import database
+        original_db_file = database.DB_FILE
+        database.DB_FILE = test_db
+        try:
+            # Insert some uncategorized records in the test db with high duration to be in top
+            conn = sqlite3.connect(test_db)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO activity (timestamp, category, duration, window_title, window_url, local_date)
+                VALUES (1700000000, 'not categorized', 999999, 'Uncategorized App', 'http://uncategorized.com', '2025-12-31')
+            ''')
+            conn.commit()
+            conn.close()
+
+            res = database.get_uncategorized_activities(limit=5)
+            assert len(res) > 0
+            # Since duration is 999999, it must be the first result
+            assert res[0]['window_title'] == 'Uncategorized App'
+            assert res[0]['window_url'] == 'http://uncategorized.com'
+            assert res[0]['total_duration'] == 999999
+            assert res[0]['occurrence_count'] == 1
+        finally:
+            database.DB_FILE = original_db_file
+
 
 # =============================================================================
 # CATEGORY ALIASES TESTS

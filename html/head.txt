@@ -60,4 +60,12 @@
 
 <body>
 <h1>Track your time - don't waste it! pm CLOCK</h1>
+<div style="margin-bottom: 20px; display: flex; gap: 15px; font-size: 14px; font-family: 'Verdana', sans-serif;">
+    <a href="index.html" style="color: #4c6ef5; text-decoration: none; font-weight: bold;">📊 Dashboard</a>
+    <span style="color: #ccc;">|</span>
+    <a href="categorize.html" style="color: #4c6ef5; text-decoration: none; font-weight: bold;">⚡ Recategorize Activities</a>
+    <span style="color: #ccc;">|</span>
+    <a href="bookmarks.html" style="color: #4c6ef5; text-decoration: none; font-weight: bold;">🔖 Bookmarks</a>
+</div>
+
 
