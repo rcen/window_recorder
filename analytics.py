@@ -1811,7 +1811,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 f'  <div style="height:9px; background:rgba(76,175,80,0.12); border-radius:999px; overflow:hidden; margin-top:10px;">\n'
                 f'    <div id="work-timer-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #66bb6a, #2e7d32);"></div>\n'
                 f'  </div>\n'
-                f'  <div id="work-timer-done" style="display:none; margin-top:10px; color:#1b5e20; font-weight:800;">Threshold reached — keep going.</div>\n'
+                f'  <div id="work-timer-done" style="display:none; margin-top:10px; color:#1b5e20; font-weight:800;">Goal reached!</div>\n'
                 f'</div>\n'
                 f'<button id="work-timer-fab" type="button" '
                 f'  style="display:none; position:fixed; right:18px; bottom:18px; z-index:9998; '
