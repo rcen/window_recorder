@@ -1791,7 +1791,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 f'data-threshold-min="{int(streak_threshold)}" '
                 f'data-category="{html.escape(current_category_lower)}" '
                 f'style="display:none; position:fixed; right:18px; bottom:18px; z-index:9999; '
-                f'max-width:360px; width:calc(100vw - 36px); '
+                f'max-width:250px; width:calc(100vw - 36px); '
                 f'background:rgba(255,255,255,0.96); backdrop-filter: blur(8px); '
                 f'border:1px solid rgba(76,175,80,0.35); border-left:6px solid #4caf50; '
                 f'border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.18); '
