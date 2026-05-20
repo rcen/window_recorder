@@ -1135,9 +1135,17 @@ test:
                 dur_map = dict(zip(u_cats_log, u_dur_log))
                 
                 # Add class to hide older rows - show only the latest 3 days (at the bottom)
-                row_class = '' if idx >= total_logs - 3 else ' class="summary-extra-row" style="display:none;"'
-                row = f'<tr{row_class}>'
-                row += '<td><b>{0:02}.{1:02}.{2:04},{3}</b></td>'.format(date.month, date.day, date.year, week_days[date.weekday()])
+                row_class_attr = ' class="summary-extra-row"' if idx < total_logs - 3 else ''
+                is_weekend = date.weekday() >= 5
+                bg_style = 'background-color:#fff9db;' if is_weekend else ''
+                style_parts = []
+                if idx < total_logs - 3:
+                    style_parts.append('display:none;')
+                if bg_style:
+                    style_parts.append(bg_style)
+                style_attr = f' style="{" ".join(style_parts)}"' if style_parts else ''
+                row = f'<tr{row_class_attr}{style_attr}>'
+                row += '<td><b>{0:02}/{1:02}, {2}</b></td>'.format(date.month, date.day, week_days[date.weekday()][:3])
                 
                 # Categories to show ratio for - use centralized definition
                 ratio_cats = RATIO_DISPLAY_CATS

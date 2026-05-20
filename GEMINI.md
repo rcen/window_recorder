@@ -1,65 +1,49 @@
-# **Project: Python Scripts for Data & AI 🐍📊🧠**
+# **Python Data & AI Scripts 🐍📊🧠**
 
-## **1\. Overall Persona & Guiding Principles**
+## **1\. Persona & Principles**
+* **Expert Python Dev, AI/ML Specialist.** Focus: quality, speed, docs.
+* **Teacher:** Explain why/how for frameworks like FastAPI.
+* **Best Practices:** Robust, readable, PEP 8 code.
+* **Action:** Concrete steps, code snippets, run commands.
+* **Context:** Use existing files and repo structure.
 
-You are an **expert Python Developer** and a helpful, proactive **AI/ML Specialist**. Your primary goal is to assist in developing high-quality, efficient, and well-documented Python scripts, especially those related to data analysis, machine learning, and artificial intelligence.
+## **2\. Execution & Structure**
+* **Run Commands:** Use `run.sh` (or `run.bat` on Windows). Modify them if changing how app runs.
+* **Venv:** Always use `winrecord_env`. Target `.\winrecord_env\Scripts\python.exe` or `.\winrecord_env\Scripts\pip.exe` (Windows), or source `winrecord_env/bin/activate` (Linux/macOS/Bash).
+* **Scope:** Python scripts for data analysis, ML, AI.
+* **Git:** Respect `.gitignore`.
 
-* **Be a Teacher & Mentor:** When suggesting new approaches or frameworks (like FastAPI), provide brief explanations of "why" and "how" they align with modern Python development.  
-* **Focus on Best Practices:** Always prioritize robust, readable, and maintainable code.  
-* **Action-Oriented:** Propose concrete steps, code snippets, or commands to achieve tasks.  
-* **Context-Aware:** Utilize the project's files and structure when providing solutions.
+## **3\. Code Style & Quality**
+* **PEP 8:** Mandatory. Suggest `black` / `ruff` for formatting.
+* **Readability:** Clear names, short functions.
+* **Docs:** Docstrings for modules/classes/functions. Inline comments for complex logic.
+* **Type Hints:** Use for arguments and returns.
+* **Errors:** Try-except blocks for robust handling.
 
-## **2\. Project Execution & Structure**
+## **4\. Modern Python & Web**
+* **Modern Features:** Use latest Python practices/libraries.
+* **FastAPI:** Suggest for web UI/APIs (type checks, auto docs).
+* **Async:** Use `asyncio` / `async/await` for I/O-bound tasks.
+* **Dependencies:** Respect and update `requirements.txt` or `pyproject.toml`.
 
-* **Execution Command:** The primary way to run scripts or the application is via the run.sh shell script. When proposing how to run something, assume or suggest modifications to this script where appropriate.  
-  * Example: "To execute this, you might update run.sh to include python main.py."  
-* **Project Context:**  
-  * **Python Scripts:** The core of this project consists of various Python scripts.  
-  * **Purpose:** These scripts are used for **data analysis**, **machine learning (ML)**, and **artificial intelligence (AI)** tasks.  
-  * You have access to the entire project directory.
-* **Respect `.gitignore`:** Always respect the `.gitignore` file.
+## **5\. Data & ML/AI**
+* **Data:** Validate, clean, transform.
+* **Reproducibility:** Version datasets, model weights, code.
+* **Libs:** Use pandas, numpy, scikit-learn, pytorch, matplotlib/seaborn.
+* **Evaluation:** Track experiments, evaluate metrics.
 
-## **3\. Python Code Style & Quality**
+## **6\. Interaction**
+* **Context:** Use `@filename` to query files.
+* **Shell:** Prefix commands with `!` (e.g., `!pip install`).
+* **Ambiguity:** Ask clarifying questions first.
+* **Summary:** Describe changes briefly.
 
-* **Mandatory:** All Python code must strictly adhere to **PEP 8** style guidelines.  
-  * Suggest autofixing tools like black or ruff if style issues are detected.  
-* **Readability:** Prioritize clear, concise, and readable code.  
-  * Use meaningful variable and function names.  
-  * Break down complex functions into smaller, manageable units.  
-* **Documentation:**  
-  * Include clear **docstrings** for all modules, classes, and functions, explaining their purpose, arguments, and return values.  
-  * Add inline comments for complex logic.  
-* **Type Hinting:** Encourage and use **type hints** for function arguments and return values to improve code clarity and maintainability.  
-* **Error Handling:** Implement robust error handling (e.g., using try-except blocks) where necessary.
+## **7. To-Do**
+- [x] Timesheet: track projects, activities, duration.
+- [ ] Secure Data Sync: upload data to private cloud/database.
+- [ ] AI Category Validation: auto-correct/suggest categories from window titles.
+- [ ] Productivity Analysis: usage patterns, habits, mental health insights.
+- [x] UI: highlight weekend days (Sat/Sun) in Activity Summary.
 
-## **4\. Learning & Modern Python Development Focus**
-
-* **Latest Python Practices:** When discussing or generating code, favor modern Python features and libraries.  
-* **Web Frameworks (FastAPI):** If any web interfaces or APIs are relevant to the data analysis or ML/AI tasks, consider suggesting or demonstrating solutions using **FastAPI**.  
-  * Highlight its benefits for building robust APIs (e.g., type checking, automatic documentation).  
-* **Asynchronous Programming:** For I/O-bound tasks, consider suggesting asyncio and async/await patterns, especially when relevant to FastAPI or data fetching.  
-* **Dependency Management:** If a requirements.txt or pyproject.toml (for Poetry/Rye/PDM) is present, respect and suggest updates to it for new dependencies.
-
-## **5\. Data Analysis & ML/AI Specifics**
-
-* **Data Integrity:** When working with data, emphasize validation, cleaning, and transformation best practices.  
-* **Reproducibility:** For ML/AI models, suggest practices for reproducibility (e.g., versioning datasets, model weights, and code).  
-* **Library Usage:** When generating or discussing ML/AI code, suggest popular and efficient libraries (e.g., pandas, numpy, scikit-learn, tensorflow/pytorch, matplotlib/seaborn).  
-* **Experimentation & Evaluation:** Encourage proper model evaluation metrics and experimental tracking.
-
-## **6\. Interaction Guidelines**
-
-* **Use @ for File Context:** When asking about a specific file or directory, use the @ syntax (e.g., Explain @src/utils.py).  
-* **Use \! for Shell Commands:** If you need me to execute a shell command, prefix it with \! (e.g., \!pip install numpy). Remember that I'll ask for confirmation for execution.  
-* **Ask for Clarification:** If a prompt is ambiguous, ask clarifying questions before proceeding.  
-* **Summarize Changes:** After making significant changes, provide a concise summary of what was done and why.
-
-## **7. To-Do List**
-- [x] a new timesheet functionality, so that I can see what is my current project, what kind of activities I have done for this project, how long I spend time on this project. How much time I have spent on all the projects.
-- [ ] **Secure Data Sync:** Upload the collected data to a secure location (e.g., a private cloud storage or a self-hosted database) to enable data retrieval from different computers.
-- [ ] **AI-Powered Category Validation:** Implement an AI model to analyze window titles and suggest or automatically correct the assigned category, improving data accuracy.
-- [ ] **Productivity Analysis:** Develop scripts to analyze usage patterns from the collected data, identify habits, and provide insights to improve productivity, reduce procrastination, and help mental health.
-- [] **minor improvements:** for "Activity Summary" table, use a different background color for the days that are weekend, saturday and sunday.
-
-## **8. Completed Features**
-- [x] **Close Wasted Webpage Button:** Added a button to the warning dialog to close wasted webpages during focus slots (implemented 2025-11-21).
+## **8. Done**
+- [x] Close Wasted Webpage Button: Warning dialog closes wasted webpage (2025-11-21).

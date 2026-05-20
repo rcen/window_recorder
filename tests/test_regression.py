@@ -121,7 +121,7 @@ BASELINE_METRICS = {
     'days_count': 7,
     
     # Expected category classifications
-    'productive_categories': {'work', 'learning', 'vibe_coding', 'mail', 'church', 'think', 'job_search'},
+    'productive_categories': {'work', 'learning', 'vibe', 'mail', 'church', 'think', 'job_search'},
     'wasted_categories': {'wasted', 'gaming'},
     'neutral_categories': {'idle', 'family'},
     
@@ -129,7 +129,7 @@ BASELINE_METRICS = {
     'daily_totals': {
         '2025-12-27': {'work': 2652, 'wasted': 6042, 'job_search': 1794},
         '2025-12-31': {'work': 8976, 'learning': 1476},
-        '2026-01-01': {'learning': 6876, 'vibe_coding': 5064, 'job_search': 2148},
+        '2026-01-01': {'learning': 6876, 'vibe': 5064, 'job_search': 2148},
     }
 }
 
@@ -159,7 +159,7 @@ class TestCategoryClassification:
         assert is_productive('Work') == True  # case insensitive
         assert is_productive('WORK') == True
         assert is_productive('learning') == True
-        assert is_productive('vibe_coding') == True
+        assert is_productive('vibe') == True
         assert is_productive('idle') == False
         assert is_productive('wasted') == False
         assert is_productive('gaming') == False
@@ -208,10 +208,10 @@ class TestAggregateStats:
             'work': 100,
             'coding': 50,
             'programming': 30,
-            'vibe_coding': 20  # Note: vibe_coding is NOT in work aliases
+            'vibe': 20  # Note: vibe is NOT in work aliases
         }
         total = aggregate_stats(stats, 'work')
-        assert total == 180  # 100 + 50 + 30 (vibe_coding not included)
+        assert total == 180  # 100 + 50 + 30 (vibe not included)
     
     def test_aggregate_with_missing_categories(self):
         """Test aggregation when some categories are missing."""

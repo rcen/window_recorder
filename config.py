@@ -98,7 +98,7 @@ def get_vibe_repos():
     Reads vibe coding repository names from [VIBE_REPOS] section.
     Returns a dict with 'repos' (list of repo names) and 'paths' (list of folder paths).
     
-    NOTE: Primary vibe_coding detection now happens via [CATEGORIES] section in config.dat.
+    NOTE: Primary vibe detection now happens via [CATEGORIES] section in config.dat.
     This function is kept for potential query-time analysis or backup detection.
     """
     result = {
@@ -122,9 +122,9 @@ def get_vibe_repos():
     return result
 
 
-def is_vibe_coding(window_title: str) -> bool:
+def is_vibe(window_title: str) -> bool:
     """
-    Detect if the current coding activity is "vibe coding" based on window title.
+    Detect if the current coding activity is "vibe" based on window title.
     
     Parses VS Code window titles like:
     - "filename.py - window_recorder - Visual Studio Code"
@@ -151,10 +151,10 @@ def is_vibe_coding(window_title: str) -> bool:
 def get_coding_type(window_title: str) -> str:
     """
     Determine the type of coding activity.
-    Returns: 'vibe_coding', 'work_coding', or 'work' (if undetermined)
+    Returns: 'vibe', 'work_coding', or 'work' (if undetermined)
     """
-    if is_vibe_coding(window_title):
-        return 'vibe_coding'
+    if is_vibe(window_title):
+        return 'vibe'
     
     # If it looks like VS Code but not vibe, assume work
     vscode_indicators = ['visual studio code', 'vscode', '- code']

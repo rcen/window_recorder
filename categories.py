@@ -18,7 +18,7 @@ PRODUCTIVE_CATS = frozenset({
     "work",
     "coding", 
     "programming",
-    "vibe_coding",
+    "vibe",
     "learning",
     "church",
     "think",
@@ -55,7 +55,7 @@ JOB_CATS = frozenset({
 VIBE_CATS = frozenset({
     "work",
     "coding",
-    "vibe_coding", 
+    "vibe", 
     "programming",
     "learning",
 })
@@ -88,6 +88,7 @@ CATEGORY_PRIORITY = {
     'work': 1,
     'programming': 1,
     'coding': 1,
+    'vibe': 1,
     'job_search': 1,
     'learning': 2,
     'mail': 2,

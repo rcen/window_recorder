@@ -55,13 +55,14 @@ system_warning_snooze_seconds = 3600
                                                                                                           
 [CATEGORIES]
 # Vibe coding repos - MUST be before generic coding patterns to match first
-window_recorder: vibe_coding
-tennis_game_log: vibe_coding
-personal_projects: vibe_coding
+window_recorder: vibe
+tennis_game_log: vibe
+personal_projects: vibe
 # Add more vibe repos here as needed
 
 # Job search sites - MUST be early to avoid "search" regex matching first
 hoopladigital.com: learning
+weread.qq.com:learning
 linkedin.com: job_search
 linkedin: job_search
 dice.com: job_search
@@ -97,7 +98,7 @@ google translate: work
 Separators_Tables.md: work
 docker desktop: learning
 transformers: learning
-microsoft pc manager: vibe_coding
+microsoft pc manager: vibe
 rename file: work
 linear_algebra: learning
 job balance needed: learning
@@ -115,7 +116,7 @@ separators_tables: work
 streamyard.com: family
 smore.com: family
 smartsocial.com: family
-neon.com: vibe_coding
+neon.com: vibe
 flychina.com: family
 127.0.0.1: work
 google keep: family
@@ -172,7 +173,7 @@ regex__^start$: work
 regex__^open project$: work
 regex__^load images$: work
 regex__^select flexicapture mode$: work
-regex__\bmicrosoft pc manager\b:vibe_coding
+regex__\bmicrosoft pc manager\b:vibe
 regex__\btk\b: idle
 regex__\bwindows input experience\b: work
 regex__\bpaste window\b: work
@@ -626,7 +627,7 @@ file explorer: work
 172.16: work                                                                                            
 chicore: work                                                                                           
 vm_share: work                                                                                          
-# window_recorder moved to top as vibe_coding
+# window_recorder moved to top as vibe
 network graph: work                                                                                     
 virgin pulse: work                                                                                      
 program manager: work                                                                                   
@@ -734,7 +735,7 @@ jogging: family
 [COLORS]                                                                                                  
 work: #4954EA                                                                                           
 coding: #4954EA                                                                                           
-vibe_coding: #9B59B6
+vibe: #9B59B6
 learning: #F2F767                                                                                         
 gaming: #F68D15                                                                                           
 church: #00A000                                                                                           
