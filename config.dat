@@ -54,6 +54,12 @@ productivity_warning_snooze_seconds = 3600
 system_warning_snooze_seconds = 3600
                                                                                                           
 [CATEGORIES]
+罗 马 书 romans and 7 more pages: church
+choeazycopy: work
+regex__^new$: vibe
+《一个母亲》第2小节在线阅读: learning
+regex__^activity$: vibe
+regex__^🚨 waste ratio alert$: vibe
 # Vibe coding repos - MUST be before generic coding patterns to match first
 window_recorder: vibe
 tennis_game_log: vibe
