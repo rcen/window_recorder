@@ -137,18 +137,19 @@ Remember: You're a professional coach, not a cheerleader. Be direct, helpful, an
         
         # Model fallback chain - try each in order if quota exhausted
         self._model_fallbacks = [
-            'gemini-3.1-pro-preview',     # Primary: latest Gemini 3.1 Pro
-            'gemini-3-pro-preview',       # Fallback 1: Gemini 3 Pro
-            'gemini-2.5-pro',             # Fallback 2: stable Gemini 2.5 Pro
-            'gemini-3-flash-preview',     # Fallback 3: Gemini 3 Flash
-            'gemini-3.1-flash-lite-preview', # Fallback 4: Gemini 3.1 Flash Lite
-            'gemini-2.5-flash',           # Fallback 5: stable 2.5 Flash
-            'gemini-2.5-flash-lite',      # Fallback 6: stable 2.5 Flash Lite
-            'gemini-2.0-flash',           # Fallback 7: stable 2.0 Flash
-            'gemma-4-31b-it',             # Fallback 8: Gemma 4 31B (largest open)
-            'gemma-4-26b-a4b-it',         # Fallback 9: Gemma 4 26B A4B
-            'gemma-3-27b-it',             # Fallback 10: Gemma 3 27B
-            'gemma-3-12b-it',             # Fallback 11: Gemma 3 12B
+            'gemini-3.5-flash',              # Primary: newest frontier model (May 2026)
+            'gemini-3.1-pro-preview',        # Fallback 1: Gemini 3.1 Pro preview
+            'gemini-3.1-pro',                # Fallback 2: Gemini 3.1 Pro stable
+            'gemini-3-pro-preview',          # Fallback 3: Gemini 3 Pro
+            'gemini-2.5-pro',                # Fallback 4: stable Gemini 2.5 Pro
+            'gemini-3-flash-preview',        # Fallback 5: Gemini 3 Flash
+            'gemini-3.1-flash-lite-preview', # Fallback 6: Gemini 3.1 Flash Lite
+            'gemini-2.5-flash',              # Fallback 7: stable 2.5 Flash
+            'gemini-2.5-flash-lite',         # Fallback 8: stable 2.5 Flash Lite
+            'gemma-4-31b-it',                # Fallback 9: Gemma 4 31B (largest open)
+            'gemma-4-26b-a4b-it',            # Fallback 10: Gemma 4 26B A4B
+            'gemma-3-27b-it',                # Fallback 11: Gemma 3 27B
+            'gemma-3-12b-it',                # Fallback 12: Gemma 3 12B
         ]
         self._model_name = self._model_fallbacks[0]
         

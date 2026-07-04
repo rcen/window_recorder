@@ -21,6 +21,7 @@ import json
 import textwrap
 import pytz
 import plotly.express as px
+import plotly.graph_objects as go
 import database
 from config import TIMEZONE, DAY_BOUNDARY_HOUR, HABITS
 from categories import (
@@ -917,6 +918,97 @@ test:
         print('[{}] Pie chart saved as {}'.format(timestamp, path))
 
 
+    def create_interactive_pie(self, logfile=''):
+        """Create an interactive Plotly pie chart saved as HTML with hover tooltips."""
+        if "mod.log" in logfile:
+            return
+
+        tz = pytz.timezone(TIMEZONE)
+        today_date = datetime.datetime.now(tz).date()
+
+        if logfile:
+            date_str = logfile.replace('.csv', '')
+            try:
+                chart_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return
+        else:
+            date_str = today_date.strftime('%Y-%m-%d')
+            chart_date = today_date
+
+        os.makedirs('html/pies', exist_ok=True)
+        path = f'html/pies/{date_str}.html'
+
+        # Skip past days if already generated
+        if chart_date < today_date and os.path.exists(path):
+            return
+
+        u_cats, u_dur, date, _ = self.analyze(logfile)
+        if not date or not any(d > 0 for d in u_dur):
+            return
+
+        # Filter out idle
+        non_idle_data = [(c, d) for c, d in zip(u_cats, u_dur) if c.lower() != 'idle']
+        if not non_idle_data:
+            return
+
+        cats, durs = zip(*non_idle_data)
+        total_dur = sum(durs)
+        color_map = dict(self.color_list)
+        default_color = color_map.get('idle', '#CCCCCC')
+
+        # Build display labels w/ duration
+        labels = []
+        colors = []
+        hover_texts = []
+        for cat, dur in zip(cats, durs):
+            if dur > 0:
+                hr, mn, sec = Sec2hms(dur)
+                labels.append(cat)
+                colors.append(color_map.get(cat, default_color))
+                pct = (dur / total_dur) * 100 if total_dur > 0 else 0
+                hover_texts.append(
+                    f"<b>{cat}</b><br>"
+                    f"Duration: {hr:02}:{mn:02}:{sec:02}<br>"
+                    f"Percentage: {pct:.1f}%"
+                )
+
+        if not labels:
+            return
+
+        weekday_name = date.strftime('%a')
+        total_hr, total_min, total_sec = Sec2hms(total_dur)
+        title = f'{weekday_name}, {date.month:02}.{date.day:02}.{date.year:04} — {total_hr:02}:{total_min:02}:{total_sec:02} h'
+
+        fig = go.Figure(data=[go.Pie(
+            labels=labels,
+            values=[d for d in durs if d > 0],
+            marker=dict(colors=colors),
+            hovertext=hover_texts,
+            hoverinfo='text',
+            textinfo='label+percent',
+            textposition='inside',
+            insidetextorientation='radial',
+        )])
+
+        fig.update_layout(
+            title=dict(text=title, x=0.5, font=dict(size=14)),
+            showlegend=True,
+            legend=dict(
+                orientation='h',
+                yanchor='top', y=-0.05,
+                xanchor='center', x=0.5,
+                font=dict(size=11),
+            ),
+            margin=dict(t=40, b=80, l=10, r=10),
+            height=450,
+        )
+
+        fig.write_html(path, full_html=False, include_plotlyjs='cdn')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f'[{timestamp}] Interactive pie chart saved as {path}')
+
+
     def get_colors(self, logfile):
         colors = []
         u_cats, _, _, _ = self.analyze(logfile)
@@ -1108,31 +1200,174 @@ test:
         with open('html/tail.txt', 'r', encoding='utf-8') as file:
             tail = file.read()
 
+        # 1. Perform all calculations and retrieve all sections at the top
+        current_category = self._get_current_activity_category(log_list, date_list)
+        is_currently_wasting = current_category and is_wasted(current_category)
+        
+        # Refresh defaults (seconds). JS will only reload if there is new activity.
+        refresh_interval = 30 if is_currently_wasting else 60
+        latest_activity_ts = database.get_latest_activity_timestamp() or 0
+
+        # Bookmarks & stocks HTML
+        bookmarks_html = self._generate_bookmarks_html()
+        stock_html = stock_prices.get_stock_html()
+
+        # Warning flags
+        flag_summary_html = self._build_warning_flag_summary()
+
+        # Habits & Must Done HTML
+        habit_section_html, habit_script = self._build_habit_calendar_section()
+        must_done_html = self._build_must_done_section()
+
+        # Productivity streaks
+        streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
+        waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
+        
+        today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
+        longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
+        longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
+
+        # Context switching metrics
+        tz = pytz.timezone(TIMEZONE)
+        now_local = datetime.datetime.now(tz)
+
+        total_switches_today = 0
+        switches_last_hour = 0
+        switch_per_active_hour_last_hour = None
+        if today_date_str:
+            total_switches_today, _, _ = self._calculate_context_switching(today_date_str)
+            switches_last_hour, switch_per_active_hour_last_hour, _ = self._calculate_context_switching_window(
+                today_date_str,
+                now_local,
+                window_seconds=3600,
+            )
+
+        lowest_switch_per_hour_today = self._calculate_lowest_context_switching_rate(today_date_str) if today_date_str else None
+        recent_switches = self._get_recent_context_switches(today_date_str, max_switches=5) if today_date_str else []
+
+        lowest_switch_per_hour_7d = None
+        lowest_switch_per_hour_7d_date = None
+        if date_list:
+            seen_days = []
+            for dt in date_list:
+                if dt is None:
+                    continue
+                try:
+                    if dt.weekday() >= 5:
+                        continue
+                    if dt.strftime('%m-%d') in HOLIDAYS:
+                        continue
+                except Exception:
+                    pass
+
+                day_str = dt.strftime('%Y-%m-%d')
+                if day_str in seen_days:
+                    continue
+                seen_days.append(day_str)
+                if len(seen_days) > 7:
+                    break
+
+                per_hr_low = self._calculate_lowest_context_switching_rate(day_str)
+                if per_hr_low is None:
+                    continue
+                if lowest_switch_per_hour_7d is None or per_hr_low < lowest_switch_per_hour_7d:
+                    lowest_switch_per_hour_7d = per_hr_low
+                    lowest_switch_per_hour_7d_date = dt.strftime('%a, %b %d')
+
+        streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
+        
+        # Determine border color based on current activity
+        if is_currently_wasting:
+            border_color = "#f44336"
+            gradient = "linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)"
+        elif streak_minutes >= streak_threshold:
+            border_color = "#4caf50"
+            gradient = "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)"
+        else:
+            border_color = "#ff9800"
+            gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
+        
+        # Determine message based on current state
+        if is_currently_wasting:
+            message = "⚠️ Get back to productive work! 💪"
+        elif streak_minutes >= streak_threshold:
+            message = "Keep going! You're doing great! 🚀"
+        else:
+            remaining = streak_threshold - int(streak_minutes)
+            message = f"Go back to work, till {streak_threshold} minutes! ({remaining} min remaining)"
+
+        # Recent Activity HTML
+        recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
+        recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
+
+        # Agent Coach (Productivity Goals) HTML
+        productivity_goals_html = self._build_productivity_goals_section()
+
+        # 2. Write the HTML layout structure
         with open('html/index.html', 'w', encoding='utf-8') as file:
             file.writelines(head)
             
-            # Determine current activity and set refresh rate accordingly
-            current_category = self._get_current_activity_category(log_list, date_list)
-            is_currently_wasting = current_category and is_wasted(current_category)
-            
-            # Refresh defaults (seconds). JS will only reload if there is new activity.
-            refresh_interval = 30 if is_currently_wasting else 60
-            latest_activity_ts = database.get_latest_activity_timestamp() or 0
+            # Refresh defaults and activity counts
             file.write(f'<meta name="refresh-interval" content="{refresh_interval}">\n')
             file.write(f'<meta name="activity-count" content="{current_activity_count}">\n')
             file.write(f'<meta name="activity-last-ts" content="{latest_activity_ts}">\n')
 
-            # Add smart bookmarks section at the top
-            bookmarks_html = self._generate_bookmarks_html()
+            # ----------------------------------------------------
+            # START OF DASHBOARD GRID
+            # ----------------------------------------------------
+            file.write('<div class="dashboard-grid">\n')
+            
+            # ----------------------------------------------------
+            # LEFT PANEL (Tables, summaries, and static charts)
+            # ----------------------------------------------------
+            file.write('<main class="left-panel">\n')
+
             if bookmarks_html:
                 file.write(bookmarks_html)
 
-            # Add stock prices at the top
-            stock_html = stock_prices.get_stock_html()
-            if stock_html:
-                file.write(stock_html)
+            # Warning flags
+            if flag_summary_html:
+                file.write('<hr/>')
+                file.write(flag_summary_html)
 
-            # Add Activity Summary section with expand/collapse
+            # Recent Activity
+            if recent_activity_html:
+                file.write('<hr/>')
+                file.write(recent_activity_html)
+
+            # Pie charts and timelines
+            file.write('<h2>Pie Charts and Activity Timelines <button id="toggle-charts-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
+            file.write('<div class="gallery" id="charts-gallery" style="width: 100%;">\n')
+
+            # Build maps for pie and timeline HTML files
+            os.makedirs('html/pies', exist_ok=True)
+            pie_html_list = sorted(os.listdir('html/pies'))
+            timeline_html_list = sorted(os.listdir('html/timelines'))
+
+            pie_map = {h.split('.')[0]: h for h in pie_html_list}
+            timeline_map = {h.split('.')[0]: h for h in timeline_html_list}
+
+            # Use timeline dates as the master list (most reliable)
+            all_dates = sorted(set(list(pie_map.keys()) + list(timeline_map.keys())))
+            recent_dates = list(reversed(all_dates))[:7]
+
+            for idx, date_str in enumerate(recent_dates):
+                pie_html = pie_map.get(date_str)
+                timeline_html = timeline_map.get(date_str)
+
+                chart_class = '' if idx < 3 else ' class="chart-extra-row" style="display:none;"'
+                img_row = f'<div{chart_class} style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
+                if pie_html:
+                    img_row += f'<iframe src="pies/{pie_html}" style="width: 30%; height: 450px; border: none;"></iframe>'
+                elif os.path.exists(f'figs/pie/{date_str}.png'):
+                    img_row += f'<img src="../figs/pie/{date_str}.png" style="width: 30%; max-width: 350px;" >'
+                if timeline_html:
+                    img_row += f'<iframe src="timelines/{timeline_html}" style="width: 68%; height: 500px; border: none;"></iframe>'
+                img_row += '</div></br>'
+                file.write(img_row)
+            file.write('</div>')
+
+            # Activity Summary table
             file.write('<h2>Activity Summary <button id="toggle-summary-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
             table_html = '<table style="width:100%">'
             
@@ -1148,6 +1383,7 @@ test:
             total_logs = len(log_list)
             for idx, log in enumerate(reversed(log_list)):
                 self.print_pi_chart(log)
+                self.create_interactive_pie(log)
                 self.create_interactive_timeline(log)
                 
                 u_cats_log, u_dur_log, date, df = self.analyze(log)
@@ -1165,17 +1401,21 @@ test:
                 if bg_style:
                     style_parts.append(bg_style)
                 style_attr = f' style="{" ".join(style_parts)}"' if style_parts else ''
-                row = f'<tr{row_class_attr}{style_attr}>'
-                row += '<td><b>{0:02}/{1:02}, {2}</b></td>'.format(date.month, date.day, week_days[date.weekday()][:3])
-                
-                # Categories to show ratio for - use centralized definition
-                ratio_cats = RATIO_DISPLAY_CATS
-                
                 # Calculate total_time from ALL non-idle categories in the log (not just all_u_cats)
                 total_time = 0
                 for cat in dur_map.keys():
                     if cat.lower() != 'idle':
                         total_time += dur_map[cat]
+                
+                t_hr, t_mn, _ = Sec2hms(total_time)
+                
+                row = f'<tr{row_class_attr}{style_attr}>'
+                row += '<td><b>{0:02}/{1:02}, {2}<br><span style="font-size: 0.85em; font-weight: normal;">({3:02}:{4:02}h)</span></b></td>'.format(
+                    date.month, date.day, week_days[date.weekday()][:3], t_hr, t_mn
+                )
+                
+                # Categories to show ratio for - use centralized definition
+                ratio_cats = RATIO_DISPLAY_CATS
                 
                 # Now render cells with ratios for specified categories
                 for cat in all_u_cats:
@@ -1207,463 +1447,62 @@ test:
             table_html += '</table>\n'
             file.write(table_html)
 
-            # Add warning flags after activity summary
-            flag_summary_html = self._build_warning_flag_summary()
-            if flag_summary_html:
+
+            if stock_html:
                 file.write('<hr/>')
-                file.write(flag_summary_html)
+                file.write(stock_html)
 
-            habit_section_html, habit_script = self._build_habit_calendar_section()
-            if habit_section_html:
-                file.write(habit_section_html)
-            if habit_script:
-                file.write(habit_script)
-            
-            # Add auto-scroll: Must Done on Sat/Sun, Productivity Streak on other days
-            file.write('''<script>
-window.addEventListener("load", function() {
-    var today = new Date().getDay(); // 0=Sunday, 6=Saturday
-    var targetSection;
-    if (today === 0 || today === 6) {
-        // Saturday or Sunday - scroll to Must Done
-        targetSection = document.getElementById("must-done-section");
-    } else {
-        // Weekday - scroll to Productivity Streak
-        targetSection = document.getElementById("productivity-streak");
-    }
-    if (targetSection) {
-        targetSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-});
-</script>
-''')
+            file.write('</main>\n')
 
-            # Add Must Done section before Productive Streak
-            must_done_html = self._build_must_done_section()
+            # ----------------------------------------------------
+            # RIGHT PANEL (Streaks, habits, goals, and lists)
+            # ----------------------------------------------------
+            file.write('<aside class="right-panel">\n')
+
+            # Must Done items (top priority)
             if must_done_html:
                 file.write(must_done_html)
 
-            # Add productivity streak section or waste ratio section
-            streak_minutes, streak_display = self._calculate_productivity_streak(log_list, date_list)
-            current_category = self._get_current_activity_category(log_list, date_list)
+            # Productivity Streak Box (Vertical Stack layout)
+            file.write(f'<div id="productivity-streak" class="productivity-streak" style="padding:20px; border:2px solid {border_color}; border-radius:12px; background:{gradient}; box-shadow:0 1px 3px rgba(0,0,0,0.05);">')
+            file.write('<div style="display: flex; flex-direction: column; gap: 20px;">')
             
-            # Use centralized category definitions
-            # Check if current activity is non-productive
-            is_currently_wasting = current_category and is_wasted(current_category)
-            
-            # Always calculate waste ratio for display
-            waste_percentage, waste_display, total_active_hours, wasted_hours, _ = self._calculate_waste_ratio(log_list, date_list)
-            
-            # Always show combined dashboard with streaks and waste ratio
-            # Calculate longest streaks
-            today_date_str = date_list[0].strftime('%Y-%m-%d') if date_list else None
-            longest_today_min, longest_today_display, longest_today_time = (0, "0 min", "") if not today_date_str else self._calculate_longest_streak_for_day(today_date_str)
-            longest_7days_min, longest_7days_display, longest_7days_date = self._calculate_longest_streak_recent_days(date_list, num_days=7)
-
-            # Context switching metrics
-            tz = pytz.timezone(TIMEZONE)
-            now_local = datetime.datetime.now(tz)
-
-            total_switches_today = 0
-            switches_last_hour = 0
-            switch_per_active_hour_last_hour = None
-            if today_date_str:
-                total_switches_today, _, _ = self._calculate_context_switching(today_date_str)
-                switches_last_hour, switch_per_active_hour_last_hour, _ = self._calculate_context_switching_window(
-                    today_date_str,
-                    now_local,
-                    window_seconds=3600,
-                )
-
-            lowest_switch_per_hour_today = self._calculate_lowest_context_switching_rate(today_date_str) if today_date_str else None
-
-            recent_switches = self._get_recent_context_switches(today_date_str, max_switches=5) if today_date_str else []
-
-            lowest_switch_per_hour_7d = None
-            lowest_switch_per_hour_7d_date = None
-            if date_list:
-                seen_days = []
-                for dt in date_list:
-                    if dt is None:
-                        continue
-
-                    # Skip rest days for the 7-day comparison.
-                    # Weekends and configured holidays behave differently and would distort this baseline.
-                    try:
-                        if dt.weekday() >= 5:
-                            continue
-                        if dt.strftime('%m-%d') in HOLIDAYS:
-                            continue
-                    except Exception:
-                        # If dt isn't a date-like object for some reason, fall back to including it.
-                        pass
-
-                    day_str = dt.strftime('%Y-%m-%d')
-                    if day_str in seen_days:
-                        continue
-                    seen_days.append(day_str)
-                    if len(seen_days) > 7:
-                        break
-
-                    per_hr_low = self._calculate_lowest_context_switching_rate(day_str)
-                    if per_hr_low is None:
-                        continue
-                    if lowest_switch_per_hour_7d is None or per_hr_low < lowest_switch_per_hour_7d:
-                        lowest_switch_per_hour_7d = per_hr_low
-                        lowest_switch_per_hour_7d_date = dt.strftime('%a, %b %d')
-            
-            # Get threshold from config
-            streak_threshold = self.config.getint('SETTINGS', 'productivity_streak_threshold', fallback=25)
-            
-            # Determine border color based on current activity
-            if is_currently_wasting:
-                border_color = "#f44336"
-                gradient = "linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)"
-            elif streak_minutes >= streak_threshold:
-                border_color = "#4caf50"
-                gradient = "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)"
-            else:
-                border_color = "#ff9800"
-                gradient = "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)"
-            
-            # Determine message based on current state
-            if is_currently_wasting:
-                message = "⚠️ Get back to productive work! 💪"
-            elif streak_minutes >= streak_threshold:
-                message = "Keep going! You're doing great! 🚀"
-            else:
-                remaining = streak_threshold - int(streak_minutes)
-                message = f"Go back to work, till {streak_threshold} minutes! ({remaining} min remaining)"
-            
-            file.write('<hr/>')
-            file.write(f'<div id="productivity-streak" class="productivity-streak" style="margin:20px 0; padding:15px; border:2px solid {border_color}; border-radius:8px; background:{gradient};">')
-            
-            # Four columns: Productive Streak, Longest Today, Longest 7 Days, Waste Ratio
-            file.write('<div style="display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap;">')
-            
-            # Productive Streak
-            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center;">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🔥 Productive Streak</h3>')
-            # Add a stable element id so other UI (e.g., Focus Timer popup) can stay consistent.
-            file.write(f'<p id="productive-streak-value" style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
+            # 1. Current Streak & Notes
+            file.write('<div style="padding: 10px; text-align: center;">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.15em;">🔥 Productive Streak</h3>')
+            file.write(f'<p id="productive-streak-value" style="font-size:2.2em; font-weight:bold; margin:5px 0; color:#1b5e20;">{streak_display}</p>')
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{message}</p>')
             
-            # Add note-taking section
-            file.write('<div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<textarea id="streak-note" placeholder="What are you working on?" style="width: 90%; padding: 8px; border: 2px solid #ccc; border-radius: 4px; font-family: inherit; resize: vertical; min-height: 60px; transition: all 0.2s ease;"></textarea>')
-            file.write('<div style="margin-top: 5px;"><button onclick="saveNote()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Save Note</button>')
+            # Note-taking inside the streak box
+            file.write('<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.08);">')
+            file.write('<textarea id="streak-note" placeholder="What are you working on?" style="width: 92%; padding: 8px; border: 2px solid #ccc; border-radius: 6px; font-family: inherit; resize: vertical; min-height: 60px; transition: all 0.2s ease;"></textarea>')
+            file.write('<div style="margin-top: 8px;"><button onclick="saveNote()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight:500;">Save Note</button>')
             file.write('<span id="note-status" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span></div>')
-            
+            file.write('</div>')
             file.write('</div>')
             
-            # JavaScript for saving notes
-            file.write('''
-<script>
-function saveNote() {
-    const noteArea = document.getElementById('streak-note');
-    const statusSpan = document.getElementById('note-status');
-    const saveBtn = document.querySelector('button[onclick="saveNote()"]');
-    // Track unsaved changes
-    window.__streakNoteUnsaved = window.__streakNoteUnsaved || false;
-    const note = noteArea.value.trim();
-    
-    if (!note) {
-        statusSpan.textContent = 'Please enter a note';
-        statusSpan.style.color = '#d32f2f';
-        return;
-    }
-    
-    statusSpan.textContent = 'Saving...';
-    statusSpan.style.color = '#666';
-    
-    fetch('http://127.0.0.1:8042/save_note', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({note: note})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            statusSpan.textContent = 'Saved!';
-            statusSpan.style.color = '#4CAF50';
-
-            // Capture text before clearing
-            const savedText = note;
-            noteArea.value = '';
-            // Mark as saved and set button to blue
-            window.__streakNoteUnsaved = false;
-            window.__refreshEnabled = true; // Re-enable page refresh after saving
-            if (saveBtn) {
-                saveBtn.style.background = '#1976D2'; // Blue
-                saveBtn.style.color = 'white';
-            }
-            // Reset textarea styling
-            noteArea.style.borderColor = '#ccc';
-            noteArea.style.boxShadow = 'none';
-
-            // Rebuild Recent Notes from server response
-            const recentContainer = document.getElementById('recent-notes');
-            if (recentContainer && data.recent_notes) {
-                // Clear existing notes
-                recentContainer.innerHTML = '';
-                
-                // Ensure container is visible
-                recentContainer.style.display = '';
-
-                // Add notes from server (most recent first)
-                data.recent_notes.forEach(note_item => {
-                    const timestamp = note_item.timestamp;
-                    const dt = new Date(timestamp * 1000); // Convert unix timestamp to ms
-                    const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
-                    const div = document.createElement('div');
-                    div.style.margin = '4px 0';
-                    div.style.color = '#555';
-                    div.innerHTML = `<span style="color: #888;">${timeStr}</span> - ${note_item.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
-                    recentContainer.appendChild(div);
-                });
-            }
-
-            // Also update Today's Notes if present
-            const todayContainer = document.getElementById('todays-notes');
-            if (todayContainer) {
-                const li = document.createElement('div');
-                li.style.margin = '4px 0';
-                li.textContent = savedText;
-                if (todayContainer.firstChild) {
-                    todayContainer.insertBefore(li, todayContainer.firstChild);
-                } else {
-                    todayContainer.appendChild(li);
-                }
-            }
-        } else {
-            statusSpan.textContent = 'Error: ' + (data.error || 'Unknown');
-            statusSpan.style.color = '#d32f2f';
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusSpan.textContent = 'Network Error';
-        statusSpan.style.color = '#d32f2f';
-    });
-}
-</script>
-            ''')
-
-            # Add autosave guards and button color changes
-            file.write('''
-<script>
-// JavaScript-based page refresh (replaces meta http-equiv="refresh")
-// This allows us to prevent refresh while user is typing notes
-window.__refreshEnabled = true;
-window.__refreshTimeoutId = null;
-window.__refreshLocks = window.__refreshLocks || {};
-
-window.__setRefreshLock = function(key, locked) {
-    if (!key) return;
-    if (locked) {
-        window.__refreshLocks[key] = true;
-    } else {
-        delete window.__refreshLocks[key];
-    }
-};
-
-window.__isRefreshAllowed = function() {
-    if (!window.__refreshEnabled) return false;
-    try {
-        return Object.keys(window.__refreshLocks || {}).length === 0;
-    } catch (e) {
-        return window.__refreshEnabled;
-    }
-};
-
-function scheduleRefresh() {
-    if (window.__refreshTimeoutId) {
-        clearTimeout(window.__refreshTimeoutId);
-    }
-    
-    const metaInterval = document.querySelector('meta[name="refresh-interval"]');
-    const metaMs = metaInterval ? parseInt(metaInterval.content) * 1000 : 60000;
-    const refreshInterval = Math.max(metaMs, 30000); // never poll faster than 30s
-
-    function getActivityStatusUrl() {
-        try {
-            if (window.location && window.location.protocol && window.location.protocol.indexOf('http') === 0) {
-                return window.location.origin + '/activity/status';
-            }
-        } catch (e) {}
-        return 'http://127.0.0.1:8042/activity/status';
-    }
-
-    function fetchWithTimeout(url, timeoutMs) {
-        if (!('AbortController' in window)) {
-            return fetch(url, { cache: 'no-store' });
-        }
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeoutMs);
-        return fetch(url, { cache: 'no-store', signal: controller.signal })
-            .finally(() => clearTimeout(id));
-    }
-
-    function shouldReload() {
-        const baseCountMeta = document.querySelector('meta[name="activity-count"]');
-        const baseCount = baseCountMeta ? parseInt(baseCountMeta.content) : NaN;
-        const baseTsMeta = document.querySelector('meta[name="activity-last-ts"]');
-        const baseTs = baseTsMeta ? parseFloat(baseTsMeta.content) : NaN;
-
-        return fetchWithTimeout(getActivityStatusUrl(), 2000)
-            .then(resp => resp.ok ? resp.json() : Promise.reject(new Error('Status ' + resp.status)))
-            .then(data => {
-                if (!data || data.status !== 'ok') return false;
-                const currentCount = parseInt(data.activity_count);
-                const currentTs = parseFloat(data.latest_activity_ts);
-                if (!isNaN(baseCount) && !isNaN(currentCount)) {
-                    return currentCount > baseCount;
-                }
-                if (!isNaN(baseTs) && !isNaN(currentTs)) {
-                    return currentTs > (baseTs + 0.0001);
-                }
-                return false;
-            })
-            .catch(() => false);
-    }
-
-    window.__refreshTimeoutId = setTimeout(() => {
-        const allowed = (typeof window.__isRefreshAllowed === 'function')
-            ? window.__isRefreshAllowed()
-            : window.__refreshEnabled;
-        if (!allowed) {
-            scheduleRefresh();
-            return;
-        }
-
-        shouldReload().then(needsReload => {
-            if (needsReload) {
-                sessionStorage.setItem('scrollPos', window.scrollY.toString());
-                location.reload();
-            } else {
-                // No new data: don't reload, just keep polling.
-                scheduleRefresh();
-            }
-        });
-    }, refreshInterval);
-}
-
-// Restore scroll position after page loads
-document.addEventListener('DOMContentLoaded', () => {
-    const savedPos = sessionStorage.getItem('scrollPos');
-    if (savedPos !== null) {
-        window.scrollTo(0, parseInt(savedPos));
-        sessionStorage.removeItem('scrollPos');
-    }
-    scheduleRefresh();
-});
-
-// Make Save button yellow when typing, and guard against losing unsaved text
-(() => {
-    const noteArea = document.getElementById('streak-note');
-    const saveBtn = document.querySelector('button[onclick="saveNote()"]');
-    const statusSpan = document.getElementById('note-status');
-    if (!noteArea || !saveBtn) return;
-    
-    const setButtonYellow = () => {
-        window.__streakNoteUnsaved = noteArea.value.trim().length > 0;
-        
-        // Disable refresh when there's unsaved text
-        window.__refreshEnabled = !window.__streakNoteUnsaved;
-        if (typeof window.__setRefreshLock === 'function') {
-            window.__setRefreshLock('streak_note', window.__streakNoteUnsaved);
-        }
-        
-        if (window.__streakNoteUnsaved) {
-            saveBtn.style.background = '#FBC02D'; // Yellow
-            saveBtn.style.color = '#000';
-            // Highlight the textarea
-            noteArea.style.borderColor = '#FBC02D';
-            noteArea.style.boxShadow = '0 0 8px rgba(251, 192, 45, 0.5)';
-            if (statusSpan && !statusSpan.textContent) {
-                statusSpan.textContent = 'Draft not saved';
-                statusSpan.style.color = '#8D6E63';
-            }
-        } else {
-            // Reset styling when empty
-            saveBtn.style.background = '#4CAF50';
-            saveBtn.style.color = 'white';
-            noteArea.style.borderColor = '#ccc';
-            noteArea.style.boxShadow = 'none';
-            if (statusSpan) {
-                statusSpan.textContent = '';
-            }
-        }
-    };
-
-    noteArea.addEventListener('input', setButtonYellow);
-    noteArea.addEventListener('change', setButtonYellow);
-    
-    // Add visual feedback on focus
-    noteArea.addEventListener('focus', function() {
-        if (noteArea.value.trim().length > 0) {
-            noteArea.style.borderColor = '#FBC02D';
-            noteArea.style.boxShadow = '0 0 8px rgba(251, 192, 45, 0.5)';
-        } else {
-            noteArea.style.borderColor = '#4CAF50';
-            noteArea.style.boxShadow = '0 0 8px rgba(76, 175, 80, 0.3)';
-        }
-    });
-    
-    // Reset on blur if no unsaved text
-    noteArea.addEventListener('blur', function() {
-        if (noteArea.value.trim().length === 0) {
-            noteArea.style.borderColor = '#ccc';
-            noteArea.style.boxShadow = 'none';
-        }
-    });
-
-    // Prevent page unload if there's unsaved text
-    window.addEventListener('beforeunload', function(e) {
-        const hasUnsaved = noteArea.value.trim().length > 0;
-        if (hasUnsaved) {
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        }
-    });
-})();
-</script>
-            ''')
-            
-            file.write('</div>')
-            
-            # Longest Today
-            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32;">🏆 Longest (Today / 7 Days)</h3>')
+            # 2. Longest focus
+            file.write('<div style="padding: 10px; text-align: center; border-top: 1px solid rgba(0,0,0,0.08);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#2e7d32; font-size:1.15em;">🏆 Longest (Today / 7 Days)</h3>')
             longest_7days_info = longest_7days_date if longest_7days_date else "Weekly record"
             file.write(
-                f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#1b5e20; white-space:nowrap;">'
+                f'<p style="font-size:2.2em; font-weight:bold; margin:5px 0; color:#1b5e20; white-space:nowrap;">'
                 f'{longest_today_display} / {longest_7days_display} '
-                f'<span style="font-size:0.60em; font-weight:normal; white-space:nowrap;">({longest_7days_info})</span>'
+                f'<span style="font-size:0.55em; font-weight:normal; white-space:nowrap; color:#4e7d32;">({longest_7days_info})</span>'
                 f'</p>'
             )
-            
-            # Get current time
-            tz = pytz.timezone(TIMEZONE)
             current_time = datetime.datetime.now(tz).strftime('%I:%M %p')
-            
             if longest_today_time:
                 longest_today_info = f"Started at {longest_today_time} · Now {current_time}"
             else:
                 longest_today_info = f"Best focus session · Now {current_time}"
             file.write(f'<p style="margin:5px 0; color:#33691e; font-size:0.95em;">{longest_today_info}</p>')
             
-            # Display recent notes under Longest Today
             recent_notes = database.get_recent_streak_notes(5)
             if recent_notes:
-                file.write('<div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); text-align:left;">')
-                file.write('<h4 style="margin: 0 0 8px 0; font-size: 0.9em; color: #555;">Recent Notes:</h4>')
+                file.write('<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.08); text-align:left;">')
+                file.write('<h4 style="margin: 0 0 8px 0; font-size: 0.9em; color: #555; font-weight:600;">Recent Notes:</h4>')
                 file.write('<div id="recent-notes" style="font-size: 0.85em;">')
-                tz = pytz.timezone(TIMEZONE)
                 for note_text, timestamp in recent_notes:
                     dt = datetime.datetime.fromtimestamp(timestamp, tz)
                     time_str = dt.strftime('%I:%M %p')
@@ -1673,10 +1512,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 file.write('<div id="recent-notes" style="display:none;"></div>')
             file.write('</div>')
 
-            # Context Switching (today)
-            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#455a64;">Context Switches</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#263238;">{switches_last_hour:d}</p>')
+            # 3. Context switches
+            file.write('<div style="padding: 10px; text-align: center; border-top: 1px solid rgba(0,0,0,0.08);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#455a64; font-size:1.15em;">Context Switches</h3>')
+            file.write(f'<p style="font-size:2.2em; font-weight:bold; margin:5px 0; color:#263238;">{switches_last_hour:d}</p>')
             if switch_per_active_hour_last_hour is None:
                 file.write('<p style="margin:5px 0; color:#455a64; font-size:0.95em;">No active time in last hour</p>')
             else:
@@ -1692,24 +1531,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     parts.append(f'Lowest 7 days: {lowest_switch_per_hour_7d:.1f}/hr{date_label}')
                 joined = ' · '.join(parts)
                 file.write(
-                    f'<p style="margin:8px 0 0 0; font-size:0.98em;">'
-                    f'<span style="display:inline-block; padding:4px 10px; border-radius:999px; '
-                    f'background:rgba(69, 90, 100, 0.10); border:1px solid rgba(69, 90, 100, 0.22); '
+                    f'<p style="margin:10px 0 0 0; font-size:0.98em;">'
+                    f'<span style="display:inline-block; padding:4px 12px; border-radius:999px; '
+                    f'background:rgba(69, 90, 100, 0.08); border:1px solid rgba(69, 90, 100, 0.15); '
                     f'color:#263238; font-weight:600; letter-spacing:0.1px;">{joined}</span>'
                     f'</p>'
                 )
 
-            # Recent switch transitions
             if recent_switches:
-                file.write('<div style="margin-top:10px; text-align:left; font-size:0.88em; line-height:1.6;">')
-                file.write('<div style="font-weight:600; color:#455a64; margin-bottom:4px;">Recent switches:</div>')
+                file.write('<div style="margin-top:12px; text-align:left; font-size:0.88em; line-height:1.6; border-top:1px solid rgba(0,0,0,0.08); padding-top:10px;">')
+                file.write('<div style="font-weight:600; color:#455a64; margin-bottom:6px;">Recent switches:</div>')
                 for sw in recent_switches:
                     from_cat = html.escape(sw['from_cat'])
                     to_cat = html.escape(sw['to_cat'])
                     sw_time = sw.get('time')
                     time_str = sw_time.strftime('%I:%M %p') if sw_time else ''
                     if sw['is_focus_to_distraction']:
-                        # Highlight focus → distraction in red
                         file.write(
                             f'<div style="color:#c62828; font-weight:600;">'
                             f'<span style="color:#888; font-weight:400;">{time_str}</span> '
@@ -1724,41 +1561,59 @@ document.addEventListener('DOMContentLoaded', () => {
                             f'</div>'
                         )
                 file.write('</div>')
-
             file.write('</div>')
-            
-            # Waste Ratio
-            file.write('<div style="flex: 1; min-width: 200px; padding: 10px; text-align: center; border-left: 1px solid rgba(0,0,0,0.1);">')
-            file.write('<h3 style="margin:0 0 10px 0; color:#c62828;">📊 Waste Ratio</h3>')
-            file.write(f'<p style="font-size:2em; font-weight:bold; margin:5px 0; color:#d32f2f;">{waste_display}</p>')
+
+            # 4. Waste ratio list
+            file.write('<div style="padding: 10px; text-align: center; border-top: 1px solid rgba(0,0,0,0.08);">')
+            file.write('<h3 style="margin:0 0 10px 0; color:#c62828; font-size:1.15em;">📊 Waste Ratio</h3>')
+            file.write(f'<p style="font-size:2.2em; font-weight:bold; margin:5px 0; color:#d32f2f;">{waste_display}</p>')
             if total_active_hours > 0:
                 file.write(f'<p style="margin:5px 0; color:#c62828; font-size:0.95em;">Wasted: {wasted_hours:.1f}h / {total_active_hours:.1f}h</p>')
                 
-                # Calculate needed focus hours to reach target waste ratio
                 target_waste_ratio = self.config.getfloat('SETTINGS', 'target_waste_ratio', fallback=0.20)
                 current_waste_ratio = waste_percentage / 100.0
                 
                 if current_waste_ratio > target_waste_ratio and wasted_hours > 0:
-                    # Calculate: wasted_hours / (total_active_hours + X) = target_waste_ratio
-                    # X = (wasted_hours / target_waste_ratio) - total_active_hours
                     needed_hours = (wasted_hours / target_waste_ratio) - total_active_hours
                     if needed_hours > 0:
                         target_display = f"{int(target_waste_ratio * 100)}%"
                         file.write(f'<p style="margin:10px 0 5px 0; color:#ff5722; font-size:0.95em; font-weight:bold;">💪 Need {needed_hours:.1f}h more focus to reach {target_display}</p>')
             else:
                 file.write(f'<p style="margin:5px 0; color:#666; font-size:0.95em;">No active time yet</p>')
-            file.write('<ul style="text-align:left; display:inline-block; margin:10px 0 0 0; padding-left:20px; font-size:1.1em; color:#d32f2f;">')
+            file.write('<ul style="text-align:left; display:inline-block; margin:10px 0 0 0; padding-left:20px; font-size:1.0em; color:#d32f2f; line-height:1.4;">')
             file.write('<li>No shopping/gaming in the morning</li>')
             file.write('<li>No facebook too</li>')
-            file.write('<li></li>')
             file.write('<li>PUT CELL PHONE AWAY</li>')
             file.write('</ul>')
             file.write('</div>')
-            
-            file.write('</div>')
-            file.write('</div>')
 
-            # Work focus timer popup (uses the same threshold as the productivity streak)
+            file.write('</div>')  # end nested flex column
+            file.write('</div>')  # end productivity-streak
+
+            # Agent Coach Dashboard (Productivity goals / briefings)
+            if productivity_goals_html:
+                file.write(productivity_goals_html)
+
+            # Daily Habits Calendar
+            if habit_section_html:
+                file.write(habit_section_html)
+            if habit_script:
+                file.write(habit_script)
+
+
+
+            file.write('</aside>\n')
+            
+            # ----------------------------------------------------
+            # END OF DASHBOARD GRID
+            # ----------------------------------------------------
+            file.write('</div>\n')
+
+            # ----------------------------------------------------
+            # POPUPS AND FLOOR FLOATING ITEMS
+            # ----------------------------------------------------
+            
+            # Work focus timer popup (floating absolute box)
             work_focus_cats = {
                 'work',
                 'coding',
@@ -1776,7 +1631,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 )
             )
 
-            # Streak minutes is a float; clamp to >= 0 for display/timer.
             try:
                 streak_minutes_value = float(streak_minutes)
             except Exception:
@@ -1994,42 +1848,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 f'</script>\n'
             )
 
-            recent_activity_minutes = self.config.getint('SETTINGS', 'recent_activity_minutes', fallback=10)
-            recent_activity_html = self._build_recent_activity_section(log_list, date_list, minutes=recent_activity_minutes)
-            if recent_activity_html:
-                file.write('<hr/>')
-                file.write(recent_activity_html)
 
-            # Add Agent Coach Dashboard (after Recent Activity for easier reading)
-            productivity_goals_html = self._build_productivity_goals_section()
-            if productivity_goals_html:
-                file.write(productivity_goals_html)
 
-            # Add section header with expand/collapse button for charts
-            file.write('<h2>Pie Charts and Activity Timelines <button id="toggle-charts-btn" style="margin-left:10px; padding:5px 15px; cursor:pointer; border-radius:5px; border:1px solid #4c6ef5; background:#4c6ef5; color:white;">Show All</button></h2>\n')
-            file.write('<div class="gallery" id="charts-gallery" style="width: 100%;">\n')
-            img_list = sorted(os.listdir('figs/pie'))
-            timeline_html_list = sorted(os.listdir('html/timelines'))
-
-            # Create a dictionary for timeline images for quick lookup
-            timeline_map = {html.split('.')[0]: html for html in timeline_html_list}
-
-            # Show only the most recent 7 days
-            recent_img_list = list(reversed(img_list))[:7]
-
-            for idx, img in enumerate(recent_img_list):
-                date_str = img.split('.')[0]
-                timeline_html = timeline_map.get(date_str)
-
-                # Add class to hide older charts - show only the latest 3 days
-                chart_class = '' if idx < 3 else ' class="chart-extra-row" style="display:none;"'
-                img_row = f'<div{chart_class} style="display: flex; justify-content: center; align-items: center; margin-bottom: 20px; width: 100%;">'
-                img_row += f'<img src="../figs/pie/{img}" style="width: 48%; max-width: 500px;" >'
-                if timeline_html:
-                    img_row += f'<iframe src="timelines/{timeline_html}" style="width: 48%; height: 500px; border: none;"></iframe>'
-                img_row += '</div></br>'
-                file.write(img_row)
-            file.write('</div>')
 
             # Add JavaScript for expand/collapse functionality
             file.write('''
