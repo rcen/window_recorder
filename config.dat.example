@@ -1,0 +1,146 @@
+[STOCKS]
+# Comma-separated Yahoo Finance tickers shown in the dashboard's Stock Market Watch widget
+tickers = SPY, QQQ, AAPL
+
+[HABITS]
+# Daily habits tracked in the interactive 2-week dashboard calendar (name = hex color)
+25m deep work = #4d96ff
+10m movement = #ff6b6b
+daily reading = #4caf50
+shutdown + tomorrow plan = #f6c344
+
+[FOCUS_SLOTS]
+# Optional deep-work windows (HH:MM-HH:MM). Wasted-time alerts trigger faster (1 min)
+# and include a "Close Page" button during active focus slots.
+morning_focus = 09:00-12:00
+afternoon_focus = 13:30-16:30
+
+[VIBE_REPOS]
+# Personal / side-project repositories tracked separately from primary work coding
+repos = window_recorder, side_project
+paths =
+
+[SETTINGS]
+# Your local IANA timezone (used for logical day boundaries and charts)
+timezone = America/New_York
+# Activities before this hour (0-23) count toward the previous logical day (default: 3 AM)
+day_boundary_hour = 3
+
+# Idle detection thresholds (seconds)
+idle_time = 180
+idle_time_extended = 900
+idle_extended_categories = learning
+
+# Productivity & dashboard settings
+recent_activity_minutes = 10
+productivity_streak_threshold = 25
+max_idle_break_minutes = 5
+target_waste_ratio = 0.15
+
+# Warning UI & cooldowns (Windows: 'dialog' or 'toast')
+notification_cooldown_seconds = 200
+warning_ui = dialog
+warning_dialog_topmost = true
+warning_dialog_autoclose_seconds_default = 300
+warning_dialog_autoclose_seconds_wasted = 30
+warning_dialog_autoclose_seconds_idle = 30
+warning_dialog_autoclose_seconds_productivity = 30
+warning_dialog_autoclose_seconds_system = 30
+wasted_warning_snooze_seconds = 3600
+productivity_warning_snooze_seconds = 3600
+system_warning_snooze_seconds = 3600
+
+# Optional paths for inspirational_image.html generator (broser_start.py)
+image_folder = figs/pictures
+md_folder = notes
+
+[CATEGORIES]
+# Rules are evaluated TOP-TO-BOTTOM against both window title and browser URL (first match wins).
+# Prefix a key with 'regex__' for case-insensitive regular expression matching.
+
+# 1. Personal / vibe coding repositories (matched before generic editor rules)
+window_recorder: vibe
+side_project: vibe
+
+# 2. Job search & career sites
+linkedin.com: job_search
+indeed.com: job_search
+glassdoor.com: job_search
+levels.fyi: job_search
+
+# 3. Educational YouTube patterns (matched BEFORE generic 'youtube: wasted')
+regex__\btutorial\b.*youtube: learning
+regex__\bpython\b.*youtube: learning
+regex__\bprogramming\b.*youtube: learning
+regex__\bcoding\b.*youtube: learning
+regex__\blecture\b.*youtube: learning
+regex__\bcourse\b.*youtube: learning
+regex__\bsystem design\b.*youtube: learning
+
+# 4. Learning & documentation
+docs.python.org: learning
+stackoverflow: work
+stackexchange: work
+arxiv.org: learning
+kaggle.com: learning
+huggingface.co: learning
+wikipedia.org: learning
+jupyter: learning
+colab: learning
+
+# 5. Core development & work tools
+visual studio code: work
+pycharm: work
+github: work
+gitlab: work
+127.0.0.1: work
+localhost: work
+powershell: work
+command prompt: work
+terminal: work
+docker: work
+
+# 6. Communication
+microsoft teams: mail
+slack: mail
+outlook: mail
+thunderbird: mail
+gmail: mail
+
+# 7. Distractions & entertainment (keep broad browser fallbacks near the bottom)
+youtube.com/shorts: wasted
+youtube: wasted
+reddit.com: wasted
+twitter.com: wasted
+x.com: wasted
+facebook.com: wasted
+netflix.com: wasted
+steam: gaming
+
+[COLORS]
+# Hex color per category for timelines and pie charts.
+# Append ', no_show_summary' to hide utility categories from the Activity Summary table.
+work: #4954EA
+coding: #4954EA
+programming: #4954EA
+vibe: #9B59B6
+learning: #F2F767
+job_search: #FF69B4
+mail: #72ACF1
+family: #83F7F0
+church: #00A000
+gaming: #F68D15
+wasted: #F64438
+wasted time: #F64438
+idle: #837F7F
+think: #83F7F0, no_show_summary
+no_cat: #387FF7, no_show_summary
+not categorized: #2E8B57, no_show_summary
+
+[MUST_DONE]
+# Weekly recurring tasks: task_id: weekday, HH:MM, Description
+weekly_review: friday, 17:00, Complete weekly review and plan next week.
+
+[PROJECTS]
+# Optional project keys for timesheet / project tracking
+demo_project:

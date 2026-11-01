@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Smart Bookmarks - Manage All</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: "Verdana", sans-serif; max-width: 1100px; margin: 0 auto; padding: 20px; color: #333; background: #fafbfe; }
+        h1 { color: #2563eb; margin-bottom: 5px; }
+        h1 a { font-size: 14px; color: #888; text-decoration: none; margin-left: 12px; font-weight: normal; }
+        h1 a:hover { color: #4c6ef5; }
+
+        /* Toolbar */
+        .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+        .toolbar input[type=text] { padding: 7px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; flex: 1; min-width: 200px; }
+        .toolbar button, .btn { background: #4c6ef5; color: white; border: none; padding: 7px 16px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+        .toolbar button:hover, .btn:hover { background: #3b5bdb; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background: #ccc; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-sm { padding: 3px 10px; font-size: 12px; }
+
+        /* Tags */
+        .tag-filter-bar { margin-bottom: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .tag-pill { display: inline-block; background: #e8ecf4; color: #555; padding: 3px 10px; border-radius: 12px; font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+        .tag-pill:hover { background: #d0d8ec; }
+        .tag-pill.active { background: #4c6ef5; color: white; border-color: #3b5bdb; }
+        .tag-badge { background: #4c6ef5; color: white; padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-right: 3px; }
+
+        /* Checkbox filters */
+        label.filter-label { font-size: 13px; color: #666; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+
+        /* Bookmark cards */
+        .bm-list { display: flex; flex-direction: column; gap: 10px; }
+        .bm-card {
+            background: white; border: 1px solid #dde3ee; border-radius: 8px; padding: 14px 16px;
+            display: grid; grid-template-columns: 1fr auto; gap: 8px; transition: box-shadow 0.15s;
+        }
+        .bm-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+        .bm-card.archived { opacity: 0.55; }
+        .bm-title { font-size: 15px; font-weight: 600; }
+        .bm-title a { color: #2563eb; text-decoration: none; }
+        .bm-title a:hover { text-decoration: underline; }
+        .bm-url { font-size: 11px; color: #999; word-break: break-all; margin-top: 2px; }
+        .bm-summary { font-size: 13px; color: #555; margin-top: 4px; }
+        .bm-notes { font-size: 13px; color: #666; margin-top: 4px; font-style: italic; }
+        .bm-meta { font-size: 12px; color: #888; margin-top: 6px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .bm-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; justify-content: center; }
+        .bm-screenshot { max-height: 80px; max-width: 120px; border-radius: 4px; border: 1px solid #e0e0e0; margin-top: 6px; }
+        .bm-date { white-space: nowrap; }
+
+        /* Editable fields */
+        .editable { cursor: pointer; border-bottom: 1px dashed #bbb; }
+        .editable:hover { background: #f5f7ff; }
+        .edit-input { width: 100%; padding: 4px 8px; border: 1px solid #4c6ef5; border-radius: 4px; font-size: 13px; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 50px 20px; color: #888; }
+        .empty-state p { font-size: 15px; }
+
+        /* Add form */
+        .add-form { background: white; border: 1px solid #b8c9e8; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none; }
+        .add-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .add-form .form-row.full { grid-template-columns: 1fr; }
+        .add-form label { font-size: 12px; color: #555; font-weight: 600; display: block; margin-bottom: 3px; }
+        .add-form input, .add-form textarea { width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; }
+        .add-form textarea { height: 50px; resize: vertical; }
+        .add-form .form-actions { text-align: right; margin-top: 8px; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+        .pagination button { background: #e8ecf4; color: #333; border: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; }
+        .pagination button.active { background: #4c6ef5; color: white; }
+        .pagination button:hover { background: #d0d8ec; }
+
+        /* Stats bar */
+        .stats-bar { font-size: 13px; color: #888; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔖 Smart Bookmarks <a href="index.html">&larr; Back to Dashboard</a></h1>
+    <p style="color: #666; font-size: 14px; margin-top: 0;">
+        Manage all your saved bookmarks. Search, filter by tags, edit notes, archive or delete.
+        <a href="bookmarklet.html" target="_blank" style="color: #4c6ef5;">Install browser bookmarklet</a> for one-click saving.
+    </p>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Search by title, URL, notes, or summary..." oninput="debouncedSearch()">
+        <button onclick="toggleAddForm()">+ Add Bookmark</button>
+        <label class="filter-label">
+            <input type="checkbox" id="show-archived" onchange="loadBookmarks()"> Show archived
+        </label>
+    </div>
+
+    <!-- Tag filter bar (populated dynamically) -->
+    <div class="tag-filter-bar" id="tag-bar">
+        <span style="font-size:12px; color:#888; margin-right:4px;">Filter by tag:</span>
+    </div>
+
+    <!-- Add form -->
+    <div class="add-form" id="add-form">
+        <h3 style="margin-top:0; font-size:16px; color:#333;">Add New Bookmark</h3>
+        <div class="form-row">
+            <div>
+                <label>URL *</label>
+                <input type="text" id="add-url" placeholder="https://example.com/interesting-article">
+            </div>
+            <div>
+                <label>Title</label>
+                <input type="text" id="add-title" placeholder="Page title">
+            </div>
+        </div>
+        <div class="form-row full">
+            <div>
+                <label>Summary</label>
+                <input type="text" id="add-summary" placeholder="Brief description of the page content">
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label>Notes (why save this?)</label>
+                <textarea id="add-notes" placeholder="Your personal notes on why you want to revisit this page"></textarea>
+            </div>
+            <div>
+                <label>Tags (comma-separated)</label>
+                <input type="text" id="add-tags" placeholder="ai, tutorial, reference, python">
+                <div style="font-size:11px; color:#999; margin-top:3px;">Separate multiple tags with commas</div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
+            <button class="btn" onclick="addBookmark()" style="margin-left:6px;">Save Bookmark</button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- Bookmark list -->
+    <div class="bm-list" id="bm-list">
+        <div class="empty-state" id="loading-state">Loading bookmarks...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+    const API = 'http://127.0.0.1:8042';  // Habit server
+    let allBookmarks = [];
+    let allTags = [];
+    let activeTag = null;
+    let currentPage = 1;
+    const PAGE_SIZE = 20;
+    let searchTimeout = null;
+
+    function debouncedSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { currentPage = 1; renderBookmarks(); }, 250);
+    }
+
+    async function loadBookmarks() {
+        const showArchived = document.getElementById('show-archived').checked;
+        try {
+            const resp = await fetch(`${API}/bookmarks/list?limit=500&include_archived=${showArchived ? '1' : '0'}`);
+            const data = await resp.json();
+            allBookmarks = data.bookmarks || [];
+            collectTags();
+            renderTagBar();
+            renderBookmarks();
+        } catch (err) {
+            document.getElementById('bm-list').innerHTML = '<div class="empty-state"><p>Could not load bookmarks. Make sure the server is running.</p></div>';
+        }
+    }
+
+    function collectTags() {
+        const tagSet = {};
+        allBookmarks.forEach(bm => {
+            (bm.tags || '').split(',').forEach(t => {
+                t = t.trim().toLowerCase();
+                if (t) tagSet[t] = (tagSet[t] || 0) + 1;
+            });
+        });
+        allTags = Object.entries(tagSet).sort((a, b) => b[1] - a[1]);
+    }
+
+    function renderTagBar() {
+        const bar = document.getElementById('tag-bar');
+        let html = '<span style="font-size:12px; color:#888; margin-right:4px;">Filter by tag:</span>';
+        if (activeTag) {
+            html += `<span class="tag-pill active" onclick="clearTagFilter()">✕ ${activeTag}</span>`;
+        }
+        allTags.forEach(([tag, count]) => {
+            const cls = tag === activeTag ? 'tag-pill active' : 'tag-pill';
+            html += `<span class="${cls}" onclick="filterByTag('${tag}')">${tag} <sup>${count}</sup></span>`;
+        });
+        if (allTags.length === 0) {
+            html += '<span style="font-size:12px; color:#bbb;">No tags yet</span>';
+        }
+        bar.innerHTML = html;
+    }
+
+    function filterByTag(tag) {
+        activeTag = (activeTag === tag) ? null : tag;
+        currentPage = 1;
+        renderTagBar();
+        renderBookmarks();
+    }
+
+    function clearTagFilter() {
+        activeTag = null;
+        currentPage = 1;
+        renderTagBar();
+        renderBookmarks();
+    }
+
+    function getFilteredBookmarks() {
+        const query = (document.getElementById('search-input').value || '').trim().toLowerCase();
+        return allBookmarks.filter(bm => {
+            // Tag filter
+            if (activeTag) {
+                const tags = (bm.tags || '').toLowerCase().split(',').map(t => t.trim());
+                if (!tags.includes(activeTag)) return false;
+            }
+            // Text search
+            if (query) {
+                const haystack = [bm.title, bm.url, bm.summary, bm.notes, bm.tags].join(' ').toLowerCase();
+                // Support multiple search terms (all must match)
+                const terms = query.split(/\s+/);
+                return terms.every(term => haystack.includes(term));
+            }
+            return true;
+        });
+    }
+
+    function renderBookmarks() {
+        const filtered = getFilteredBookmarks();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const page = filtered.slice(start, start + PAGE_SIZE);
+
+        // Stats
+        const statsBar = document.getElementById('stats-bar');
+        const total = allBookmarks.length;
+        const archivedCount = allBookmarks.filter(b => b.archived).length;
+        statsBar.textContent = `${total} total bookmarks · ${total - archivedCount} active · ${archivedCount} archived` +
+            (filtered.length !== total ? ` · ${filtered.length} matching filter` : '');
+
+        const list = document.getElementById('bm-list');
+        if (page.length === 0) {
+            list.innerHTML = '<div class="empty-state"><p>No bookmarks found.</p>' +
+                '<p>Click <b>+ Add Bookmark</b> to save one, or install the <a href="bookmarklet.html" style="color:#4c6ef5;">browser bookmarklet</a>.</p></div>';
+            document.getElementById('pagination').innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        page.forEach(bm => {
+            const isArchived = bm.archived ? ' archived' : '';
+            const title = escHtml(bm.title || bm.url || '');
+            const url = escHtml(bm.url || '');
+            const summary = escHtml(bm.summary || '');
+            const notes = escHtml(bm.notes || '');
+            const tags = bm.tags || '';
+            const time = formatTime(bm.timestamp);
+            const screenshotHtml = bm.screenshot_path
+                ? `<img src="http://127.0.0.1:8042/bookmark_screenshots/${escHtml(bm.screenshot_path)}" class="bm-screenshot" title="Screenshot">`
+                : '';
+
+            let tagBadges = '';
+            tags.split(',').forEach(t => {
+                t = t.trim();
+                if (t) tagBadges += `<span class="tag-badge" style="cursor:pointer;" onclick="filterByTag('${t.toLowerCase()}')">${escHtml(t)}</span>`;
+            });
+
+            const archiveBtn = bm.archived
+                ? `<button class="btn btn-sm btn-secondary" onclick="unarchiveBookmark(${bm.id})">Unarchive</button>`
+                : `<button class="btn btn-sm btn-secondary" onclick="archiveBookmark(${bm.id})">Archive</button>`;
+
+            // Escape values for inline edit form
+            const rawUrl = (bm.url || '').replace(/"/g, '&quot;');
+            const rawTitle = (bm.title || '').replace(/"/g, '&quot;');
+            const rawSummary = (bm.summary || '').replace(/"/g, '&quot;');
+            const rawNotes = (bm.notes || '').replace(/"/g, '&quot;');
+            const rawTags = (bm.tags || '').replace(/"/g, '&quot;');
+
+            html += `
+            <div class="bm-card${isArchived}" data-id="${bm.id}">
+                <div>
+                    <div class="bm-title"><a href="${url}" target="_blank">${title}</a></div>
+                    <div class="bm-url">${url}</div>
+                    ${summary ? `<div class="bm-summary">${summary}</div>` : ''}
+                    <div class="bm-notes">
+                        <span class="editable" onclick="editField(${bm.id}, 'notes', this)" title="Click to edit notes">
+                            ${notes || '<span style="color:#bbb;">Click to add notes...</span>'}
+                        </span>
+                    </div>
+                    <div class="bm-meta">
+                        <span class="bm-date">📅 ${time}</span>
+                        <span>${tagBadges}</span>
+                        <span class="editable" onclick="editField(${bm.id}, 'tags', this, '${escAttr(tags)}')" title="Click to edit tags" style="font-size:12px; color:#4c6ef5; cursor:pointer;">
+                            ✏️ edit tags
+                        </span>
+                    </div>
+                    ${screenshotHtml}
+                </div>
+                <div class="bm-actions">
+                    <button class="btn btn-sm" onclick="openEditModal(${bm.id}, '${rawUrl}', '${rawTitle}', '${rawSummary}', '${rawNotes}', '${rawTags}')">✏️ Edit</button>
+                    ${archiveBtn}
+                    <button class="btn btn-sm btn-danger" onclick="deleteBookmark(${bm.id})">Delete</button>
+                </div>
+            </div>`;
+        });
+        list.innerHTML = html;
+
+        // Pagination
+        let pagHtml = '';
+        if (totalPages > 1) {
+            if (currentPage > 1) pagHtml += `<button onclick="goPage(${currentPage - 1})">&laquo; Prev</button>`;
+            for (let p = 1; p <= totalPages; p++) {
+                pagHtml += `<button class="${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+            }
+            if (currentPage < totalPages) pagHtml += `<button onclick="goPage(${currentPage + 1})">Next &raquo;</button>`;
+        }
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+
+    function goPage(p) { currentPage = p; renderBookmarks(); window.scrollTo(0, 0); }
+
+    // --- CRUD operations ---
+    async function addBookmark() {
+        const url = document.getElementById('add-url').value.trim();
+        if (!url) { alert('URL is required'); return; }
+        const payload = {
+            url,
+            title: document.getElementById('add-title').value.trim() || null,
+            summary: document.getElementById('add-summary').value.trim() || null,
+            notes: document.getElementById('add-notes').value.trim() || null,
+            tags: document.getElementById('add-tags').value.trim() || null,
+            timestamp: Date.now() / 1000,
+        };
+        try {
+            const resp = await fetch(`${API}/bookmarks/add`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                // Clear form
+                ['add-url','add-title','add-summary','add-notes','add-tags'].forEach(id => document.getElementById(id).value = '');
+                toggleAddForm();
+                loadBookmarks();
+            } else {
+                alert('Failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function archiveBookmark(id) {
+        if (!confirm('Archive this bookmark?')) return;
+        await updateBookmark(id, { archived: 1 });
+    }
+
+    async function unarchiveBookmark(id) {
+        await updateBookmark(id, { archived: 0 });
+    }
+
+    async function deleteBookmark(id) {
+        if (!confirm('Permanently delete this bookmark?')) return;
+        try {
+            const resp = await fetch(`${API}/bookmarks/delete`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id }) });
+            const data = await resp.json();
+            if (data.status === 'success') loadBookmarks();
+            else alert('Failed: ' + (data.error || 'Unknown'));
+        } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    async function updateBookmark(id, fields) {
+        try {
+            const resp = await fetch(`${API}/bookmarks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, ...fields }) });
+            const data = await resp.json();
+            if (data.status === 'success') loadBookmarks();
+            else alert('Failed: ' + (data.error || 'Unknown'));
+        } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    // --- Full Edit Modal ---
+    function openEditModal(id, url, title, summary, notes, tags) {
+        // Decode HTML entities in values
+        const dec = (s) => { const d = document.createElement('div'); d.innerHTML = s || ''; return d.textContent; };
+        url = dec(url); title = dec(title); summary = dec(summary); notes = dec(notes); tags = dec(tags);
+
+        const old = document.getElementById('bm-edit-modal');
+        if (old) old.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'bm-edit-modal';
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; display:flex; align-items:center; justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white; border-radius:10px; padding:20px; width:560px; max-width:95vw; box-shadow:0 8px 30px rgba(0,0,0,0.25); font-family:Verdana,sans-serif;">
+                <h3 style="margin:0 0 14px 0; color:#2563eb; font-size:16px;">✏️ Edit Bookmark #${id}</h3>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">URL</label>
+                    <input id="modal-edit-url" type="text" value="${url.replace(/"/g, '&quot;')}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Title</label>
+                    <input id="modal-edit-title" type="text" value="${title.replace(/"/g, '&quot;')}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Summary <span style="color:#999; font-weight:normal;">(AI-generated if empty on add)</span></label>
+                    <input id="modal-edit-summary" type="text" value="${summary.replace(/"/g, '&quot;')}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Notes</label>
+                    <input id="modal-edit-notes" type="text" value="${notes.replace(/"/g, '&quot;')}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:12px; color:#555; font-weight:600; display:block; margin-bottom:3px;">Tags <span style="color:#999; font-weight:normal;">(comma-separated)</span></label>
+                    <input id="modal-edit-tags" type="text" value="${tags.replace(/"/g, '&quot;')}" style="width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box;">
+                </div>
+                <div style="text-align:right;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('bm-edit-modal').remove()">Cancel</button>
+                    <button class="btn" onclick="saveEditModal(${id})" style="margin-left:6px;">Save Changes</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    }
+
+    async function saveEditModal(id) {
+        const payload = {
+            id: id,
+            url: document.getElementById('modal-edit-url').value.trim(),
+            title: document.getElementById('modal-edit-title').value.trim(),
+            summary: document.getElementById('modal-edit-summary').value.trim(),
+            notes: document.getElementById('modal-edit-notes').value.trim(),
+            tags: document.getElementById('modal-edit-tags').value.trim(),
+        };
+        try {
+            const resp = await fetch(`${API}/bookmarks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                document.getElementById('bm-edit-modal').remove();
+                loadBookmarks();
+            } else {
+                alert('Failed: ' + (data.error || 'Unknown'));
+            }
+        } catch (err) { alert('Error: ' + err.message); }
+    }
+
+    // --- Inline editing ---
+    function editField(id, field, el, currentVal) {
+        const current = currentVal !== undefined ? currentVal : el.innerText.trim();
+        if (current === 'Click to add notes...') {
+            // placeholder text
+        }
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'edit-input';
+        input.value = (current === 'Click to add notes...') ? '' : current;
+        input.placeholder = field === 'tags' ? 'ai, tutorial, reference' : 'Your notes...';
+        el.innerHTML = '';
+        el.appendChild(input);
+        input.focus();
+        input.select();
+
+        function save() {
+            const newVal = input.value.trim();
+            updateBookmark(id, { [field]: newVal });
+        }
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+            if (e.key === 'Escape') { loadBookmarks(); }
+        });
+    }
+
+    // --- Helpers ---
+    function toggleAddForm() {
+        const form = document.getElementById('add-form');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+
+    function escAttr(s) {
+        return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function formatTime(ts) {
+        if (!ts) return '';
+        const d = new Date(ts * 1000);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${months[d.getMonth()]} ${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+    }
+
+    // --- Init ---
+    loadBookmarks();
+    </script>
+</body>
+</html>

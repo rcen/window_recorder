@@ -1,0 +1,20 @@
+matplotlib
+pyautogui
+numpy
+pandas
+configparser
+python-xlib
+pynput
+markdown2
+psutil
+pywin32 ; sys_platform == 'win32'
+requests
+pytz
+plotly
+python-dotenv
+fastapi
+alembic
+browser-history
+pywinauto
+SQLAlchemy 
+win10toast ; sys_platform == 'win32'

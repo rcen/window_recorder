@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Smart Bookmark - Setup</title>
+    <style>
+        body { font-family: "Verdana", sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #333; }
+        h1 { color: #2563eb; }
+        .bookmarklet-link {
+            display: inline-block;
+            background: #4c6ef5;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            cursor: grab;
+            box-shadow: 0 2px 8px rgba(76,110,245,0.3);
+            margin: 15px 0;
+        }
+        .bookmarklet-link:hover { background: #3b5bdb; }
+        .instructions { background: #f0f4ff; border: 1px solid #b8c9e8; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        .instructions ol { padding-left: 20px; }
+        .instructions li { margin-bottom: 8px; }
+        code { background: #e8ecf4; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+        .test-section { margin-top: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .test-section h3 { margin-top: 0; }
+        textarea { width: 100%; height: 60px; font-family: monospace; font-size: 12px; }
+        button { background: #4c6ef5; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin: 5px 0; }
+        button:hover { background: #3b5bdb; }
+        .result { margin-top: 10px; padding: 10px; background: #f6f6f6; border-radius: 5px; font-size: 13px; min-height: 40px; }
+    </style>
+</head>
+<body>
+    <h1>🔖 Smart Bookmark Setup</h1>
+    <p>Save interesting pages with title, summary, your notes, and an optional screenshot — all sent to your Window Recorder dashboard.</p>
+
+    <div class="instructions">
+        <h3>How to install:</h3>
+        <ol>
+            <li><strong>Drag</strong> the button below to your browser's <strong>Bookmarks Bar</strong>.</li>
+            <li>Visit any interesting page you want to save for later.</li>
+            <li>Click <strong>"📌 Save for Later"</strong> in your bookmarks bar.</li>
+            <li>A popup will appear — add optional notes, tags, and click <strong>Save</strong>.</li>
+            <li>The bookmark appears in your activity dashboard above the Stock Market Watch section.</li>
+        </ol>
+    </div>
+
+    <!-- The bookmarklet link -->
+    <p>👇 <strong>Drag this button</strong> to your bookmarks bar:</p>
+    <a class="bookmarklet-link" href="javascript:void(function(){var d=document,w=window,s=w.getSelection?w.getSelection().toString():'',m='',md=d.querySelector('meta[name=description]');if(md)m=md.getAttribute('content')||'';var og=d.querySelector('meta[property=&quot;og:description&quot;]');if(!m&&og)m=og.getAttribute('content')||'';var p=w.prompt('Notes (why save this?):\n\nSelected text: '+(s||'(none)')+'\nSummary: '+(m||'(auto-detected)'),'');if(p===null)return;var t=w.prompt('Tags (comma-separated, e.g. ai,tutorial,reference):','');if(t===null)t='';var x=new XMLHttpRequest();x.open('POST','http://127.0.0.1:8042/bookmarks/add',true);x.setRequestHeader('Content-Type','application/json');x.onload=function(){if(x.status===200){var r=JSON.parse(x.responseText);alert('✅ Bookmark saved!'+(r.bookmark?'\nID: '+r.bookmark.id:''))}else{alert('❌ Failed: '+x.responseText)}};x.onerror=function(){alert('❌ Could not connect to Window Recorder server at localhost:8042.\nMake sure habit_server.py is running.')};var b={url:d.location.href,title:d.title,summary:m||(s?s.substring(0,300):''),notes:p,tags:t,timestamp:Date.now()/1000};x.send(JSON.stringify(b))}());">📌 Save for Later</a>
+
+    <div class="test-section">
+        <h3>Test it here</h3>
+        <p>Or manually add a bookmark using the form below:</p>
+        <label>URL:</label>
+        <input type="text" id="test-url" style="width:100%; margin-bottom:8px;" placeholder="https://example.com/article">
+        <label>Title:</label>
+        <input type="text" id="test-title" style="width:100%; margin-bottom:8px;" placeholder="Page Title">
+        <label>Summary:</label>
+        <input type="text" id="test-summary" style="width:100%; margin-bottom:8px;" placeholder="Brief description of the page">
+        <label>Notes:</label>
+        <textarea id="test-notes" placeholder="Why do you want to revisit this?"></textarea>
+        <label>Tags:</label>
+        <input type="text" id="test-tags" style="width:100%; margin-bottom:8px;" placeholder="ai, tutorial, reference">
+        <button onclick="testAddBookmark()">Save Bookmark</button>
+        <div id="test-result" class="result">Result will appear here...</div>
+    </div>
+
+    <script>
+    function testAddBookmark() {
+        const url = document.getElementById('test-url').value.trim();
+        if (!url) { alert('URL is required'); return; }
+        const payload = {
+            url: url,
+            title: document.getElementById('test-title').value.trim() || null,
+            summary: document.getElementById('test-summary').value.trim() || null,
+            notes: document.getElementById('test-notes').value.trim() || null,
+            tags: document.getElementById('test-tags').value.trim() || null,
+            timestamp: Date.now() / 1000
+        };
+        fetch('http://127.0.0.1:8042/bookmarks/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('test-result').innerText = JSON.stringify(data, null, 2);
+        })
+        .catch(err => {
+            document.getElementById('test-result').innerText = 'Error: ' + err.message + '\n\nMake sure habit_server.py is running on port 8042.';
+        });
+    }
+    </script>
+</body>
+</html>
