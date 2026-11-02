@@ -233,11 +233,9 @@ Make sure `habit_server.py` is running (started automatically by `run.bat` or `s
 
 ### Preview
 
-*(Early dashboard layout and summary chart snapshots — current builds render interactive Plotly timelines, habit calendars, and coaching cards dynamically at `http://127.0.0.1:8042/`.)*
+Interactive Plotly pie charts, per-day activity timelines, productive streak tracker with `#tag` notes, and context-switch metrics rendered at `http://127.0.0.1:8042/`:
 
-![Dashboard Preview](images/html_preview.PNG)
-
-![Summary Pie Chart Example](images/example_pie_chart.png)
+![Dashboard Preview](images/dashboard_preview.png)
 
 ---
 
